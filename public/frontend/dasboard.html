@@ -68,11 +68,11 @@
             </div>
         </div>
     </aside>
-     <header>
+    <header>
         <div class="cabecera">
-             <div class="titulo">
-            
-        </div>
+            <div class="titulo">
+
+            </div>
             <div class="busqueda">
                 <i class="fi fi-rr-search"></i>
                 <input type="text" placeholder="Buscar..." class="search-input">
@@ -89,7 +89,7 @@
             <!-- SECCIÓN 1: DASHBOARD GENERAL -->
             <section id="dashboard" class="section active">
                 <h3>¡Bienvenido a AgroTrace 🌱</h3>
-            <p>Resumen general del sistema</p>
+                <p>Resumen general del sistema</p>
                 <!-- Filtro de Productor -->
                 <div class="filter-card">
                     <div class="form-group">
@@ -222,7 +222,11 @@
                         </button>
                     </div>
                     <div class="metrics-grid" id="ap_cards">
-                        <div class="metric-card"><div class="metric-content"><p class="metric-label">Cargando...</p></div></div>
+                        <div class="metric-card">
+                            <div class="metric-content">
+                                <p class="metric-label">Cargando...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -253,7 +257,9 @@
                         </button>
                     </div>
                     <div class="chart-card">
-                        <div class="chart-header"><h3><span><i class="fi fi-rr-arrow-trend-up"></i></span> Evolución de Producción</h3></div>
+                        <div class="chart-header">
+                            <h3><span><i class="fi fi-rr-arrow-trend-up"></i></span> Evolución de Producción</h3>
+                        </div>
                         <canvas id="ah_chart"></canvas>
                     </div>
                     <div class="table-card">
@@ -262,8 +268,22 @@
                             <span id="ah_count" class="badge badge-info">0 registros</span>
                         </div>
                         <div class="table-container">
-                            <table><thead><tr><th>Fecha</th><th>Cantidad</th><th>Unidad</th><th>Lote</th><th>Estado</th></tr></thead>
-                            <tbody id="ah_tbody"><tr><td colspan="5" class="empty-state">Consulta para ver datos</td></tr></tbody></table>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Cantidad</th>
+                                        <th>Unidad</th>
+                                        <th>Lote</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ah_tbody">
+                                    <tr>
+                                        <td colspan="5" class="empty-state">Consulta para ver datos</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -285,10 +305,16 @@
                         </button>
                     </div>
                     <div class="metrics-grid" id="at_cards">
-                        <div class="metric-card"><div class="metric-content"><p class="metric-label">Cargando...</p></div></div>
+                        <div class="metric-card">
+                            <div class="metric-content">
+                                <p class="metric-label">Cargando...</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="chart-card">
-                        <div class="chart-header"><h3>Comparativa de Promedios (3 meses vs anteriores)</h3></div>
+                        <div class="chart-header">
+                            <h3>Comparativa de Promedios (3 meses vs anteriores)</h3>
+                        </div>
                         <canvas id="at_chart"></canvas>
                     </div>
                 </div>
@@ -310,7 +336,9 @@
                     </div>
                     <div class="grid-2">
                         <div class="chart-card">
-                            <div class="chart-header"><h3> Ranking Visual</h3></div>
+                            <div class="chart-header">
+                                <h3> Ranking Visual</h3>
+                            </div>
                             <canvas id="ar_chart"></canvas>
                         </div>
                         <div class="table-card">
@@ -319,8 +347,21 @@
                                 <span id="ar_tipo_label" class="badge badge-info">Total producido</span>
                             </div>
                             <div class="table-container">
-                                <table><thead><tr><th>Pos</th><th>Productor</th><th>Valor</th><th>Medalla</th></tr></thead>
-                                <tbody id="ar_tbody"><tr><td colspan="4" class="empty-state">Cargando ranking...</td></tr></tbody></table>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Pos</th>
+                                            <th>Productor</th>
+                                            <th>Valor</th>
+                                            <th>Medalla</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ar_tbody">
+                                        <tr>
+                                            <td colspan="4" class="empty-state">Cargando ranking...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -347,7 +388,9 @@
                     <div id="apl_alert"></div>
                     <div class="planificacion-result" id="apl_cards"></div>
                     <div class="chart-card">
-                        <div class="chart-header"><h3> Análisis de Capacidad</h3></div>
+                        <div class="chart-header">
+                            <h3> Análisis de Capacidad</h3>
+                        </div>
                         <canvas id="apl_chart"></canvas>
                     </div>
                 </div>
