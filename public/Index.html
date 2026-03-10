@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroTrace - Dashboard de Análisis</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link rel="stylesheet"
+        href="https://cdn-uicons.flaticon.com/uicons-regular-straight/css/uicons-regular-straight.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-thin-straight/css/uicons-thin-straight.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+    <!-- Header -->
+    <aside class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="./frontend/img/logo (1).png" alt="AgroTrace Logo" class="logo-img">
+                    <button class="menu-toggle">
+                        <i class="fi fi-rr-menu-burger"></i>
+                    </button>
+                </div>
+
+                <nav class="nav">
+                    <span class="Menu-text">PRINCIPAL</span>
+                    <button class="nav-btn active" data-section="dashboard">
+                        <i class="fi fi-rr-home"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button class="nav-btn" data-section="analisis">
+                        <i class="fi fi-rr-chart-pie"></i>
+                        <span>Análisis</span>
+                    </button>
+                    <span class="Menu-text">GESTIÓN</span>
+                    <button class="nav-btn" data-section="compras">
+                        <i class="fi fi-rr-shopping-cart"></i>
+                        <span>Compras</span>
+                    </button>
+                    <button class="nav-btn" data-section="ventas">
+                        <i class="fi fi-rr-stats"></i>
+                        <span>Ventas</span>
+                    </button>
+                    <button class="nav-btn" data-section="productores">
+                        <i class="fi fi-rr-trophy"></i>
+                        <span>Productores</span>
+                    </button>
+                    <button class="nav-btn" data-section="productos">
+                        <i class="fi fi-rr-box"></i>
+                        <span>Productos</span>
+                    </button>
+                    <span class="Menu-text">SISTEMA</span>
+                    <button class="nav-btn" data-section="historial">
+                        <i class="fi fi-rr-clock"></i>
+                        <span>Historial</span>
+                    </button>
+                    <button class="nav-btn" data-section="usuarios">
+                        <i class="fi fi-rr-user"></i>
+                        <span>Usuarios</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </aside>
+     <header>
+        <div class="cabecera">
+             <div class="titulo">
+            
+        </div>
+            <div class="busqueda">
+                <i class="fi fi-rr-search"></i>
+                <input type="text" placeholder="Buscar..." class="search-input">
+            </div>
+            <div class="perfil">
+                <img src="./frontend/img/logo (1).png" alt="Perfil" class="perfil-img">
+            </div>
+        </div>
+    </header>
+    <!-- SECCIÓN DE CONTENIDO PRINCIPAL -->
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- SECCIÓN 1: DASHBOARD GENERAL -->
+            <section id="dashboard" class="section active">
+                <h3>¡Bienvenido a AgroTrace 🌱</h3>
+            <p>Resumen general del sistema</p>
+                <!-- Filtro de Productor -->
+                <div class="filter-card">
+                    <div class="form-group">
+                        <label for="dashboard_productor">Seleccionar Productor:</label>
+                        <select id="dashboard_productor" class="input-field">
+                            <option value="2">Productor 2</option>
+                            <option value="3">Productor 3</option>
+                            <option value="4">Productor 4</option>
+                        </select>
+                    </div>
+                    <button onclick="cargarDashboard()" class="btn btn-primary">
+                        <span><i class="fi fi-sr-refresh"></i></span> Actualizar
+                    </button>
+                </div>
+
+                <!-- Slider de Métricas -->
+                <div class="slider-wrapper">
+                    <button class="slider-arrow slider-prev" onclick="sliderMove(-1)">&#8249;</button>
+
+                    <div class="slider-track-outer">
+                        <div class="slider-track" id="sliderTrack">
+
+                            <!-- SLIDE 1: Proyección -->
+                            <div class="slide-card" style="--sg1:#1b5e20;--sg2:#43a047;">
+                                <div class="slide-bg-pattern"></div>
+                                <div class="slide-emoji"></div>
+                                <div class="slide-body">
+                                    <p class="slide-label">Proyección Próxima Entrega</p>
+                                    <h3 class="slide-value" id="metric_proyeccion">0 kg</h3>
+                                    <span class="slide-badge" id="badge_proyeccion">Calculando...</span>
+                                </div>
+                                <div class="slide-deco">01</div>
+                            </div>
+
+                            <!-- SLIDE 2: Tendencia -->
+                            <div class="slide-card" style="--sg1:#0d47a1;--sg2:#1976d2;">
+                                <div class="slide-bg-pattern"></div>
+                                <div class="slide-emoji">📈</div>
+                                <div class="slide-body">
+                                    <p class="slide-label">Tendencia de Producción</p>
+                                    <h3 class="slide-value" id="metric_tendencia">--</h3>
+                                    <span class="slide-badge" id="badge_tendencia">Analizando...</span>
+                                </div>
+                                <div class="slide-deco">02</div>
+                            </div>
+
+                            <!-- SLIDE 3: Valor -->
+                            <div class="slide-card" style="--sg1:#e65100;--sg2:#f57c00;">
+                                <div class="slide-bg-pattern"></div>
+                                <div class="slide-emoji">💰</div>
+                                <div class="slide-body">
+                                    <p class="slide-label">Valor Proyectado</p>
+                                    <h3 class="slide-value" id="metric_valor">$0</h3>
+                                    <span class="slide-badge">Precio: $2000/kg</span>
+                                </div>
+                                <div class="slide-deco">03</div>
+                            </div>
+
+                            <!-- SLIDE 4: Registros -->
+                            <div class="slide-card" style="--sg1:#4a148c;--sg2:#7b1fa2;">
+                                <div class="slide-bg-pattern"></div>
+                                <div class="slide-emoji">🎯</div>
+                                <div class="slide-body">
+                                    <p class="slide-label">Registros Analizados</p>
+                                    <h3 class="slide-value" id="metric_registros">0</h3>
+                                    <span class="slide-badge">Últimos 5</span>
+                                </div>
+                                <div class="slide-deco">04</div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <button class="slider-arrow slider-next" onclick="sliderMove(1)">&#8250;</button>
+
+                    <!-- Dots -->
+                    <div class="slider-dots" id="sliderDots">
+                        <span class="sdot active" onclick="sliderGoTo(0)"></span>
+                        <span class="sdot" onclick="sliderGoTo(1)"></span>
+                        <span class="sdot" onclick="sliderGoTo(2)"></span>
+                        <span class="sdot" onclick="sliderGoTo(3)"></span>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Tendencia -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3> Comparación de Tendencia (3 meses)</h3>
+                    </div>
+                    <canvas id="chart_tendencia"></canvas>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: ANÁLISIS (con sub-pestañas) -->
+            <section id="analisis" class="section">
+
+                <!-- Sub-tabs de Análisis -->
+                <div class="analisis-tabs-bar">
+                    <button class="analisis-tab active" onclick="switchAnalisisTab('proyeccion', this)">
+                        <i class="fi fi-rr-chart-line-up"></i> Proyección
+                    </button>
+                    <button class="analisis-tab" onclick="switchAnalisisTab('historial-analisis', this)">
+                        <i class="fi fi-rr-calendar"></i> Historial
+                    </button>
+                    <button class="analisis-tab" onclick="switchAnalisisTab('tendencia-analisis', this)">
+                        <i class="fi fi-rr-stats"></i> Tendencia
+                    </button>
+                    <button class="analisis-tab" onclick="switchAnalisisTab('ranking-analisis', this)">
+                        <i class="fi fi-rr-trophy"></i> Ranking
+                    </button>
+                    <button class="analisis-tab" onclick="switchAnalisisTab('planificacion-analisis', this)">
+                        <i class="fi fi-rr-route"></i> Planificación
+                    </button>
+                </div>
+
+                <!-- ── SUB-PANEL: PROYECCIÓN ── -->
+                <div id="panel-proyeccion" class="analisis-panel active">
+                    <div class="filter-card">
+                        <div class="form-group">
+                            <label>Productor:</label>
+                            <select id="ap_productor" class="input-field">
+                                <option value="1">Productor 1</option>
+                                <option value="2">Productor 2</option>
+                                <option value="3">Productor 3</option>
+                                <option value="4">Productor 4</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="analisis_loadProyeccion()">
+                            <i class="fi fi-rr-refresh"></i> Consultar
+                        </button>
+                    </div>
+                    <div class="metrics-grid" id="ap_cards">
+                        <div class="metric-card"><div class="metric-content"><p class="metric-label">Cargando...</p></div></div>
+                    </div>
+                </div>
+
+                <!-- ── SUB-PANEL: HISTORIAL ── -->
+                <div id="panel-historial-analisis" class="analisis-panel">
+                    <div class="filter-card">
+                        <div class="filter-grid">
+                            <div class="form-group">
+                                <label>Productor:</label>
+                                <select id="ah_productor" class="input-field">
+                                    <option value="1">Productor 1</option>
+                                    <option value="2">Productor 2</option>
+                                    <option value="3">Productor 3</option>
+                                    <option value="4">Productor 4</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha inicio:</label>
+                                <input type="date" id="ah_inicio" class="input-field" value="2026-01-01">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha fin:</label>
+                                <input type="date" id="ah_fin" class="input-field" value="2026-03-07">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="analisis_loadHistorial()">
+                            <i class="fi fi-rr-search"></i> Consultar
+                        </button>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header"><h3><span><i class="fi fi-rr-arrow-trend-up"></i></span> Evolución de Producción</h3></div>
+                        <canvas id="ah_chart"></canvas>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3>Registros Detallados</h3>
+                            <span id="ah_count" class="badge badge-info">0 registros</span>
+                        </div>
+                        <div class="table-container">
+                            <table><thead><tr><th>Fecha</th><th>Cantidad</th><th>Unidad</th><th>Lote</th><th>Estado</th></tr></thead>
+                            <tbody id="ah_tbody"><tr><td colspan="5" class="empty-state">Consulta para ver datos</td></tr></tbody></table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── SUB-PANEL: TENDENCIA ── -->
+                <div id="panel-tendencia-analisis" class="analisis-panel">
+                    <div class="filter-card">
+                        <div class="form-group">
+                            <label>Productor:</label>
+                            <select id="at_productor" class="input-field">
+                                <option value="1">Productor 1</option>
+                                <option value="2">Productor 2</option>
+                                <option value="3">Productor 3</option>
+                                <option value="4">Productor 4</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="analisis_loadTendencia()">
+                            <i class="fi fi-rr-refresh"></i> Consultar
+                        </button>
+                    </div>
+                    <div class="metrics-grid" id="at_cards">
+                        <div class="metric-card"><div class="metric-content"><p class="metric-label">Cargando...</p></div></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header"><h3>Comparativa de Promedios (3 meses vs anteriores)</h3></div>
+                        <canvas id="at_chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- ── SUB-PANEL: RANKING ── -->
+                <div id="panel-ranking-analisis" class="analisis-panel">
+                    <div class="filter-card">
+                        <div class="form-group">
+                            <label>Tipo de ranking:</label>
+                            <select id="ar_tipo" class="input-field">
+                                <option value="total">Total producido</option>
+                                <option value="promedio">Promedio por entrega</option>
+                                <option value="frecuencia">Frecuencia de entregas</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="analisis_loadRanking()">
+                            <i class="fi fi-rr-refresh"></i> Generar Ranking
+                        </button>
+                    </div>
+                    <div class="grid-2">
+                        <div class="chart-card">
+                            <div class="chart-header"><h3> Ranking Visual</h3></div>
+                            <canvas id="ar_chart"></canvas>
+                        </div>
+                        <div class="table-card">
+                            <div class="table-header">
+                                <h3>Clasificación</h3>
+                                <span id="ar_tipo_label" class="badge badge-info">Total producido</span>
+                            </div>
+                            <div class="table-container">
+                                <table><thead><tr><th>Pos</th><th>Productor</th><th>Valor</th><th>Medalla</th></tr></thead>
+                                <tbody id="ar_tbody"><tr><td colspan="4" class="empty-state">Cargando ranking...</td></tr></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── SUB-PANEL: PLANIFICACIÓN ── -->
+                <div id="panel-planificacion-analisis" class="analisis-panel">
+                    <div class="filter-card">
+                        <div class="filter-grid">
+                            <div class="form-group">
+                                <label>Precio por kg ($):</label>
+                                <input type="number" id="apl_precio" class="input-field" value="2000" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label>Capacidad máx. (kg):</label>
+                                <input type="number" id="apl_capacidad" class="input-field" value="5000" min="1">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="analisis_loadPlanificacion()">
+                            <i class="fi fi-rr-truck-side"></i> Calcular Ruta
+                        </button>
+                    </div>
+                    <!---->
+                    <div id="apl_alert"></div>
+                    <div class="planificacion-result" id="apl_cards"></div>
+                    <div class="chart-card">
+                        <div class="chart-header"><h3> Análisis de Capacidad</h3></div>
+                        <canvas id="apl_chart"></canvas>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- SECCIÓN 2: HISTORIAL -->
+            <section id="historial" class="section">
+                <div class="section-header">
+                    <h2><span><i class="fi fi-rr-list"></i></span>Historial de Producción</h2>
+                    <p class="subtitle">Consulta registros históricos por fechas</p>
+                </div>
+
+                <div class="filter-card">
+                    <div class="filter-grid">
+                        <div class="form-group">
+                            <label for="historial_productor">Productor:</label>
+                            <select id="historial_productor" class="input-field">
+                                <option value="2">Productor 2</option>
+                                <option value="3">Productor 3</option>
+                                <option value="4">Productor 4</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="historial_inicio">Fecha Inicio:</label>
+                            <input type="date" id="historial_inicio" class="input-field" value="2026-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="historial_fin">Fecha Fin:</label>
+                            <input type="date" id="historial_fin" class="input-field" value="2026-03-01">
+                        </div>
+                    </div>
+                    <button onclick="cargarHistorial()" class="btn btn-primary">
+                        <span><i class="fi fi-br-search"></i></span> Consultar
+                    </button>
+                </div>
+
+                <!-- Gráfico de Línea -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Evolución de Producción</h3>
+                    </div>
+                    <canvas id="chart_historial"></canvas>
+                </div>
+
+                <!-- Tabla de Datos -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>Registros Detallados</h3>
+                        <span id="historial_count" class="badge badge-info">0 registros</span>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabla_historial">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Cantidad</th>
+                                    <th>Unidad</th>
+                                    <th>Lote</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla_historial_body">
+                                <tr>
+                                    <td colspan="5" class="empty-state">No hay datos para mostrar</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 3: PROYECCIONES -->
+            <section id="proyecciones" class="section">
+                <div class="section-header">
+                    <h2>🔮 Proyecciones y Tendencias</h2>
+                    <p class="subtitle">Análisis predictivo basado en datos históricos</p>
+                </div>
+
+                <div class="filter-card">
+                    <div class="form-group">
+                        <label for="proyeccion_productor">Productor:</label>
+                        <select id="proyeccion_productor" class="input-field">
+                            <option value="2">Productor 2</option>
+                            <option value="3">Productor 3</option>
+                            <option value="4">Productor 4</option>
+                        </select>
+                    </div>
+                    <button onclick="cargarProyeccion()" class="btn btn-primary">
+                        <span>🔮</span> Calcular Proyección
+                    </button>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Proyección -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>📊 Proyección vs Promedio Histórico</h3>
+                        </div>
+                        <canvas id="chart_proyeccion"></canvas>
+                        <div id="proyeccion_info" class="chart-info"></div>
+                    </div>
+
+                    <!-- Tendencia -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>📈 Análisis de Tendencia</h3>
+                        </div>
+                        <canvas id="chart_tendencia_detalle"></canvas>
+                        <div id="tendencia_info" class="chart-info"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 4: RANKING -->
+            <section id="ranking" class="section">
+                <div class="section-header">
+                    <h2>🏆 Ranking de Productores</h2>
+                    <p class="subtitle">Clasificación por desempeño</p>
+                </div>
+
+                <div class="filter-card">
+                    <div class="form-group">
+                        <label for="ranking_tipo">Tipo de Ranking:</label>
+                        <select id="ranking_tipo" class="input-field">
+                            <option value="total"> Total Producido</option>
+                            <option value="promedio">Promedio por Entrega</option>
+                            <option value="frecuencia"> Frecuencia de Entregas</option>
+                        </select>
+                    </div>
+                    <button onclick="cargarRanking()" class="btn btn-primary">
+                        <span><i class="fi fi-rr-search"></i> </span> Generar Ranking
+                    </button>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Gráfico de Barras -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fi fi-bs-ranking-stars"></i>Ranking Visual</h3>
+                        </div>
+                        <canvas id="chart_ranking"></canvas>
+                    </div>
+
+                    <!-- Tabla de Ranking -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fi fi-rr-list"></i> Clasificación</h3>
+                        </div>
+                        <div class="table-container">
+                            <table id="tabla_ranking">
+                                <thead>
+                                    <tr>
+                                        <th>Pos</th>
+                                        <th>Productor</th>
+                                        <th>Valor</th>
+                                        <th>Medalla</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla_ranking_body">
+                                    <tr>
+                                        <td colspan="4" class="empty-state">Cargando ranking...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 5: PLANIFICACIÓN -->
+            <section id="planificacion" class="section">
+                <div class="section-header">
+                    <h2> Planificación de Ruta</h2>
+                    <p class="subtitle">Optimización logística y proyección de costos</p>
+                </div>
+
+                <div class="filter-card">
+                    <div class="filter-grid">
+                        <div class="form-group">
+                            <label for="planificacion_precio">Precio por kg ($):</label>
+                            <input type="number" id="planificacion_precio" class="input-field" value="2000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="planificacion_capacidad">Capacidad (kg):</label>
+                            <input type="number" id="planificacion_capacidad" class="input-field" value="1500" min="0">
+                        </div>
+                    </div>
+                    <button onclick="cargarPlanificacion()" class="btn btn-primary">
+                        <span>🚚</span> Calcular Ruta
+                    </button>
+                </div>
+
+                <!-- Resultado de Planificación -->
+                <div class="planificacion-result" id="planificacion_result">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+
+                <!-- Gráfico de Capacidad -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Análisis de Capacidad</h3>
+                    </div>
+                    <canvas id="chart_capacidad"></canvas>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 AgroTrace - Sistema de Análisis de Producción</p>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Cargando datos...</p>
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
