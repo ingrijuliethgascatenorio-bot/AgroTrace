@@ -1,9 +1,16 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AnalisisModule } from './analisis/analisis.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { ProductorModule } from './modules/productor/productor.module';
+import { HistorialModule } from './modules/Historial/historial.module';
+import { VentasModule } from './modules/ventas/ventas.module';
+import { ComprasModule } from './modules/compras/compras.module';
+import { ProductosModule } from './modules/productos/producto.modulo';
 
 @Module({
   imports: [
@@ -29,6 +36,12 @@ import { AnalisisModule } from './analisis/analisis.module';
     }),
 
     AnalisisModule,
+    AuthModule,
+    ProductorModule,
+    ComprasModule,
+    VentasModule,
+    HistorialModule,
+    ProductosModule,
   ],
 })
 export class AppModule {}

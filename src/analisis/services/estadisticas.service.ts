@@ -15,9 +15,10 @@ export class EstadisticasService {
   ) {}
 
   /**
-   * 1️ Historial por productor y rango de fechas
+   * 1️ Historial — id_productor es opcional
+   *    Si no viene, retorna todos los registros (útil para vista general)
    */
-  async obtenerHistorial(idProductor: number, inicio?: string, fin?: string) {
+  async obtenerHistorial(idProductor?: number, inicio?: string, fin?: string) {
     let query = this.produccionRepository
       .createQueryBuilder('p')
       .select([
@@ -26,8 +27,12 @@ export class EstadisticasService {
         'p.unidad AS unidad',
         'p.lote AS lote',
         'p.estado AS estado',
-      ])
-      .where('p.id_productor = :idProductor', { idProductor });
+      ]);
+
+    // Filtrar por productor solo si viene un id válido
+    if (idProductor !== undefined && !isNaN(idProductor)) {
+      query = query.where('p.id_productor = :idProductor', { idProductor });
+    }
 
     if (inicio) {
       query = query.andWhere('p.fecha_produccion >= :inicio', { inicio });
@@ -37,65 +42,64 @@ export class EstadisticasService {
       query = query.andWhere('p.fecha_produccion <= :fin', { fin });
     }
 
-    const resultados = await query
-      .orderBy('p.fecha_produccion', 'ASC')
-      .getRawMany();
-
-    return resultados;
+    return await query.orderBy('p.fecha_produccion', 'ASC').getRawMany();
   }
 
   /**
-   * 3️ Tendencia de producción (últimos 3 meses vs 3 anteriores)
+   * 3️ Tendencia — id_productor es opcional
+   *    Si no viene, calcula la tendencia global de todos los productores
    */
-  async obtenerTendencia(idProductor: number) {
-    // Calcular fecha hace 3 meses
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const fechaActual = new Date();
+  async obtenerTendencia(idProductor?: number) {
     const fechaTresMeses = new Date();
     fechaTresMeses.setMonth(fechaTresMeses.getMonth() - 3);
+
+    const fechaSeisMeses = new Date();
+    fechaSeisMeses.setMonth(fechaSeisMeses.getMonth() - 6);
+
+    const tresMesesStr = fechaTresMeses.toISOString().split('T')[0];
+    const seisMesesStr = fechaSeisMeses.toISOString().split('T')[0];
+
+    const filtroProductor =
+      idProductor !== undefined && !isNaN(idProductor)
+        ? 'p.id_productor = :idProductor'
+        : '1=1'; // sin filtro
+
+    const params =
+      idProductor !== undefined && !isNaN(idProductor) ? { idProductor } : {};
 
     // Promedio últimos 3 meses
     const promedioActual = await this.produccionRepository
       .createQueryBuilder('p')
       .select('AVG(p.cantidad)', 'promedio')
-      .where('p.id_productor = :idProductor', { idProductor })
+      .where(filtroProductor, params)
       .andWhere('p.fecha_produccion >= :fechaTresMeses', {
-        fechaTresMeses: fechaTresMeses.toISOString().split('T')[0],
+        fechaTresMeses: tresMesesStr,
       })
       .getRawOne();
-
-    // Calcular fecha hace 6 meses
-    const fechaSeisMeses = new Date();
-    fechaSeisMeses.setMonth(fechaSeisMeses.getMonth() - 6);
 
     // Promedio de hace 3 a 6 meses
     const promedioAnterior = await this.produccionRepository
       .createQueryBuilder('p')
       .select('AVG(p.cantidad)', 'promedio')
-      .where('p.id_productor = :idProductor', { idProductor })
+      .where(filtroProductor, params)
       .andWhere('p.fecha_produccion >= :fechaSeisMeses', {
-        fechaSeisMeses: fechaSeisMeses.toISOString().split('T')[0],
+        fechaSeisMeses: seisMesesStr,
       })
       .andWhere('p.fecha_produccion < :fechaTresMeses', {
-        fechaTresMeses: fechaTresMeses.toISOString().split('T')[0],
+        fechaTresMeses: tresMesesStr,
       })
       .getRawOne();
 
     const actual = parseFloat(promedioActual?.promedio || '0');
     const anterior = parseFloat(promedioAnterior?.promedio || '0');
 
-    // Determinar tendencia
     let tendencia = 'Estable';
     let diferenciaPorcentual = 0;
 
     if (anterior > 0) {
       diferenciaPorcentual = ((actual - anterior) / anterior) * 100;
-
-      if (diferenciaPorcentual > 5) {
-        tendencia = 'Creciente';
-      } else if (diferenciaPorcentual < -5) {
-        tendencia = 'Decreciente';
-      }
+      if (diferenciaPorcentual > 5) tendencia = 'Creciente';
+      if (diferenciaPorcentual < -5) tendencia = 'Decreciente';
     }
 
     return {

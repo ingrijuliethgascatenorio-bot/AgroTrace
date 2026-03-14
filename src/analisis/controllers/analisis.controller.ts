@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { EstadisticasService } from '../services/estadisticas.service';
 import { ProyeccionesService } from '../services/proyecciones.service';
@@ -18,18 +18,28 @@ export class AnalisisController {
 
   /**
    * Historial por productor y rango de fechas
+   * id_productor es opcional — si no se envía retorna todos
    */
   @Get('historial')
-  @ApiOperation({
-    summary: 'Historial de producción por productor y fechas',
-  })
-  @ApiQuery({ name: 'id_productor', required: true, type: Number })
+  @ApiOperation({ summary: 'Historial de producción por productor y fechas' })
+  @ApiQuery({ name: 'id_productor', required: false, type: Number })
   @ApiQuery({ name: 'inicio', required: false, type: String })
   @ApiQuery({ name: 'fin', required: false, type: String })
   async obtenerHistorial(@Query() filtros: FiltroFechaDto) {
-    const idProductor = parseInt(filtros.id_productor);
+    // Parsear solo si viene un valor numérico válido
+    const idProductor =
+      filtros.id_productor && filtros.id_productor.trim() !== ''
+        ? parseInt(filtros.id_productor, 10)
+        : undefined;
+
+    // Si parseInt devuelve NaN (valor no numérico) lo descartamos
+    const idFinal =
+      idProductor !== undefined && !isNaN(idProductor)
+        ? idProductor
+        : undefined;
+
     return await this.estadisticasService.obtenerHistorial(
-      idProductor,
+      idFinal,
       filtros.inicio,
       filtros.fin,
     );
@@ -37,30 +47,48 @@ export class AnalisisController {
 
   /**
    * Proyección de producción
+   * id_productor es opcional — si no se envía agrega todos
    */
   @Get('proyeccion')
   @ApiOperation({ summary: 'Proyección basada en últimas 5 entregas' })
-  @ApiQuery({ name: 'id_productor', required: true, type: Number })
-  async obtenerProyeccion(
-    @Query('id_productor', ParseIntPipe) idProductor: number,
-  ) {
-    return await this.proyeccionesService.obtenerProyeccion(idProductor);
+  @ApiQuery({ name: 'id_productor', required: false, type: Number })
+  async obtenerProyeccion(@Query() filtros: FiltroFechaDto) {
+    const idProductor =
+      filtros.id_productor && filtros.id_productor.trim() !== ''
+        ? parseInt(filtros.id_productor, 10)
+        : undefined;
+
+    const idFinal =
+      idProductor !== undefined && !isNaN(idProductor)
+        ? idProductor
+        : undefined;
+
+    return await this.proyeccionesService.obtenerProyeccion(idFinal);
   }
 
   /**
-   * 3️⃣ Tendencia de producción
+   * Tendencia de producción
+   * id_productor es opcional
    */
   @Get('tendencia')
   @ApiOperation({ summary: 'Tendencia (últimos 3 meses vs 3 anteriores)' })
-  @ApiQuery({ name: 'id_productor', required: true, type: Number })
-  async obtenerTendencia(
-    @Query('id_productor', ParseIntPipe) idProductor: number,
-  ) {
-    return await this.estadisticasService.obtenerTendencia(idProductor);
+  @ApiQuery({ name: 'id_productor', required: false, type: Number })
+  async obtenerTendencia(@Query() filtros: FiltroFechaDto) {
+    const idProductor =
+      filtros.id_productor && filtros.id_productor.trim() !== ''
+        ? parseInt(filtros.id_productor, 10)
+        : undefined;
+
+    const idFinal =
+      idProductor !== undefined && !isNaN(idProductor)
+        ? idProductor
+        : undefined;
+
+    return await this.estadisticasService.obtenerTendencia(idFinal);
   }
 
   /**
-   * 4️⃣ Ranking de productores
+   * Ranking de productores
    */
   @Get('ranking')
   @ApiOperation({
@@ -80,7 +108,7 @@ export class AnalisisController {
   }
 
   /**
-   * 5️⃣ Planificación de ruta
+   * Planificación de ruta
    */
   @Get('planificacion')
   @ApiOperation({ summary: 'Planificación de ruta con proyección total' })

@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroTrace - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <img src="img/logo (1).png" alt="AgroTrace" class="sidebar-logo-img">
+            <button class="menu-toggle">
+                <i class="fi fi-rr-menu-burger"></i>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <span class="nav-label">PRINCIPAL</span>
+            <button class="nav-btn active" data-section="dashboard" data-tip="Dashboard"><i
+                    class="fi fi-rr-home"></i><span>Dashboard</span></button>
+            <button class="nav-btn" data-section="analisis" data-tip="Análisis"><i
+                    class="fi fi-rr-chart-pie"></i><span>Análisis</span></button>
+            <span class="nav-label">GESTIÓN</span>
+            <button class="nav-btn" data-section="compras" data-tip="Compras"><i
+                    class="fi fi-rr-shopping-cart"></i><span>Compras</span></button>
+            <button class="nav-btn" data-section="ventas" data-tip="Ventas"><i
+                    class="fi fi-rr-stats"></i><span>Ventas</span></button>
+            <button class="nav-btn" data-section="productores" data-tip="Productores"><i
+                    class="fi fi-rr-trophy"></i><span>Productores</span></button>
+            <button class="nav-btn" data-section="productos" data-tip="Productos"><i
+                    class="fi fi-rr-box"></i><span>Productos</span></button>
+            <span class="nav-label">SISTEMA</span>
+            <button class="nav-btn" data-section="historial" data-tip="Historial"><i
+                    class="fi fi-rr-clock"></i><span>Historial</span></button>
+            <button class="nav-btn" data-section="reportes" data-tip="Reportes"><i
+                    class="fi fi-rr-document"></i><span>Reportes</span></button>
+            <button class="nav-btn" data-section="usuarios" data-tip="Usuarios"><i
+                    class="fi fi-rr-user"></i><span>Usuarios</span></button>
+        </nav>
+    </aside>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="main-container">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="cabecera">
+                <div class="titulo"></div>
+                <div class="hp-trigger" onclick="hp_toggle()">
+                    <div class="hp-avatar" id="hp_avatar"><span id="hp_iniciales">?</span></div>
+                    <div class="hp-info">
+                        <span class="hp-nombre" id="hp_nombre">Cargando...</span>
+                        <span class="hp-rol-badge" id="hp_rol_badge">--</span>
+                    </div>
+                    <i class="fi fi-rr-angle-small-down hp-chevron" id="hp_chevron"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTENIDO -->
+        <main class="content">
+
+            <!-- DASHBOARD -->
+            <section id="dashboard" class="section active">
+                <!-- Contenido hero -->
+                <div class="db-hero">
+                    <div class="db-hero-content">
+                        <div class="db-hero-badge">🌱 Sistema Activo</div>
+                        <h1 class="db-hero-title">AgroTrace</h1>
+                        <p class="db-hero-subtitle">Plataforma de trazabilidad agrícola</p>
+                        <div class="db-hero-greeting-row">
+                            <span id="db_greeting_text">Buenos días</span>
+                            <span class="db-hero-sep">·</span>
+                            <span id="db_hero_nombre_text">—</span>
+                        </div>
+                        <button class="db-hero-btn" onclick="db_abrirGuia()">
+                            <i class="fi fi-rr-info"></i>
+                            ¿Qué puedo hacer?
+                        </button>
+                    </div>
+
+                    <!-- Curva inferior -->
+                    <div class="db-hero-wave">
+                        <svg viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M0,60 C300,0 900,0 1200,60 L1200,60 L0,60 Z" fill="#f4f6f9" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- ══ MODAL GUÍA ¿Qué puedo hacer? ══ -->
+                <div class="db-guia-overlay" id="db_guia_overlay" onclick="db_cerrarGuia()"></div>
+                <div class="db-guia-modal" id="db_guia_modal">
+                    <button class="db-guia-close" onclick="db_cerrarGuia()"><i class="fi fi-rr-cross"></i></button>
+                    <div class="db-guia-header">
+                        <span class="db-guia-tag">🌱 AgroTrace</span>
+                        <h2 class="db-guia-title">¿Qué puedo hacer?</h2>
+                        <p class="db-guia-intro">Explora todos los módulos del sistema</p>
+                    </div>
+                    <div class="db-guia-body">
+                        <!-- Círculo central -->
+                        <div class="db-guia-center">
+                            <div class="db-guia-circle">
+
+                            </div>
+                            <svg class="db-guia-lines" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="200" cy="200" r="54" fill="none" stroke="#d1fae5" stroke-width="1.5"
+                                    stroke-dasharray="6 4" />
+                                <line x1="200" y1="146" x2="200" y2="60" stroke="#bbf7d0" stroke-width="1.5" />
+                                <line x1="200" y1="254" x2="200" y2="340" stroke="#bbf7d0" stroke-width="1.5" />
+                                <line x1="146" y1="200" x2="60" y2="200" stroke="#bbf7d0" stroke-width="1.5" />
+                                <line x1="254" y1="200" x2="340" y2="200" stroke="#bbf7d0" stroke-width="1.5" />
+                                <line x1="160" y1="160" x2="90" y2="90" stroke="#bbf7d0" stroke-width="1.5" />
+                                <line x1="240" y1="160" x2="310" y2="90" stroke="#bbf7d0" stroke-width="1.5" />
+                                <circle cx="200" cy="58" r="5" fill="#0aae0a" />
+                                <circle cx="200" cy="342" r="5" fill="#0aae0a" />
+                                <circle cx="58" cy="200" r="5" fill="#0aae0a" />
+                                <circle cx="342" cy="200" r="5" fill="#0aae0a" />
+                                <circle cx="88" cy="88" r="5" fill="#0aae0a" />
+                                <circle cx="312" cy="88" r="5" fill="#0aae0a" />
+                            </svg>
+                        </div>
+                        <!-- Tarjetas alrededor -->
+                        <div class="db-guia-items">
+                            <div class="db-guia-item" onclick="db_cerrarGuia();mostrarSeccion('compras')">
+                                <div class="db-guia-item-num">01</div>
+                                <div class="db-guia-item-icon"><i class="fi fi-rr-shopping-cart"></i></div>
+                                <div class="db-guia-item-info">
+                                    <strong>Compras</strong>
+                                    <span> Listado de compras a productores con factura y detalles.</span>
+                                </div>
+                            </div>
+                            <div class="db-guia-item" onclick="db_cerrarGuia();mostrarSeccion('ventas')">
+                                <div class="db-guia-item-num">02</div>
+                                <div class="db-guia-item-icon"><i class="fi fi-rr-stats"></i></div>
+                                <div class="db-guia-item-info">
+                                    <strong>Ventas</strong>
+                                    <span>Listado de ventas al cliente final y el estado de cada transacción.</span>
+                                </div>
+                            </div>
+                            <div class="db-guia-item" onclick="db_cerrarGuia();mostrarSeccion('productores')">
+                                <div class="db-guia-item-num">03</div>
+                                <div class="db-guia-item-icon"><i class="fi fi-rr-trophy"></i></div>
+                                <div class="db-guia-item-info">
+                                    <strong>Productores</strong>
+                                    <span>Administra fincas, ubicaciones y genera códigos QR.</span>
+                                </div>
+                            </div>
+                            <div class="db-guia-item" onclick="db_cerrarGuia();mostrarSeccion('productos')">
+                                <div class="db-guia-item-num">04</div>
+                                <div class="db-guia-item-icon"><i class="fi fi-rr-box"></i></div>
+                                <div class="db-guia-item-info">
+                                    <strong>Productos</strong>
+                                    <span>Gestiona productos con nombre, descripción, precios base y
+                                        disponibilidad.</span>
+                                </div>
+                            </div>
+                            <div class="db-guia-item" onclick="db_cerrarGuia();mostrarSeccion('analisis')">
+                                <div class="db-guia-item-num">05</div>
+                                <div class="db-guia-item-icon"><i class="fi fi-rr-chart-pie"></i></div>
+                                <div class="db-guia-item-info">
+                                    <strong>Análisis</strong>
+                                    <span>Proyecciones, tendencias, rankings y planificación de carga.</span>
+                                </div>
+                            </div>
+                            <div class="db-guia-item" onclick="db_cerrarGuia();mostrarSeccion('historial')">
+                                <div class="db-guia-item-num">06</div>
+                                <div class="db-guia-item-icon"><i class="fi fi-rr-clock"></i></div>
+                                <div class="db-guia-item-info">
+                                    <strong>Historial</strong>
+                                    <span>Registro completo de transacciones. Exporta en Excel o PDF.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ══ GALERÍA INFINITA DE MÉTRICAS ══ -->
+                <h3>Resumen del sistema</h3>
+                <div class="dbg-root">
+                    <!-- Fila superior → derecha -->
+                    <div class="dbg-row dbg-row-top">
+                        <div class="dbg-belt" id="dbg_belt_top">
+
+                            <div class="dbg-card" onclick="mostrarSeccion('ventas')">
+                                <div class="dbg-img"><img src="img/tarjeta1.jpeg" alt="Ventas"></div>
+                                <div class="dbg-body">
+                                    <span class="dbg-tag">
+                                        <span><i></i></span><i class="fi fi-ts-selling"></i>Módulo</span>
+                                    <div class="dbg-name">Ventas</div>
+                                    <div class="dbg-num" id="dbg_ventas_1" data-metric="ventas">—</div>
+                                    <div class="dbg-desc">Gestión y seguimiento de las ventas registradas en la
+                                        plataforma.</div>
+                                </div>
+                            </div>
+
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('compras')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rs-grocery-bag"></i> Módulo</span>
+                                    <div class="dbg-name">Compras</div>
+                                    <div class="dbg-num" id="dbg_compras_1" data-metric="compras">—</div>
+                                    <div class="dbg-desc">Permite registrar y gestionar todas las compras realizadas
+                                        dentro del sistema.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta2.jpeg" alt="Compras"></div>
+                            </div>
+
+                            <div class="dbg-card" onclick="mostrarSeccion('productos')">
+                                <div class="dbg-img"><img src="img/tarjeta3.jpeg" alt="Productos"></div>
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rs-leaf"></i> Módulo</span>
+                                    <div class="dbg-name">Productos</div>
+                                    <div class="dbg-num" id="dbg_productos_1" data-metric="productos">—</div>
+                                    <div class="dbg-desc">Administración del inventario de productos disponibles en el
+                                        sistema.</div>
+                                </div>
+                            </div>
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('productores')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-sr-users-alt"></i> Módulo</span>
+                                    <div class="dbg-name">Productores</div>
+                                    <div class="dbg-num" id="dbg_productores_1" data-metric="productores">—</div>
+                                    <div class="dbg-desc">Registro e información de los productores que participan en la
+                                        plataforma.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta10.jpeg" alt="Productores"></div>
+                            </div>
+
+                            <!-- Clones para loop infinito 
+                            <div class="dbg-card" onclick="mostrarSeccion('ventas')">
+                                <div class="dbg-img"><img src="img/tarjeta4.jpeg" alt="Ventas"></div>
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-ts-selling"></i>Módulo</span>
+                                    <div class="dbg-name">Ventas</div>
+                                    <div class="dbg-num" id="dbg_ventas_2" data-metric="ventas">—</div>
+                                    <div class="dbg-desc">Gestión y seguimiento de las ventas registradas en la plataforma.</div>
+                                </div>
+                            </div>
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('compras')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rs-grocery-bag"></i>Módulo</span>
+                                    <div class="dbg-name">Compras</div>
+                                    <div class="dbg-num" id="dbg_compras_2" data-metric="compras">—</div>
+                                    <div class="dbg-desc">Permite registrar y gestionar todas las compras realizadas dentro del sistema.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta5.png" alt="Compras"></div>
+                            </div>
+                            <div class="dbg-card" onclick="mostrarSeccion('productos')">
+                                <div class="dbg-img"><img src="img/tarjeta6.png" alt="Productos"></div>
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rr-box"></i>Módulo</span>
+                                    <div class="dbg-name">Productos</div>
+                                    <div class="dbg-num" id="dbg_productos_2" data-metric="productos">—</div>
+                                    <div class="dbg-desc">Administración del inventario de productos disponibles en el sistema.</div>
+                                </div>
+                            </div>
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('productores')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-sr-users-alt"></i> Módulo</span>
+                                    <div class="dbg-name">Productores</div>
+                                    <div class="dbg-num" id="dbg_productores_2" data-metric="productores">—</div>
+                                    <div class="dbg-desc">Registro e información de los productores que participan en la plataforma.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta10.jpeg" alt="Productores"></div>
+                            </div>-->
+
+                        </div>
+                    </div>
+
+                    <!--Fila inferior ← izquierda
+                    <div class="dbg-row dbg-row-bot">
+                        <div class="dbg-belt" id="dbg_belt_bot">
+
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('productores')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-sr-users-alt"></i>Módulo</span>
+                                    <div class="dbg-name">Productores</div>
+                                    <div class="dbg-num" id="dbg_productores_1" data-metric="productores">—</div>
+                                    <div class="dbg-desc">Registro e información de los productores que participan en la plataforma.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta7.jpeg" alt="Productores"></div>
+                            </div>
+
+                            <div class="dbg-card" onclick="mostrarSeccion('analisis')">
+                                <div class="dbg-img"><img src="img/tarjeta8.jpeg" alt="Análisis"></div>
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rr-chart-line-up"></i> Módulo</span>
+                                    <div class="dbg-name">Análisis</div>
+                                    <div class="dbg-num" id="dbg_analisis_1" data-metric="analisis">—<span class="dbg-num-suf">%</span></div>
+                                    <div class="dbg-desc">Módulo donde se visualizan estadísticas, tendencias y análisis de los datos registrados en el sistema.</div>
+                                </div>
+                            </div>
+
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('historial')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rr-document"></i>Módulo</span>
+                                    <div class="dbg-name">Reportes</div>
+                                    <div class="dbg-num" id="dbg_reportes_1" data-metric="reportes">—</div>
+                                    <div class="dbg-desc">Generación y visualización de reportes para analizar la información del sistema.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta9.jpeg" alt="Reportes"></div>
+                            </div>
+
+                             Clones 
+                            
+                            <div class="dbg-card" onclick="mostrarSeccion('analisis')">
+                                <div class="dbg-img"><img src="img/tarjeta5.png" alt="Análisis"></div>
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rr-chart-line-up"></i> Módulo</span>
+                                    <div class="dbg-name">Análisis</div>
+                                    <div class="dbg-num" id="dbg_analisis_2" data-metric="analisis">—<span class="dbg-num-suf">%</span></div>
+                                    <div class="dbg-desc">Módulo donde se visualizan estadísticas, tendencias y análisis de los datos registrados en el sistema.</div>
+                                </div>
+                            </div>
+                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('historial')">
+                                <div class="dbg-body">
+                                    <span class="dbg-tag"><i class="fi fi-rr-document"></i>Módulo</span>
+                                    <div class="dbg-name">Reportes</div>
+                                    <div class="dbg-num" id="dbg_reportes_2" data-metric="reportes">—</div>
+                                    <div class="dbg-desc">Generación y visualización de reportes para analizar la información del sistema.</div>
+                                </div>
+                                <div class="dbg-img"><img src="img/tarjeta6.png" alt="Reportes"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div> /dbg-root -->
+
+                <!-- ══ ACTIVIDADES RECIENTES ══ -->
+                <div style="margin-top:32px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                        <h3 style="margin:0;font-size:1em;font-weight:700;color:#111827">Actividades recientes</h3>
+                        <button class="an-btn" onclick="db_cargarActividades()" style="font-size:.78em;padding:6px 12px">
+                            <i class="fi fi-rr-refresh"></i> Actualizar
+                        </button>
+                    </div>
+                    <div class="usr-table-wrap">
+                        <table class="usr-table">
+                            <thead>
+                                <tr><th>Fecha</th><th>Tipo</th><th>Usuario</th><th>Descripción</th></tr>
+                            </thead>
+                            <tbody id="db_actividades_tbody">
+                                <tr><td colspan="4" class="empty-state">Cargando actividades...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ANÁLISIS -->
+            <section id="analisis" class="section">
+
+                <div class="an-header">
+                    <div class="an-header-left">
+                        <h2 class="an-title">Análisis y Proyecciones</h2>
+                        <p class="an-subtitle">Datos de producción en tiempo real</p>
+                    </div>
+                </div>
+
+                <!-- TABS -->
+                <div class="an-tabs">
+                    <button class="an-tab active" onclick="switchAnalisisTab('proyeccion', this)">
+                        <i class="fi fi-rr-chart-line-up"></i><span>Proyección</span>
+                    </button>
+                    <button class="an-tab" onclick="switchAnalisisTab('historial-analisis', this)">
+                        <i class="fi fi-rr-calendar"></i><span>Historial</span>
+                    </button>
+                    <button class="an-tab" onclick="switchAnalisisTab('tendencia-analisis', this)">
+                        <i class="fi fi-rr-stats"></i><span>Tendencia</span>
+                    </button>
+                    <button class="an-tab" onclick="switchAnalisisTab('ranking-analisis', this)">
+                        <i class="fi fi-rr-trophy"></i><span>Ranking</span>
+                    </button>
+                    <button class="an-tab" onclick="switchAnalisisTab('planificacion-analisis', this)">
+                        <i class="fi fi-rr-truck-side"></i><span>Planificación</span>
+                    </button>
+                </div>
+
+                <!-- ══ PROYECCIÓN ══ -->
+                <div id="panel-proyeccion" class="analisis-panel active">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-chart-line-up"></i> Proyección de entrega</h3>
+                            <p class="an-panel-desc">Estimación de la próxima entrega basada en histórico</p>
+                        </div>
+                        <div class="an-filter-inline">
+                            <select id="ap_productor" class="an-select">
+                                <option value="">Cargando productores...</option>
+                            </select>
+                            <button class="an-btn" onclick="analisis_loadProyeccion()">
+                                <i class="fi fi-rr-refresh"></i> Consultar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="an-kpi-grid" id="ap_cards">
+                        <div class="an-kpi-skeleton"></div>
+                        <div class="an-kpi-skeleton"></div>
+                        <div class="an-kpi-skeleton"></div>
+                        <div class="an-kpi-skeleton"></div>
+                    </div>
+                </div>
+
+                <!-- ══ HISTORIAL ══ -->
+                <div id="panel-historial-analisis" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-calendar"></i> Historial de producción</h3>
+                            <p class="an-panel-desc">Registros detallados por período</p>
+                        </div>
+                        <div class="an-filter-inline">
+                            <select id="ah_productor" class="an-select">
+                                <option value="">Cargando productores...</option>
+                            </select>
+                            <div class="an-input-labeled">
+                                <span>Desde</span>
+                                <input type="date" id="ah_inicio" class="an-input" value="2026-01-01">
+                            </div>
+                            <div class="an-input-labeled">
+                                <span>Hasta</span>
+                                <input type="date" id="ah_fin" class="an-input">
+                            </div>
+                            <button class="an-btn" onclick="analisis_loadHistorial()">
+                                <i class="fi fi-rr-search"></i> Consultar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="an-card">
+                        <div class="an-card-header">
+                            <span class="an-card-title"><i class="fi fi-rr-arrow-trend-up"></i> Evolución de
+                                producción</span>
+                            <span id="ah_count" class="an-badge">0 registros</span>
+                        </div>
+                        <canvas id="ah_chart"></canvas>
+                    </div>
+                    <div class="an-card">
+                        <div class="an-card-header">
+                            <span class="an-card-title"><i class="fi fi-rr-list"></i> Registros detallados</span>
+                        </div>
+                        <div class="table-container">
+                            <table class="an-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Cantidad</th>
+                                        <th>Unidad</th>
+                                        <th>Lote</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ah_tbody">
+                                    <tr>
+                                        <td colspan="5" class="empty-state">Selecciona un productor y consulta</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ══ TENDENCIA ══ -->
+                <div id="panel-tendencia-analisis" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-stats"></i> Análisis de tendencia</h3>
+                            <p class="an-panel-desc">Comparativa últimos 3 meses vs período anterior</p>
+                        </div>
+                        <div class="an-filter-inline">
+                            <select id="at_productor" class="an-select">
+                                <option value="">Cargando productores...</option>
+                            </select>
+                            <button class="an-btn" onclick="analisis_loadTendencia()">
+                                <i class="fi fi-rr-refresh"></i> Consultar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="an-kpi-grid" id="at_cards">
+                        <div class="an-kpi-skeleton"></div>
+                        <div class="an-kpi-skeleton"></div>
+                        <div class="an-kpi-skeleton"></div>
+                    </div>
+                    <div class="an-card">
+                        <div class="an-card-header">
+                            <span class="an-card-title"><i class="fi fi-rr-stats"></i> Promedios comparados</span>
+                        </div>
+                        <canvas id="at_chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- ══ RANKING ══ -->
+                <div id="panel-ranking-analisis" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-trophy"></i> Ranking de productores</h3>
+                            <p class="an-panel-desc">Clasificación por desempeño</p>
+                        </div>
+                        <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
+                            <select id="ar_tipo" class="an-select">
+                                <option value="total">Total producido</option>
+                                <option value="promedio">Promedio por entrega</option>
+                                <option value="frecuencia">Frecuencia de entregas</option>
+                            </select>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="ar_inicio" class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="ar_fin" class="an-input"></div>
+                            <button class="an-btn" onclick="analisis_loadRanking()">
+                                <i class="fi fi-rr-refresh"></i> Generar
+                            </button>
+                            <button class="an-btn" style="background:#374151" onclick="ranking_exportarExcel()"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="ranking_exportarPDF()"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="an-grid-2">
+                        <div class="an-card">
+                            <div class="an-card-header">
+                                <span class="an-card-title"><i class="fi fi-rr-chart-histogram"></i> Gráfico</span>
+                                <span id="ar_tipo_label" class="an-badge">Total producido</span>
+                            </div>
+                            <canvas id="ar_chart"></canvas>
+                        </div>
+                        <div class="an-card">
+                            <div class="an-card-header">
+                                <span class="an-card-title"><i class="fi fi-rr-list"></i> Clasificación</span>
+                            </div>
+                            <div class="table-container">
+                                <table class="an-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Productor</th>
+                                            <th>Valor</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ar_tbody">
+                                        <tr>
+                                            <td colspan="4" class="empty-state">Genera el ranking para ver datos</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ══ PLANIFICACIÓN ══ -->
+                <div id="panel-planificacion-analisis" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-truck-side"></i> Planificación de carga</h3>
+                            <p class="an-panel-desc">Proyección de valor y análisis de capacidad</p>
+                        </div>
+                        <div class="an-filter-inline">
+                            <div class="an-input-labeled">
+                                <span>$/kg</span>
+                                <input type="number" id="apl_precio" class="an-input" value="2000" min="1">
+                            </div>
+                            <div class="an-input-labeled">
+                                <span>Cap. kg</span>
+                                <input type="number" id="apl_capacidad" class="an-input" value="5000" min="1">
+                            </div>
+                            <button class="an-btn" onclick="analisis_loadPlanificacion()">
+                                <i class="fi fi-rr-calculator"></i> Calcular
+                            </button>
+                        </div>
+                    </div>
+                    <div id="apl_alert"></div>
+                    <div class="an-kpi-grid" id="apl_cards"></div>
+                    <div class="an-card">
+                        <div class="an-card-header">
+                            <span class="an-card-title"><i class="fi fi-rr-chart-pie"></i> Análisis de capacidad</span>
+                        </div>
+                        <div class="an-doughnut-wrap">
+                            <canvas id="apl_chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- COMPRAS -->
+            <section id="compras" class="section">
+                <div class="section-header">
+                    <h2>Compras</h2>
+                    <p>Registro de compras a productores</p>
+                </div>
+                <div class="usr-toolbar">
+                    <div class="usr-search">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="cmp_buscar" placeholder="Buscar factura o productor..."
+                            oninput="cmp_filtrar(this.value)">
+                    </div>
+                    <div class="usr-filter-tabs">
+                        <button class="usr-ftab active" onclick="cmp_setEstado('', this)">Todos</button>
+                        <button class="usr-ftab" onclick="cmp_setEstado('PENDIENTE', this)">Pendiente</button>
+                        <button class="usr-ftab" onclick="cmp_setEstado('COMPLETADO', this)">Completado</button>
+                        <button class="usr-ftab" onclick="cmp_setEstado('ANULADO', this)">Anulado</button>
+                    </div>
+                </div>
+                <div class="usr-count" id="cmp_count">0 registros</div>
+                <div class="usr-table-wrap">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>Factura</th>
+                                <th>Productor</th>
+                                <th>Fecha</th>
+                                <th>Productos</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cmp_tbody">
+                            <tr>
+                                <td colspan="7" class="empty-state">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VENTAS -->
+            <section id="ventas" class="section">
+                <div class="section-header">
+                    <h2>Ventas</h2>
+                    <p>Registro de ventas realizadas</p>
+                </div>
+                <div class="usr-toolbar">
+                    <div class="usr-search">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="vnt_buscar" placeholder="Buscar factura o cliente..."
+                            oninput="vnt_filtrar(this.value)">
+                    </div>
+                    <div class="usr-filter-tabs">
+                        <button class="usr-ftab active" onclick="vnt_setEstado('', this)">Todos</button>
+                        <button class="usr-ftab" onclick="vnt_setEstado('PENDIENTE', this)">Pendiente</button>
+                        <button class="usr-ftab" onclick="vnt_setEstado('COMPLETADO', this)">Completado</button>
+                        <button class="usr-ftab" onclick="vnt_setEstado('ANULADO', this)">Anulado</button>
+                    </div>
+                </div>
+                <div class="usr-count" id="vnt_count">0 registros</div>
+                <div class="usr-table-wrap">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th>Productos</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="vnt_tbody">
+                            <tr>
+                                <td colspan="7" class="empty-state">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- PRODUCTORES -->
+            <section id="productores" class="section">
+                <div class="usr-header">
+                    <div class="section-header" style="margin-bottom:0">
+                        <h2>Productores</h2>
+                        <p>Gestión de productores</p>
+                    </div>
+                    <button id="prd_btn_nuevo" class="btn-nuevo" onclick="prd_abrirPanel()"><i
+                            class="fi fi-rr-user-add"></i> Nuevo productor</button>
+                </div>
+                <div class="usr-toolbar">
+                    <div class="usr-search">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="prd_buscar" placeholder="Buscar nombre, cédula o finca..."
+                            oninput="prd_filtrar()">
+                    </div>
+                    <div class="usr-filter-tabs">
+                        <button class="usr-ftab active" onclick="prd_setEstado('', this)">Todos</button>
+                        <button class="usr-ftab" onclick="prd_setEstado('ACTIVO', this)">Activos</button>
+                        <button class="usr-ftab" onclick="prd_setEstado('INACTIVO', this)">Inactivos</button>
+                    </div>
+                </div>
+                <div class="usr-count" id="prd_count">0 productores</div>
+                <div class="usr-table-wrap">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>Productor</th>
+                                <th>Cédula</th>
+                                <th>Finca</th>
+                                <th>Ubicación</th>
+                                <th>Teléfono</th>
+                                <th>QR</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="prd_tbody">
+                            <tr>
+                                <td colspan="8" class="empty-state">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- PRODUCTOS -->
+            <section id="productos" class="section">
+                <div class="usr-header">
+                    <div class="section-header" style="margin-bottom:0">
+                        <h2>Productos</h2>
+                        <p>Catálogo de productos</p>
+                    </div>
+                    <button id="pro_btn_nuevo" class="btn-nuevo" onclick="pro_abrirPanel()"><i class="fi fi-rr-add"></i>
+                        Nuevo producto</button>
+                </div>
+                <div class="usr-toolbar">
+                    <div class="usr-search">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="pro_buscar" placeholder="Buscar producto..."
+                            oninput="pro_filtrar(this.value)">
+                    </div>
+                    <div class="usr-filter-tabs">
+                        <button class="usr-ftab active" onclick="pro_setDisponible('', this)">Todos</button>
+                        <button class="usr-ftab" onclick="pro_setDisponible('true', this)">Disponibles</button>
+                        <button class="usr-ftab" onclick="pro_setDisponible('false', this)">No disponibles</button>
+                    </div>
+                </div>
+                <div class="usr-count" id="pro_count">0 productos</div>
+                <div class="usr-table-wrap">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Descripción</th>
+                                <th>Unidad</th>
+                                <th>Precio base</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pro_tbody">
+                            <tr>
+                                <td colspan="7" class="empty-state">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- HISTORIAL -->
+            <section id="historial" class="section">
+                <div class="section-header">
+                    <h2>Historial</h2>
+                    <p>Transacciones y cambios de precios</p>
+                </div>
+                <div class="usr-toolbar" style="flex-wrap:wrap">
+                    <div class="his-tabs">
+                        <button class="his-tab active" onclick="his_setTab('transacciones', this)"><i
+                                class="fi fi-rr-exchange"></i> Transacciones</button>
+                        <button class="his-tab" onclick="his_setTab('precios', this)"><i class="fi fi-rr-coins"></i>
+                            Precios</button>
+                    </div>
+                    <div class="usr-search" style="flex:1;min-width:200px">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="his_search" placeholder="Buscar..."
+                            oninput="his_filtrar(this.value)">
+                    </div>
+                    <div class="an-input-labeled"><span>Desde</span><input type="date" id="his_fecha_inicio"
+                            class="an-input"></div>
+                    <div class="an-input-labeled"><span>Hasta</span><input type="date" id="his_fecha_fin"
+                            class="an-input"></div>
+                    <button class="an-btn" onclick="his_cargar()"><i class="fi fi-rr-search"></i> Filtrar</button>
+                    <button class="an-btn" style="background:#374151" onclick="his_exportarExcel()"><i
+                            class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                    <button class="an-btn" style="background:#dc2626" onclick="his_exportarPDF()"><i
+                            class="fi fi-rr-file-pdf"></i> PDF</button>
+                </div>
+                <div class="usr-count" id="his_count">0 registros</div>
+                <div id="his_tab_transacciones" class="usr-table-wrap">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tipo</th>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Estado</th>
+                                <th>Compra</th>
+                                <th>Venta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="his_tbody_trans">
+                            <tr>
+                                <td colspan="7" class="empty-state">Selecciona un rango y filtra</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="his_tab_precios" class="usr-table-wrap" style="display:none">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Producto</th>
+                                <th>Precio</th>
+                                <th>Fecha</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="his_tbody_precios">
+                            <tr>
+                                <td colspan="5" class="empty-state">Sin datos</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- USUARIOS -->
+            <section id="usuarios" class="section">
+                <div class="usr-header">
+                    <div class="section-header" style="margin-bottom:0">
+                        <h2>Usuarios</h2>
+                        <p>Gestión de usuarios del sistema</p>
+                    </div>
+                    <button class="btn-nuevo" onclick="usr_abrirPanel()"><i class="fi fi-rr-user-add"></i> Nuevo
+                        usuario</button>
+                </div>
+                <div class="usr-toolbar">
+                    <div class="usr-search">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="usr_buscar" placeholder="Buscar usuario..."
+                            oninput="usr_filtrar()">
+                    </div>
+                    <div class="usr-filter-tabs">
+                        <button class="usr-ftab active" onclick="usr_setRol('', this)">Todos</button>
+                        <button class="usr-ftab" onclick="usr_setRol('ADMIN', this)">Admin</button>
+                        <button class="usr-ftab" onclick="usr_setRol('VENDEDOR', this)">Vendedor</button>
+                        <button class="usr-ftab" onclick="usr_setRol('PRODUCTOR', this)">Productor</button>
+                    </div>
+                </div>
+                <div class="usr-count" id="usr_count">0 usuarios</div>
+                <div class="usr-table-wrap">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Cédula</th>
+                                <th>Correo</th>
+                                <th>Teléfono</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="usr_tbody">
+                            <tr>
+                                <td colspan="7" class="empty-state">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- REPORTES -->
+            <section id="reportes" class="section">
+                <div class="section-header">
+                    <h2>Reportes</h2>
+                    <p>Generación y exportación de reportes del sistema</p>
+                </div>
+
+                <!-- Tabs de reportes -->
+                <div class="an-tabs" style="margin-bottom:20px">
+                    <button class="an-tab active" onclick="rep_setTab('entregas', this)"><i class="fi fi-rr-box"></i><span>Entregas</span></button>
+                    <button class="an-tab" onclick="rep_setTab('compras', this)"><i class="fi fi-rr-shopping-cart"></i><span>Compras</span></button>
+                    <button class="an-tab" onclick="rep_setTab('ventas', this)"><i class="fi fi-rr-stats"></i><span>Ventas</span></button>
+                    <button class="an-tab" onclick="rep_setTab('desfase', this)"><i class="fi fi-rr-balance-scale"></i><span>Compras vs Ventas</span></button>
+                </div>
+
+                <!-- ══ PANEL ENTREGAS ══ -->
+                <div id="rep_panel_entregas" class="analisis-panel active">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-box"></i> Reporte de entregas por productor</h3>
+                            <p class="an-panel-desc">Detalle de entregas con peso, precio y total pagado</p>
+                        </div>
+                        <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
+                            <select id="rep_ent_productor" class="an-select"><option value="">Todos los productores</option></select>
+                            <select id="rep_ent_producto" class="an-select"><option value="">Todos los productos</option></select>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_ent_inicio" class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_ent_fin" class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarEntregas()"><i class="fi fi-rr-search"></i> Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('entregas')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('entregas')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="usr-count" id="rep_ent_count">0 registros</div>
+                    <div class="usr-table-wrap">
+                        <table class="usr-table">
+                            <thead><tr><th>Productor</th><th>Producto</th><th>Peso (kg)</th><th>Precio/kg</th><th>Total</th><th>Fecha</th></tr></thead>
+                            <tbody id="rep_ent_tbody"><tr><td colspan="6" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div id="rep_ent_total" style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
+                </div>
+
+                <!-- ══ PANEL COMPRAS ══ -->
+                <div id="rep_panel_compras" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-shopping-cart"></i> Reporte de compras</h3>
+                            <p class="an-panel-desc">Total comprado y pagado por producto</p>
+                        </div>
+                        <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_cmp_inicio" class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_cmp_fin" class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarCompras()"><i class="fi fi-rr-search"></i> Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('compras')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('compras')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="usr-count" id="rep_cmp_count">0 registros</div>
+                    <div class="usr-table-wrap">
+                        <table class="usr-table">
+                            <thead><tr><th>Producto</th><th>Total comprado (kg)</th><th>Total pagado</th></tr></thead>
+                            <tbody id="rep_cmp_tbody"><tr><td colspan="3" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div id="rep_cmp_total" style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
+                </div>
+
+                <!-- ══ PANEL VENTAS ══ -->
+                <div id="rep_panel_ventas" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-stats"></i> Reporte de ventas</h3>
+                            <p class="an-panel-desc">Ventas por comerciante, producto y fecha</p>
+                        </div>
+                        <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_vnt_inicio" class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_vnt_fin" class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarVentas()"><i class="fi fi-rr-search"></i> Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('ventas')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('ventas')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="usr-count" id="rep_vnt_count">0 registros</div>
+                    <div class="usr-table-wrap">
+                        <table class="usr-table">
+                            <thead><tr><th>Comerciante</th><th>Producto</th><th>Cantidad</th><th>Total vendido</th><th>Fecha</th></tr></thead>
+                            <tbody id="rep_vnt_tbody"><tr><td colspan="5" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div id="rep_vnt_total" style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
+                </div>
+
+                <!-- ══ PANEL DESFASE ══ -->
+                <div id="rep_panel_desfase" class="analisis-panel">
+                    <div class="an-panel-header">
+                        <div>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-balance-scale"></i> Comparación compras vs ventas</h3>
+                            <p class="an-panel-desc">Detecta desfase entre lo comprado y lo vendido por producto</p>
+                        </div>
+                        <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_des_inicio" class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_des_fin" class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarDesfase()"><i class="fi fi-rr-search"></i> Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('desfase')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('desfase')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="usr-count" id="rep_des_count">0 productos</div>
+                    <div class="usr-table-wrap">
+                        <table class="usr-table">
+                            <thead><tr><th>Producto</th><th>Total comprado (kg)</th><th>Total vendido (kg)</th><th>Diferencia</th></tr></thead>
+                            <tbody id="rep_des_tbody"><tr><td colspan="4" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- LOADING -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <p>Cargando...</p>
+    </div>
+
+    <!-- PANEL PERFIL -->
+    <div id="hp_overlay" class="hp-overlay" onclick="hp_cerrar()"></div>
+    <div id="hp_panel" class="hp-panel">
+        <div class="hp-panel-top">
+            <span class="hp-panel-titulo">Mi perfil</span>
+            <button class="hp-panel-close" onclick="hp_cerrar()"><i class="fi fi-rr-cross-small"></i></button>
+        </div>
+        <div class="hp-hero" id="hp_hero_bg">
+            <div class="hp-hero-avatar-wrap">
+                <div class="hp-hero-avatar" id="hp_hero_avatar"><span id="hp_hero_iniciales">?</span></div>
+                <label class="hp-cambiar-foto" title="Cambiar foto">
+                    <i class="fi fi-rr-camera"></i>
+                    <input type="file" accept="image/*" style="display:none" onchange="hp_previsualizarFoto(this)">
+                </label>
+            </div>
+            <div class="hp-hero-datos">
+                <h2 id="hp_hero_nombre">--</h2>
+                <div class="hp-hero-cedula" id="hp_hero_cedula">--</div>
+                <span class="hp-rol-badge" id="hp_hero_rol_badge">--</span>
+                <div class="hp-hero-email" id="hp_hero_email_small"></div>
+            </div>
+        </div>
+        <div class="hp-permisos-wrap" id="hp_permisos_wrap" style="display:none">
+            <div class="hp-permisos-label">Permisos</div>
+            <div class="hp-permisos-chips" id="hp_permisos_chips"></div>
+        </div>
+        <div class="hp-tabs">
+            <button class="hp-tab hp-tab-active" onclick="hp_switchTab('info', this)"><i class="fi fi-rr-user"></i>
+                Información</button>
+            <button class="hp-tab" onclick="hp_switchTab('seguridad', this)"><i class="fi fi-rr-lock"></i>
+                Seguridad</button>
+        </div>
+        <div id="hp_tab_info" class="hp-tab-body hp-tab-active">
+            <div class="hp-campos">
+                <div class="hp-campo">
+                    <label><i class="fi fi-rr-user"></i> Nombre completo</label>
+                    <div class="hp-campo-readonly"><span id="hp_f_nombre">--</span><span class="hp-readonly-tag">Solo
+                            lectura</span></div>
+                </div>
+                <div class="hp-campo">
+                    <label><i class="fi fi-rr-id-card"></i> Cédula</label>
+                    <div class="hp-campo-readonly"><span id="hp_f_cedula">--</span><span class="hp-readonly-tag">Solo
+                            lectura</span></div>
+                </div>
+                <div class="hp-campo" id="hp_campo_tipo" style="display:none">
+                    <label><i class="fi fi-rr-shield"></i> Rol</label>
+                    <div id="hp_tipo_readonly" class="hp-campo-readonly">
+                        <span id="hp_f_tipo_label">--</span><span class="hp-readonly-tag">Solo lectura</span>
+                    </div>
+                    <select id="hp_f_tipo" class="hp-input" style="display:none">
+                        <option value="ADMIN">Administrador</option>
+                        <option value="VENDEDOR">Vendedor</option>
+                        <option value="PRODUCTOR">Productor</option>
+                    </select>
+                </div>
+                <div class="hp-campo">
+                    <label><i class="fi fi-rr-envelope"></i> Correo electrónico</label>
+                    <input id="hp_f_email" class="hp-input" type="email" placeholder="correo@ejemplo.com">
+                </div>
+                <div class="hp-campo">
+                    <label><i class="fi fi-rr-phone-call"></i> Teléfono</label>
+                    <input id="hp_f_telefono" class="hp-input" type="tel" placeholder="3001234567">
+                </div>
+            </div>
+            <div class="hp-msg" id="hp_info_msg"></div>
+            <button class="btn-nuevo hp-btn-guardar" onclick="hp_guardarInfo()"><i class="fi fi-rr-check"></i> Guardar
+                cambios</button>
+        </div>
+        <div id="hp_tab_seguridad" class="hp-tab-body">
+            <div class="hp-campos">
+                <div class="hp-campo"><label>Contraseña actual</label><input id="hp_pass_actual" class="hp-input"
+                        type="password" placeholder="••••••••"></div>
+                <div class="hp-campo"><label>Nueva contraseña</label><input id="hp_pass_nueva" class="hp-input"
+                        type="password" placeholder="••••••••"></div>
+                <div class="hp-campo"><label>Confirmar contraseña</label><input id="hp_pass_confirmar" class="hp-input"
+                        type="password" placeholder="••••••••"></div>
+            </div>
+            <div class="hp-msg" id="hp_pass_msg"></div>
+            <button class="btn-nuevo hp-btn-guardar" onclick="hp_cambiarPassword()"><i
+                    class="fi fi-rr-shield-check"></i> Cambiar contraseña</button>
+        </div>
+        <div class="hp-footer">
+            <button class="hp-btn-logout" onclick="hp_cerrarSesion()"><i class="fi fi-rr-sign-out-alt"></i> Cerrar
+                sesión</button>
+        </div>
+    </div>
+
+    <!-- PANEL PRODUCTOS -->
+    <div id="pro_overlay" class="hp-overlay" onclick="pro_cerrarPanel()"></div>
+    <div id="pro_panel" class="hp-panel">
+        <div class="hp-panel-top">
+            <span id="pro_panel_titulo" class="hp-panel-titulo">Nuevo producto</span>
+            <button class="hp-panel-close" onclick="pro_cerrarPanel()"><i class="fi fi-rr-cross-small"></i></button>
+        </div>
+        <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px">
+            <div class="hp-campo"><label class="hp-label">Nombre <span style="color:#ef4444">*</span></label><input
+                    id="pro_f_nombre" class="hp-input" type="text" placeholder="Ej: Plátano Hartón"></div>
+            <div class="hp-campo"><label class="hp-label">Descripción</label><textarea id="pro_f_descripcion"
+                    class="hp-input" rows="3" placeholder="Descripción..." style="resize:vertical"></textarea></div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="hp-campo">
+                    <label class="hp-label">Unidad</label>
+                    <select id="pro_f_unidad" class="hp-input">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="kg">kg</option>
+                        <option value="lb">lb</option>
+                        <option value="tonelada">tonelada</option>
+                        <option value="unidad">unidad</option>
+                        <option value="caja">caja</option>
+                        <option value="racimo">racimo</option>
+                    </select>
+                </div>
+                <div class="hp-campo"><label class="hp-label">Precio base ($)</label><input id="pro_f_precio_base"
+                        class="hp-input" type="number" min="0" step="0.01" placeholder="0.00"></div>
+            </div>
+            <div id="pro_msg" style="display:none;border-radius:10px;padding:10px 14px;font-size:.83em;font-weight:600">
+            </div>
+            <button id="pro_btn_guardar" class="btn-nuevo hp-btn-guardar" onclick="pro_guardar()"><i
+                    class="fi fi-rr-check"></i> Guardar producto</button>
+        </div>
+    </div>
+
+    <!-- PANEL PRODUCTORES -->
+    <div id="prd_overlay" class="hp-overlay" onclick="prd_cerrarPanel()"></div>
+    <div id="prd_panel" class="hp-panel">
+        <div class="hp-panel-top">
+            <span id="prd_panel_titulo" class="hp-panel-titulo">Nuevo productor</span>
+            <button class="hp-panel-close" onclick="prd_cerrarPanel()"><i class="fi fi-rr-cross-small"></i></button>
+        </div>
+        <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px">
+            <div class="hp-campo"><label class="hp-label">Nombre <span style="color:#ef4444">*</span></label><input
+                    id="prd_f_nombre" class="hp-input" type="text" placeholder="Nombre"></div>
+            <div class="hp-campo"><label class="hp-label">Apellido <span style="color:#ef4444">*</span></label><input
+                    id="prd_f_apellido" class="hp-input" type="text" placeholder="Apellido"></div>
+            <div class="hp-campo" id="prd_campo_cedula"><label class="hp-label">Cédula <span
+                        style="color:#ef4444">*</span></label><input id="prd_f_cedula" class="hp-input" type="text"
+                    placeholder="Número de cédula"></div>
+            <div id="prd_cedula_readonly" style="display:none">
+                <label class="hp-label">Cédula</label>
+                <div class="hp-campo-readonly"><span id="prd_cedula_val">--</span><span class="hp-readonly-tag">No
+                        editable</span></div>
+            </div>
+            <div class="hp-campo"><label class="hp-label">Teléfono</label><input id="prd_f_telefono" class="hp-input"
+                    type="tel" placeholder="3001234567"></div>
+            <div class="hp-campo"><label class="hp-label">Finca</label><input id="prd_f_finca" class="hp-input"
+                    type="text" placeholder="Nombre de la finca"></div>
+            <div class="hp-campo"><label class="hp-label">Ubicación</label><input id="prd_f_ubicacion" class="hp-input"
+                    type="text" placeholder="Municipio, vereda..."></div>
+            <div id="prd_campos_usuario">
+                <div class="hp-campo"><label class="hp-label">Correo <span style="color:#ef4444">*</span></label><input
+                        id="prd_f_email" class="hp-input" type="email" placeholder="correo@ejemplo.com"></div>
+                <div class="hp-campo" style="margin-top:14px"><label class="hp-label">Contraseña <span
+                            style="color:#ef4444">*</span></label><input id="prd_f_password" class="hp-input"
+                        type="password" placeholder="Mínimo 6 caracteres"></div>
+            </div>
+            <div class="hp-msg" id="prd_msg"></div>
+            <button id="prd_btn_accion" class="btn-nuevo hp-btn-guardar" onclick="prd_crear()"><i
+                    class="fi fi-rr-user-add"></i> Crear productor</button>
+        </div>
+    </div>
+
+    <!-- PANEL USUARIOS -->
+    <div id="usr_overlay" class="hp-overlay" onclick="usr_cerrarPanel()"></div>
+    <div id="usr_panel" class="hp-panel">
+        <div class="hp-panel-top">
+            <span class="hp-panel-titulo" id="usr_panel_titulo">Nuevo usuario</span>
+            <button class="hp-panel-close" onclick="usr_cerrarPanel()"><i class="fi fi-rr-cross-small"></i></button>
+        </div>
+        <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px">
+            <div class="hp-campo"><label class="hp-label">Nombre <span style="color:#ef4444">*</span></label><input
+                    id="usr_f_nombre" class="hp-input" type="text" placeholder="Nombre"></div>
+            <div class="hp-campo"><label class="hp-label">Apellido <span style="color:#ef4444">*</span></label><input
+                    id="usr_f_apellido" class="hp-input" type="text" placeholder="Apellido"></div>
+            <div id="usr_campo_cedula" class="hp-campo"><label class="hp-label">Cédula</label><input id="usr_f_cedula" class="hp-input"
+                    type="text" placeholder="Número de cédula"></div>
+            <div id="usr_cedula_readonly" style="display:none">
+                <label class="hp-label">Cédula</label>
+                <div class="hp-campo-readonly"><span id="usr_cedula_val">—</span><span class="hp-readonly-tag">No editable</span></div>
+            </div>
+            <div class="hp-campo"><label class="hp-label">Correo <span id="usr_email_required" style="color:#ef4444">*</span></label><input
+                    id="usr_f_email" class="hp-input" type="email" placeholder="correo@ejemplo.com"></div>
+            <div class="hp-campo"><label class="hp-label">Teléfono</label><input id="usr_f_telefono" class="hp-input"
+                    type="tel" placeholder="3001234567"></div>
+            <div class="hp-campo">
+                <label class="hp-label">Rol <span style="color:#ef4444">*</span></label>
+                <select id="usr_f_rol" class="hp-input" onchange="usr_chkRol(this)">
+                    <option value="VENDEDOR">Vendedor</option>
+                    <option value="ADMIN">Administrador</option>
+                    <option value="PRODUCTOR">Productor</option>
+                </select>
+            </div>
+            <div id="usr_campo_password" class="hp-campo"><label class="hp-label">Contraseña <span style="color:#ef4444">*</span></label><input
+                    id="usr_f_password" class="hp-input" type="password" placeholder="Mínimo 6 caracteres"></div>
+            <div class="hp-msg" id="usr_msg"></div>
+            <button class="btn-nuevo hp-btn-guardar" id="usr_btn_guardar" onclick="usr_guardar()"><i class="fi fi-rr-user-add"></i> Crear
+                usuario</button>
+        </div>
+    </div>
+
+    <!-- MODAL QR -->
+    <div id="modalQRProductor"
+        style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);align-items:center;justify-content:center"
+        onclick="if(event.target===this) qr_cerrar()">
+        <div class="qr-modal-box">
+            <div class="qr-modal-header">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div class="qr-modal-logo-dot"></div>
+                    <span style="font-size:.8em;font-weight:700;color:#374151">AgroTrace</span>
+                </div>
+                <button onclick="qr_cerrar()"
+                    style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:1.2em"><i
+                        class="fi fi-rr-cross-small"></i></button>
+            </div>
+            <div class="qr-card">
+                <div class="qr-card-top">
+                    <div class="qr-card-avatar" id="qr_modal_inicial">?</div>
+                    <div class="qr-card-info">
+                        <span class="qr-card-nombre" id="qr_modal_nombre">--</span>
+                        <span class="qr-card-cedula" id="modal-qr-meta">--</span>
+                    </div>
+                </div>
+                <div class="qr-card-img-wrap">
+                    <div id="modal-qr-canvas"></div>
+                    <span class="qr-card-scan-hint">Escanea para identificar este productor</span>
+                </div>
+                <div class="qr-card-footer-brand">AgroTrace · Sistema de Trazabilidad</div>
+            </div>
+            <div class="qr-actions">
+                <button class="qr-btn qr-btn-print" onclick="qr_imprimir()"><i class="fi fi-rr-print"></i>
+                    Imprimir</button>
+                <a class="qr-btn qr-btn-download" id="qr_modal_dl" download="QR.png"><i class="fi fi-rr-download"></i>
+                    Descargar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLE COMPRA/VENTA -->
+    <div id="det_modal"
+        style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);align-items:center;justify-content:center"
+        onclick="if(event.target===this) det_cerrar()">
+        <div
+            style="background:#fff;border-radius:20px;width:560px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.22)">
+            <div
+                style="padding:18px 20px 14px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1">
+                <div>
+                    <div style="font-size:1em;font-weight:800;color:#111827" id="det_titulo">Detalle</div>
+                    <div style="font-size:.8em;color:#9ca3af;margin-top:2px" id="det_subtitulo"></div>
+                </div>
+                <button onclick="det_cerrar()"
+                    style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:1.3em;padding:4px 8px;border-radius:8px"><i
+                        class="fi fi-rr-cross-small"></i></button>
+            </div>
+            <div style="padding:20px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px" id="det_info"></div>
+                <table style="width:100%;border-collapse:collapse;font-size:.84em">
+                    <thead>
+                        <tr style="background:#f9fafb">
+                            <th
+                                style="padding:10px;text-align:left;font-size:.7em;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #f0f0f0">
+                                Producto</th>
+                            <th
+                                style="padding:10px;text-align:right;font-size:.7em;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #f0f0f0">
+                                Cantidad</th>
+                            <th
+                                style="padding:10px;text-align:right;font-size:.7em;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #f0f0f0">
+                                P. Unitario</th>
+                            <th
+                                style="padding:10px;text-align:right;font-size:.7em;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #f0f0f0">
+                                Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="det_tbody"></tbody>
+                </table>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+                    <button onclick="det_descargarPDF()"
+                        style="background:#dc2626;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:.85em;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+                        <i class="fi fi-rr-file-pdf"></i> Descargar PDF
+                    </button>
+                    <div style="font-size:1.1em;font-weight:800;color:#111827">
+                        Total: <span id="det_total" style="color:#0aae0a"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        copyright © 2024 AgroTrace. Todos los derechos reservados. Diseñado y desarrollado por el equipo de AgroTrace.
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
