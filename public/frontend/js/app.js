@@ -1,13 +1,34 @@
+// app.js - AgroTrace
+const API_URL = 'http://localhost:3000/api';
+const STATIC_URL = 'http://localhost:3000';
+
+// ── Guard: solo ADMIN y VENDEDOR entran aquí ───────────
+(function () {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+    if (!token || !usuario) {
+        window.location.replace('./login.html');
+        throw new Error('GUARD: sin sesión');
+    }
+    const rol = usuario.tipo_usuario;
+    if (rol === 'PRODUCTOR' || rol === 'OPERARIO') {
+        window.location.replace('./vista_productor/productor.html');
+        throw new Error('GUARD: rol incorrecto');
+    }
+    if (rol !== 'ADMIN' && rol !== 'VENDEDOR') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        window.location.replace('./login.html');
+        throw new Error('GUARD: rol desconocido');
+    }
+})();
+
 // ── Sidebar toggle ──────────────────────────────────────
 const toggle = document.querySelector(".menu-toggle");
 const header = document.querySelector(".sidebar");
-
 toggle.addEventListener("click", () => {
     header.classList.toggle("collapsed");
 });
-// app.js - Lógica del frontend para el módulo de análisis
-const API_URL    = 'http://localhost:3000/api';
-const STATIC_URL = 'http://localhost:3000';  // base para imágenes estáticas
 
 // Estado global
 let charts = {
@@ -19,37 +40,33 @@ let charts = {
     capacidad: null
 };
 
-// ════════════════════════════════════════
-//  NAVEGACIÓN UNIFICADA
-// ════════════════════════════════════════
+// NAVEGACION
 function mostrarSeccion(sectionId) {
-    // Ocultar TODAS las secciones explícitamente
     document.querySelectorAll('main .section').forEach(s => {
         s.classList.remove('active');
         s.style.display = 'none';
     });
 
-    // Mostrar solo la activa
     const el = document.getElementById(sectionId);
     if (el) {
         el.classList.add('active');
         el.style.display = 'block';
     }
 
-    // Marcar nav activo
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     const btn = document.querySelector(`.nav-btn[data-section="${sectionId}"]`);
     if (btn) btn.classList.add('active');
 
     // Cargar datos del módulo
-    if (sectionId === 'analisis')    { analisis_cargarProductores(); analisis_loadProyeccion(); }
-    if (sectionId === 'usuarios')    usr_cargar();
+    if (sectionId === 'analisis') { analisis_cargarProductores(); analisis_loadProyeccion(); }
+    if (sectionId === 'usuarios') usr_cargar();
     if (sectionId === 'productores') prd_cargar();
-    if (sectionId === 'productos')   pro_cargar();
-    if (sectionId === 'compras')     cmp_cargar();
-    if (sectionId === 'ventas')      vnt_cargar();
-    if (sectionId === 'historial')   his_cargar();
-    if (sectionId === 'dashboard')   cargarDashboard();
+    if (sectionId === 'productos') pro_cargar();
+    if (sectionId === 'compras') cmp_cargar();
+    if (sectionId === 'ventas') vnt_cargar();
+    if (sectionId === 'comerciantes') com_cargar();
+    if (sectionId === 'historial') his_cargar();
+    if (sectionId === 'dashboard') cargarDashboard();
 }
 
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -111,33 +128,33 @@ function destroyChart(chartName) {
 // ==========================================
 async function cargarDashboard() {
     // Saludo y fecha
-    const hora    = new Date().getHours();
-    const saludo  = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+    const hora = new Date().getHours();
+    const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
     const greetEl = document.getElementById('db_greeting_text');
     if (greetEl) greetEl.textContent = saludo;
 
-    const fechaStr = new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' });
+    const fechaStr = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
     const fechaEl = document.getElementById('db_hero_fecha');
     if (fechaEl) fechaEl.textContent = fechaStr;
     const ecoFecha = document.getElementById('db_eco_fecha');
     if (ecoFecha) ecoFecha.textContent = fechaStr;
 
     try {
-        const token   = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
         // Cargar todo en paralelo
         const [meRes, cRes, vRes, prRes, plRes] = await Promise.allSettled([
-            fetch(`${API_URL}/me`,                     { headers }),
-            fetch(`${API_URL}/compras`,                { headers }),
-            fetch(`${API_URL}/ventas`,                 { headers }),
-            fetch(`${API_URL}/productos`,              { headers }),
+            fetch(`${API_URL}/me`, { headers }),
+            fetch(`${API_URL}/compras`, { headers }),
+            fetch(`${API_URL}/ventas`, { headers }),
+            fetch(`${API_URL}/productos`, { headers }),
             fetch(`${API_URL}/productores?todos=true`, { headers }),
         ]);
 
         // Nombre usuario en hero
         if (meRes.status === 'fulfilled') {
-            const me    = await meRes.value.json();
+            const me = await meRes.value.json();
             const nombre = me.nombre || me.email || '—';
             const nameEl = document.getElementById('db_hero_nombre_text');
             if (nameEl) nameEl.textContent = nombre;
@@ -151,14 +168,14 @@ async function cargarDashboard() {
             greetEl2.textContent = h < 12 ? 'Buenos días' : h < 18 ? 'Buenas tardes' : 'Buenas noches';
         }
 
-        const compras  = cRes.status  === 'fulfilled' ? await cRes.value.json()  : [];
-        const ventas   = vRes.status  === 'fulfilled' ? await vRes.value.json()  : [];
-        const prods    = prRes.status === 'fulfilled' ? await prRes.value.json() : [];
+        const compras = cRes.status === 'fulfilled' ? await cRes.value.json() : [];
+        const ventas = vRes.status === 'fulfilled' ? await vRes.value.json() : [];
+        const prods = prRes.status === 'fulfilled' ? await prRes.value.json() : [];
         const prodList = plRes.status === 'fulfilled' ? await plRes.value.json() : [];
 
-        const cArr  = Array.isArray(compras)  ? compras  : [];
-        const vArr  = Array.isArray(ventas)   ? ventas   : [];
-        const pArr  = Array.isArray(prods)    ? prods    : [];
+        const cArr = Array.isArray(compras) ? compras : [];
+        const vArr = Array.isArray(ventas) ? ventas : [];
+        const pArr = Array.isArray(prods) ? prods : [];
         const plArr = Array.isArray(prodList) ? prodList : (prodList.data || []);
 
         // ── Infografía derecha ──
@@ -188,27 +205,27 @@ async function cargarDashboard() {
 
         // Animar nodos con entrada escalonada
         document.querySelectorAll('.db-info-node').forEach((n, i) => {
-            n.style.opacity   = '0';
+            n.style.opacity = '0';
             n.style.transform = 'translateY(16px)';
             setTimeout(() => {
                 n.style.transition = 'opacity .4s ease, transform .4s ease';
-                n.style.opacity    = '1';
-                n.style.transform  = 'translateY(0)';
+                n.style.opacity = '1';
+                n.style.transform = 'translateY(0)';
             }, 200 + i * 120);
         });
 
         // Animar pasos con entrada
         document.querySelectorAll('.db-step').forEach((s, i) => {
-            s.style.opacity   = '0';
+            s.style.opacity = '0';
             s.style.transform = 'translateX(-12px)';
             setTimeout(() => {
                 s.style.transition = 'opacity .35s ease, transform .35s ease, background .15s, box-shadow .15s';
-                s.style.opacity    = '1';
-                s.style.transform  = 'translateX(0)';
+                s.style.opacity = '1';
+                s.style.transform = 'translateX(0)';
             }, 100 + i * 80);
         });
 
-    } catch(e) {
+    } catch (e) {
         console.warn('Dashboard error:', e.message);
     }
 }
@@ -229,9 +246,9 @@ function db_animNum(id, target) {
     const el = document.getElementById(id);
     if (!el) return;
     const dur = 900;
-    const t0  = performance.now();
+    const t0 = performance.now();
     const run = (now) => {
-        const p    = Math.min((now - t0) / dur, 1);
+        const p = Math.min((now - t0) / dur, 1);
         const ease = 1 - Math.pow(1 - p, 3);
         el.textContent = Math.round(target * ease).toLocaleString('es-CO');
         if (p < 1) requestAnimationFrame(run);
@@ -731,7 +748,7 @@ async function analisis_cargarProductores() {
             const sel = document.getElementById(id);
             if (sel) sel.innerHTML = opcionTodos + opciones;
         });
-    } catch(e) {
+    } catch (e) {
         console.warn('No se pudieron cargar productores para análisis:', e.message);
         // Dejar con opción por defecto
         ['ap_productor', 'ah_productor', 'at_productor'].forEach(id => {
@@ -791,24 +808,24 @@ async function analisis_loadProyeccion() {
             <span class="an-kpi-value">${dif > 0 ? '+' : ''}${dif}%</span>
             <span class="an-kpi-tag neutral">vs período anterior</span>
         </div>`;
-    } catch(e) {
+    } catch (e) {
         cards.innerHTML = `<div class="an-kpi" style="grid-column:1/-1"><span class="an-kpi-label" style="color:#dc2626">Error: ${e.message}</span></div>`;
     }
 }
 
 // ── HISTORIAL ──
 async function analisis_loadHistorial() {
-    const id  = document.getElementById('ah_productor').value;
+    const id = document.getElementById('ah_productor').value;
     const ini = document.getElementById('ah_inicio').value;
     const fin = document.getElementById('ah_fin').value;
     showLoading();
     try {
         // Construir query solo con params presentes
         const params = new URLSearchParams();
-        if (id)  params.append('id_productor', id);
+        if (id) params.append('id_productor', id);
         if (ini) params.append('inicio', ini);
         if (fin) params.append('fin', fin);
-        const res  = await fetch(`${API_URL}/estadisticas/historial?${params.toString()}`);
+        const res = await fetch(`${API_URL}/estadisticas/historial?${params.toString()}`);
         const data = await res.json();
         document.getElementById('ah_count').textContent = `${data.length} registros`;
 
@@ -831,14 +848,16 @@ async function analisis_loadHistorial() {
             type: 'line',
             data: {
                 labels: data.map(d => d.fecha_produccion?.split('T')[0] || d.fecha_produccion),
-                datasets: [{ label: 'Cantidad (kg)', data: data.map(d => parseFloat(d.cantidad)),
+                datasets: [{
+                    label: 'Cantidad (kg)', data: data.map(d => parseFloat(d.cantidad)),
                     borderColor: 'rgb(10,174,10)', backgroundColor: 'rgba(10,174,10,0.1)',
                     borderWidth: 3, fill: true, tension: 0.4, pointRadius: 5,
-                    pointBackgroundColor: 'rgb(10,174,10)', pointBorderColor:'#fff', pointBorderWidth:2 }]
+                    pointBackgroundColor: 'rgb(10,174,10)', pointBorderColor: '#fff', pointBorderWidth: 2
+                }]
             },
-            options: { responsive:true, scales:{ y:{ beginAtZero:true } } }
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
         });
-    } catch(e) {
+    } catch (e) {
         document.getElementById('ah_tbody').innerHTML = `<tr><td colspan="5" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
@@ -850,7 +869,7 @@ async function analisis_loadTendencia() {
     try {
         const qId = id ? `?id_productor=${id}` : '';
         const res = await fetch(`${API_URL}/estadisticas/tendencia${qId}`);
-        const d   = await res.json();
+        const d = await res.json();
         const tClass = d.tendencia === 'Creciente' ? 'badge-success' : d.tendencia === 'Decreciente' ? 'badge-danger' : 'badge-warning';
 
         document.getElementById('at_cards').innerHTML = `
@@ -858,7 +877,7 @@ async function analisis_loadTendencia() {
             <div class="an-kpi-icon blue"><i class="fi fi-rr-stats"></i></div>
             <span class="an-kpi-label">Tendencia</span>
             <span class="an-kpi-value">${d.tendencia}</span>
-            <span class="an-kpi-tag ${d.tendencia==='Creciente'?'ok':d.tendencia==='Decreciente'?'danger':'warn'}">${d.diferencia_porcentual}%</span>
+            <span class="an-kpi-tag ${d.tendencia === 'Creciente' ? 'ok' : d.tendencia === 'Decreciente' ? 'danger' : 'warn'}">${d.diferencia_porcentual}%</span>
         </div>
         <div class="an-kpi">
             <div class="an-kpi-icon green"><i class="fi fi-rr-calendar"></i></div>
@@ -879,13 +898,15 @@ async function analisis_loadTendencia() {
             type: 'bar',
             data: {
                 labels: ['3 meses anteriores', 'Últimos 3 meses'],
-                datasets: [{ data: [parseFloat(d.promedio_anterior), parseFloat(d.promedio_actual)],
-                    backgroundColor: ['rgba(156,163,175,0.7)', d.tendencia==='Creciente'?'rgba(10,174,10,0.8)':d.tendencia==='Decreciente'?'rgba(239,68,68,0.8)':'rgba(245,158,11,0.8)'],
-                    borderRadius: 8, borderWidth:2 }]
+                datasets: [{
+                    data: [parseFloat(d.promedio_anterior), parseFloat(d.promedio_actual)],
+                    backgroundColor: ['rgba(156,163,175,0.7)', d.tendencia === 'Creciente' ? 'rgba(10,174,10,0.8)' : d.tendencia === 'Decreciente' ? 'rgba(239,68,68,0.8)' : 'rgba(245,158,11,0.8)'],
+                    borderRadius: 8, borderWidth: 2
+                }]
             },
-            options: { responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
-    } catch(e) {
+    } catch (e) {
         document.getElementById('at_cards').innerHTML = `<div class="an-kpi" style="grid-column:1/-1"><span class="an-kpi-label" style="color:#dc2626">Error: ${e.message}</span></div>`;
     } finally { hideLoading(); }
 }
@@ -893,16 +914,16 @@ async function analisis_loadTendencia() {
 // ── RANKING ──
 async function analisis_loadRanking() {
     const tipo = document.getElementById('ar_tipo').value;
-    const labels = { total:'Total producido', promedio:'Promedio por entrega', frecuencia:'Frecuencia de entregas' };
+    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
     document.getElementById('ar_tipo_label').textContent = labels[tipo];
     showLoading();
     try {
-        const res  = await fetch(`${API_URL}/estadisticas/ranking?tipo=${tipo}`);
+        const res = await fetch(`${API_URL}/estadisticas/ranking?tipo=${tipo}`);
         const data = await res.json();
 
         const tbody = document.getElementById('ar_tbody');
         tbody.innerHTML = data.map(r => {
-            const medalla = r.posicion===1?'🥇':r.posicion===2?'🥈':r.posicion===3?'🥉':'';
+            const medalla = r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : '';
             // Usar nombre real del backend, fallback a id si no viene
             const nombreMostrar = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
             return `<tr>
@@ -914,36 +935,36 @@ async function analisis_loadRanking() {
         }).join('') || '<tr><td colspan="4" class="empty-state">Sin datos</td></tr>';
 
         destroyAnalisisChart('ranking');
-        const colors = data.map((_,i) => `hsla(${130-(i*12)},65%,45%,0.8)`);
+        const colors = data.map((_, i) => `hsla(${130 - (i * 12)},65%,45%,0.8)`);
         const ctx = document.getElementById('ar_chart').getContext('2d');
         analisisCharts.ranking = new Chart(ctx, {
-            type:'bar',
-            data:{
+            type: 'bar',
+            data: {
                 // Usar nombre real en el gráfico también
                 labels: data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `Productor ${d.id_productor}`),
-                datasets:[{ data:data.map(d=>d.valor), backgroundColor:colors, borderRadius:6 }]
+                datasets: [{ data: data.map(d => d.valor), backgroundColor: colors, borderRadius: 6 }]
             },
-            options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
         });
-    } catch(e) {
+    } catch (e) {
         document.getElementById('ar_tbody').innerHTML = `<tr><td colspan="4" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
 
 // ── PLANIFICACIÓN ──
 async function analisis_loadPlanificacion() {
-    const precio    = parseFloat(document.getElementById('apl_precio').value);
+    const precio = parseFloat(document.getElementById('apl_precio').value);
     const capacidad = parseFloat(document.getElementById('apl_capacidad').value);
-    if (!precio || precio <= 0)    { alert('Ingrese un precio válido'); return; }
-    if (!capacidad || capacidad<=0){ alert('Ingrese una capacidad válida'); return; }
+    if (!precio || precio <= 0) { alert('Ingrese un precio válido'); return; }
+    if (!capacidad || capacidad <= 0) { alert('Ingrese una capacidad válida'); return; }
     showLoading();
     try {
         const res = await fetch(`${API_URL}/estadisticas/planificacion?precio=${precio}&capacidad=${capacidad}`);
-        const d   = await res.json();
+        const d = await res.json();
 
         document.getElementById('apl_alert').innerHTML = `
-            <div class="an-alert ${d.supera_capacidad?'danger':'ok'}">
-                <i class="fi fi-rr-${d.supera_capacidad?'triangle-warning':'check'}"></i>
+            <div class="an-alert ${d.supera_capacidad ? 'danger' : 'ok'}">
+                <i class="fi fi-rr-${d.supera_capacidad ? 'triangle-warning' : 'check'}"></i>
                 <span>${d.alerta}</span>
             </div>`;
 
@@ -961,10 +982,10 @@ async function analisis_loadPlanificacion() {
             <span class="an-kpi-tag info">al precio indicado</span>
         </div>
         <div class="an-kpi">
-            <div class="an-kpi-icon ${d.supera_capacidad?'red':'green'}"><i class="fi fi-rr-truck-side"></i></div>
+            <div class="an-kpi-icon ${d.supera_capacidad ? 'red' : 'green'}"><i class="fi fi-rr-truck-side"></i></div>
             <span class="an-kpi-label">Capacidad</span>
             <span class="an-kpi-value">${formatNumber(d.capacidad)} <small style="font-size:.45em;color:#9ca3af">kg</small></span>
-            <span class="an-kpi-tag ${d.supera_capacidad?'danger':'ok'}">${d.supera_capacidad?'Superada':'Suficiente'}</span>
+            <span class="an-kpi-tag ${d.supera_capacidad ? 'danger' : 'ok'}">${d.supera_capacidad ? 'Superada' : 'Suficiente'}</span>
         </div>`;
 
         destroyAnalisisChart('planificacion');
@@ -973,14 +994,18 @@ async function analisis_loadPlanificacion() {
         const exceso = Math.max(0, d.total_proyectado - d.capacidad);
         const ctx = document.getElementById('apl_chart').getContext('2d');
         analisisCharts.planificacion = new Chart(ctx, {
-            type:'doughnut',
-            data:{ labels:['Utilizado','Disponible','Exceso'],
-                   datasets:[{ data:[utilizado,disponible,exceso],
-                     backgroundColor:['rgba(59,130,246,0.8)','rgba(10,174,10,0.8)','rgba(239,68,68,0.8)'],
-                     borderWidth:2 }] },
-            options:{ responsive:true, plugins:{ legend:{position:'bottom'} } }
+            type: 'doughnut',
+            data: {
+                labels: ['Utilizado', 'Disponible', 'Exceso'],
+                datasets: [{
+                    data: [utilizado, disponible, exceso],
+                    backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(10,174,10,0.8)', 'rgba(239,68,68,0.8)'],
+                    borderWidth: 2
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
         });
-    } catch(e) {
+    } catch (e) {
         document.getElementById('apl_alert').innerHTML = `<div class="an-alert danger"><i class="fi fi-rr-triangle-warning"></i><span>Error: ${e.message}</span></div>`;
     } finally { hideLoading(); }
 }
@@ -994,18 +1019,18 @@ async function analisis_loadPlanificacion() {
 // ════════════════════════════════════════════════════════
 
 const ROL_GRADIENTS = {
-    ADMIN:     'linear-gradient(135deg,#fbbf24,#d97706)',
-    VENDEDOR:  'linear-gradient(135deg,#a78bfa,#7c3aed)',
+    ADMIN: 'linear-gradient(135deg,#fbbf24,#d97706)',
+    VENDEDOR: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
     PRODUCTOR: 'linear-gradient(135deg,#0aae0a,#1b5e20)',
 };
 const ROL_HERO_BG = {
-    ADMIN:     'linear-gradient(135deg,#fffbeb,#fef3c7)',
-    VENDEDOR:  'linear-gradient(135deg,#f5f3ff,#ede9fe)',
+    ADMIN: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
+    VENDEDOR: 'linear-gradient(135deg,#f5f3ff,#ede9fe)',
     PRODUCTOR: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
 };
 const ROL_BADGE_CLASS = {
-    ADMIN:     'hp-rol-ADMIN',
-    VENDEDOR:  'hp-rol-VENDEDOR',
+    ADMIN: 'hp-rol-ADMIN',
+    VENDEDOR: 'hp-rol-VENDEDOR',
     PRODUCTOR: 'hp-rol-PRODUCTOR',
 };
 const ROL_LABEL = {
@@ -1055,7 +1080,7 @@ async function hp_cargarUsuario() {
             const usuario = JSON.parse(guardado);
             _hp_usuario = usuario;
             hp_pintarTodo(usuario);
-        } catch(e) { console.warn(e); }
+        } catch (e) { console.warn(e); }
     }
 }
 
@@ -1063,40 +1088,40 @@ async function hp_cargarUsuario() {
 function hp_set(id, prop, val) {
     const el = document.getElementById(id);
     if (!el) return;
-    if (prop === 'text')       el.textContent = val;
+    if (prop === 'text') el.textContent = val;
     else if (prop === 'value') el.value = val;
-    else if (prop === 'bg')    el.style.background = val;
+    else if (prop === 'bg') el.style.background = val;
     else if (prop === 'class') el.className = val;
     else if (prop === 'display') el.style.display = val;
-    else if (prop === 'html')  el.innerHTML = val;
+    else if (prop === 'html') el.innerHTML = val;
 }
 
 // ── Pintar trigger (header) y panel ───────────────────
 function hp_pintarTodo(u) {
     if (!u) return;
-    const iniciales   = hp_iniciales(u.nombre, u.apellido);
-    const rolLabel    = ROL_LABEL[u.tipo_usuario]      || u.tipo_usuario;
-    const gradient    = ROL_GRADIENTS[u.tipo_usuario]  || ROL_GRADIENTS.PRODUCTOR;
-    const badgeCls    = ROL_BADGE_CLASS[u.tipo_usuario]|| '';
-    const heroBg      = ROL_HERO_BG[u.tipo_usuario]    || ROL_HERO_BG.PRODUCTOR;
+    const iniciales = hp_iniciales(u.nombre, u.apellido);
+    const rolLabel = ROL_LABEL[u.tipo_usuario] || u.tipo_usuario;
+    const gradient = ROL_GRADIENTS[u.tipo_usuario] || ROL_GRADIENTS.PRODUCTOR;
+    const badgeCls = ROL_BADGE_CLASS[u.tipo_usuario] || '';
+    const heroBg = ROL_HERO_BG[u.tipo_usuario] || ROL_HERO_BG.PRODUCTOR;
     const nombreCompleto = `${u.nombre || ''} ${u.apellido || ''}`.trim();
 
     /* ── Trigger header ── */
-    hp_set('hp_avatar',    'bg',    gradient);
-    hp_set('hp_iniciales', 'text',  iniciales);
-    hp_set('hp_nombre',    'text',  nombreCompleto);
-    hp_set('hp_rol_badge', 'text',  rolLabel);
+    hp_set('hp_avatar', 'bg', gradient);
+    hp_set('hp_iniciales', 'text', iniciales);
+    hp_set('hp_nombre', 'text', nombreCompleto);
+    hp_set('hp_rol_badge', 'text', rolLabel);
     hp_set('hp_rol_badge', 'class', `hp-rol-badge ${badgeCls}`);
 
     /* ── Hero del panel ── */
-    hp_set('hp_hero_bg',          'bg',   heroBg);
-    hp_set('hp_hero_avatar',      'bg',   gradient);
-    hp_set('hp_hero_iniciales',   'text', iniciales);
-    hp_set('hp_hero_nombre',      'text', nombreCompleto);
-    hp_set('hp_hero_cedula',      'text', u.cedula ? `CC: ${u.cedula}` : 'Sin cédula');
+    hp_set('hp_hero_bg', 'bg', heroBg);
+    hp_set('hp_hero_avatar', 'bg', gradient);
+    hp_set('hp_hero_iniciales', 'text', iniciales);
+    hp_set('hp_hero_nombre', 'text', nombreCompleto);
+    hp_set('hp_hero_cedula', 'text', u.cedula ? `CC: ${u.cedula}` : 'Sin cédula');
     hp_set('hp_hero_email_small', 'text', u.email || '');
-    hp_set('hp_hero_rol_badge',   'text', rolLabel);
-    hp_set('hp_hero_rol_badge',   'class', `hp-rol-badge hp-rol-badge-lg ${badgeCls}`);
+    hp_set('hp_hero_rol_badge', 'text', rolLabel);
+    hp_set('hp_hero_rol_badge', 'class', `hp-rol-badge hp-rol-badge-lg ${badgeCls}`);
 
     /* ── Permisos chips ── */
     // PostgreSQL devuelve los arrays como string "{dashboard,compras}" o ya como array JS
@@ -1108,27 +1133,27 @@ function hp_pintarTodo(u) {
         const html = permisos.map(p =>
             `<span class="hp-chip">${PERMISO_LABEL[p.trim()] || p.trim()}</span>`
         ).join('');
-        hp_set('hp_permisos_chips', 'html',    html);
-        hp_set('hp_permisos_wrap',  'display', 'block');
+        hp_set('hp_permisos_chips', 'html', html);
+        hp_set('hp_permisos_wrap', 'display', 'block');
     } else {
         hp_set('hp_permisos_wrap', 'display', 'none');
     }
 
     /* ── Campos formulario ── */
-    hp_set('hp_f_nombre',     'text',  nombreCompleto);
-    hp_set('hp_f_cedula',     'text',  u.cedula || 'Sin cédula');
-    hp_set('hp_f_email',      'value', u.email    || '');
-    hp_set('hp_f_telefono',   'value', u.telefono || '');
-    hp_set('hp_f_tipo_label', 'text',  rolLabel);
+    hp_set('hp_f_nombre', 'text', nombreCompleto);
+    hp_set('hp_f_cedula', 'text', u.cedula || 'Sin cédula');
+    hp_set('hp_f_email', 'value', u.email || '');
+    hp_set('hp_f_telefono', 'value', u.telefono || '');
+    hp_set('hp_f_tipo_label', 'text', rolLabel);
 
     /* Tipo usuario: oculto para ADMIN, visible (solo lectura) para los demás */
     if (u.tipo_usuario === 'ADMIN') {
         hp_set('hp_campo_tipo', 'display', 'none');
     } else {
-        hp_set('hp_campo_tipo',    'display', '');
+        hp_set('hp_campo_tipo', 'display', '');
         hp_set('hp_tipo_readonly', 'display', '');
-        hp_set('hp_f_tipo',        'display', 'none');
-        hp_set('hp_f_tipo_label',  'text',    rolLabel);
+        hp_set('hp_f_tipo', 'display', 'none');
+        hp_set('hp_f_tipo_label', 'text', rolLabel);
     }
 
     /* ── Foto de perfil guardada ── */
@@ -1139,13 +1164,13 @@ function hp_pintarTodo(u) {
             : `${STATIC_URL}${u.foto_perfil}`;
         const imgHtml = `<img src="${fotoUrl}" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         hp_set('hp_hero_avatar', 'html', imgHtml);
-        hp_set('hp_avatar',      'html', imgHtml);
+        hp_set('hp_avatar', 'html', imgHtml);
     }
 }
 
 // ── Toggle / Cerrar panel ──────────────────────────────
 function hp_toggle() {
-    const panel   = document.getElementById('hp_panel');
+    const panel = document.getElementById('hp_panel');
     const overlay = document.getElementById('hp_overlay');
     const chevron = document.getElementById('hp_chevron');
     if (panel.classList.contains('abierto')) {
@@ -1181,7 +1206,7 @@ async function hp_previsualizarFoto(input) {
         const src = e.target.result;
         const imgHtml = `<img src="${src}" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         hp_set('hp_hero_avatar', 'html', imgHtml);
-        hp_set('hp_avatar',      'html', imgHtml);
+        hp_set('hp_avatar', 'html', imgHtml);
     };
     reader.readAsDataURL(file);
 
@@ -1209,7 +1234,7 @@ async function hp_previsualizarFoto(input) {
             : `${STATIC_URL}${data.foto_perfil}`;
         const imgFinal = `<img src="${fotoUrl}" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         hp_set('hp_hero_avatar', 'html', imgFinal);
-        hp_set('hp_avatar',      'html', imgFinal);
+        hp_set('hp_avatar', 'html', imgFinal);
 
     } catch (e) {
         console.error('Error subiendo foto:', e);
@@ -1219,15 +1244,15 @@ async function hp_previsualizarFoto(input) {
 // ── Guardar información ────────────────────────────────
 async function hp_guardarInfo() {
     const msg = document.getElementById('hp_info_msg');
-    if (!_hp_usuario) { msg.className='hp-msg error'; msg.textContent=' No hay sesión activa.'; return; }
+    if (!_hp_usuario) { msg.className = 'hp-msg error'; msg.textContent = ' No hay sesión activa.'; return; }
 
-    const email    = document.getElementById('hp_f_email').value.trim();
+    const email = document.getElementById('hp_f_email').value.trim();
     const telefono = document.getElementById('hp_f_telefono').value.trim();
-    const tipo     = _hp_usuario.tipo_usuario === 'ADMIN'
-                     ? document.getElementById('hp_f_tipo').value
-                     : _hp_usuario.tipo_usuario;
+    const tipo = _hp_usuario.tipo_usuario === 'ADMIN'
+        ? document.getElementById('hp_f_tipo').value
+        : _hp_usuario.tipo_usuario;
 
-    if (!email) { msg.className='hp-msg error'; msg.textContent=' El correo es obligatorio.'; return; }
+    if (!email) { msg.className = 'hp-msg error'; msg.textContent = ' El correo es obligatorio.'; return; }
 
     const body = { email, telefono, tipo_usuario: tipo };
     const token = localStorage.getItem('token');
@@ -1257,19 +1282,19 @@ async function hp_guardarInfo() {
 // ── Cambiar contraseña ─────────────────────────────────
 // El backend no tiene endpoint de cambio de password aún — dejamos el flujo listo
 async function hp_cambiarPassword() {
-    const actual    = document.getElementById('hp_pass_actual').value;
-    const nueva     = document.getElementById('hp_pass_nueva').value;
+    const actual = document.getElementById('hp_pass_actual').value;
+    const nueva = document.getElementById('hp_pass_nueva').value;
     const confirmar = document.getElementById('hp_pass_confirmar').value;
-    const msg       = document.getElementById('hp_pass_msg');
+    const msg = document.getElementById('hp_pass_msg');
 
     if (!actual || !nueva || !confirmar) {
-        msg.className='hp-msg error'; msg.textContent=' Completa todos los campos.'; return;
+        msg.className = 'hp-msg error'; msg.textContent = ' Completa todos los campos.'; return;
     }
     if (nueva !== confirmar) {
-        msg.className='hp-msg error'; msg.textContent=' Las contraseñas no coinciden.'; return;
+        msg.className = 'hp-msg error'; msg.textContent = ' Las contraseñas no coinciden.'; return;
     }
     if (nueva.length < 6) {
-        msg.className='hp-msg error'; msg.textContent=' Mínimo 6 caracteres.'; return;
+        msg.className = 'hp-msg error'; msg.textContent = ' Mínimo 6 caracteres.'; return;
     }
 
     // TODO: cuando el backend tenga endpoint:
@@ -1287,7 +1312,9 @@ function hp_cerrarSesion() {
     if (!confirm('¿Deseas cerrar sesión?')) return;
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
-    window.location.href = '/login';   // ajusta a tu ruta de login
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('usuario');
+    window.location.replace('./login.html');
 }
 
 // ── Inicializar al cargar ──────────────────────────────
@@ -1297,13 +1324,13 @@ window.addEventListener('load', hp_cargarUsuario);
 //  MÓDULO USUARIOS
 // ════════════════════════════════════════════════════════
 
-let _usr_todos   = [];   // cache todos los usuarios
-let _usr_rol     = '';   // filtro rol activo
-let _usr_buscar  = '';   // texto búsqueda
+let _usr_todos = [];   // cache todos los usuarios
+let _usr_rol = '';   // filtro rol activo
+let _usr_buscar = '';   // texto búsqueda
 
 const USR_GRADIENTS = {
-    ADMIN:     'linear-gradient(135deg,#fbbf24,#d97706)',
-    VENDEDOR:  'linear-gradient(135deg,#a78bfa,#7c3aed)',
+    ADMIN: 'linear-gradient(135deg,#fbbf24,#d97706)',
+    VENDEDOR: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
     PRODUCTOR: 'linear-gradient(135deg,#0aae0a,#1b5e20)',
 };
 
@@ -1312,13 +1339,13 @@ async function usr_cargar() {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-        const res  = await fetch(`${API_URL}/usuarios`, {
+        const res = await fetch(`${API_URL}/usuarios`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Sin acceso');
         _usr_todos = await res.json();
         usr_renderTabla();
-    } catch(e) {
+    } catch (e) {
         document.getElementById('usr_tbody').innerHTML =
             `<tr><td colspan="7" class="empty-state" style="color:#dc2626">Error al cargar usuarios: ${e.message}</td></tr>`;
     }
@@ -1343,8 +1370,8 @@ function usr_renderTabla() {
     const count = document.getElementById('usr_count');
 
     let lista = _usr_todos.filter(u => {
-        const matchRol    = !_usr_rol || u.tipo_usuario === _usr_rol;
-        const texto       = `${u.nombre} ${u.apellido} ${u.email} ${u.cedula || ''}`.toLowerCase();
+        const matchRol = !_usr_rol || u.tipo_usuario === _usr_rol;
+        const texto = `${u.nombre} ${u.apellido} ${u.email} ${u.cedula || ''}`.toLowerCase();
         const matchBuscar = !_usr_buscar || texto.includes(_usr_buscar);
         return matchRol && matchBuscar;
     });
@@ -1357,8 +1384,8 @@ function usr_renderTabla() {
     }
 
     tbody.innerHTML = lista.map(u => {
-        const iniciales = ((u.nombre||'')[0]||(u.nombre||'')).toUpperCase() +
-                          ((u.apellido||'')[0]||(u.apellido||'')).toUpperCase();
+        const iniciales = ((u.nombre || '')[0] || (u.nombre || '')).toUpperCase() +
+            ((u.apellido || '')[0] || (u.apellido || '')).toUpperCase();
         const grad = USR_GRADIENTS[u.tipo_usuario] || USR_GRADIENTS.PRODUCTOR;
         return `
         <tr>
@@ -1415,11 +1442,11 @@ function usr_abrirPanel() {
     // Rol editable al crear
     document.getElementById('usr_f_rol').disabled = false;
 
-    ['usr_f_nombre','usr_f_apellido','usr_f_cedula','usr_f_email',
-     'usr_f_telefono','usr_f_password'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
+    ['usr_f_nombre', 'usr_f_apellido', 'usr_f_cedula', 'usr_f_email',
+        'usr_f_telefono', 'usr_f_password'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
     document.getElementById('usr_f_rol').value = 'VENDEDOR';
     document.getElementById('usr_msg').textContent = '';
     document.getElementById('usr_msg').className = 'hp-msg';
@@ -1446,12 +1473,12 @@ function usr_abrirEditar(id) {
     // Contraseña oculta al editar (no se cambia aquí)
     document.getElementById('usr_campo_password').style.display = 'none';
 
-    document.getElementById('usr_f_nombre').value   = u.nombre   || '';
+    document.getElementById('usr_f_nombre').value = u.nombre || '';
     document.getElementById('usr_f_apellido').value = u.apellido || '';
-    document.getElementById('usr_f_email').value    = u.email    || '';
+    document.getElementById('usr_f_email').value = u.email || '';
     document.getElementById('usr_f_telefono').value = u.telefono || '';
-    document.getElementById('usr_f_rol').value      = u.tipo_usuario || 'VENDEDOR';
-    document.getElementById('usr_f_rol').disabled   = false;
+    document.getElementById('usr_f_rol').value = u.tipo_usuario || 'VENDEDOR';
+    document.getElementById('usr_f_rol').disabled = false;
 
     document.getElementById('usr_msg').textContent = '';
     document.getElementById('usr_msg').className = 'hp-msg';
@@ -1477,12 +1504,12 @@ async function usr_guardar() {
 
 // ── Guardar edición ────────────────────────────────────
 async function usr_guardarEdicion() {
-    const msg      = document.getElementById('usr_msg');
-    const nombre   = document.getElementById('usr_f_nombre').value.trim();
+    const msg = document.getElementById('usr_msg');
+    const nombre = document.getElementById('usr_f_nombre').value.trim();
     const apellido = document.getElementById('usr_f_apellido').value.trim();
-    const email    = document.getElementById('usr_f_email').value.trim();
+    const email = document.getElementById('usr_f_email').value.trim();
     const telefono = document.getElementById('usr_f_telefono').value.trim();
-    const rol      = document.getElementById('usr_f_rol').value;
+    const rol = document.getElementById('usr_f_rol').value;
 
     if (!nombre || !apellido || !email) {
         msg.className = 'hp-msg error';
@@ -1515,7 +1542,7 @@ async function usr_guardarEdicion() {
         msg.style.display = 'block';
         msg.textContent = '✅ Usuario actualizado correctamente.';
         setTimeout(() => { usr_cerrarPanel(); usr_renderTabla(); }, 1200);
-    } catch(e) {
+    } catch (e) {
         msg.className = 'hp-msg error';
         msg.style.display = 'block';
         msg.textContent = `⚠️ ${e.message}`;
@@ -1526,13 +1553,13 @@ async function usr_guardarEdicion() {
 
 // ── Crear usuario ──────────────────────────────────────
 async function usr_crear() {
-    const msg      = document.getElementById('usr_msg');
-    const nombre   = document.getElementById('usr_f_nombre').value.trim();
+    const msg = document.getElementById('usr_msg');
+    const nombre = document.getElementById('usr_f_nombre').value.trim();
     const apellido = document.getElementById('usr_f_apellido').value.trim();
-    const email    = document.getElementById('usr_f_email').value.trim();
-    const cedula   = document.getElementById('usr_f_cedula').value.trim();
+    const email = document.getElementById('usr_f_email').value.trim();
+    const cedula = document.getElementById('usr_f_cedula').value.trim();
     const telefono = document.getElementById('usr_f_telefono').value.trim();
-    const rol      = document.getElementById('usr_f_rol').value;
+    const rol = document.getElementById('usr_f_rol').value;
     const password = document.getElementById('usr_f_password').value;
 
     // Los productores se crean desde el módulo Productores (transacción completa)
@@ -1572,7 +1599,7 @@ async function usr_crear() {
         msg.className = 'hp-msg ok';
         msg.textContent = ' Usuario creado correctamente.';
         setTimeout(() => { usr_cerrarPanel(); usr_cargar(); }, 1200);
-    } catch(e) {
+    } catch (e) {
         msg.className = 'hp-msg error';
         msg.textContent = ` ${e.message}`;
     }
@@ -1592,7 +1619,7 @@ async function usr_desactivar(id, nombre) {
         const u = _usr_todos.find(x => x.id_usuario === id);
         if (u) u.activo = false;
         usr_renderTabla();
-    } catch(e) {
+    } catch (e) {
         alert(`Error: ${e.message}`);
     }
 }
@@ -1606,9 +1633,9 @@ async function usr_desactivar(id, nombre) {
 //  PATCH  /api/productores/:id/estado  → activar/desactivar
 // ════════════════════════════════════════════════════════
 
-let _prd_todos    = [];
-let _prd_estado   = '';
-let _prd_buscar   = '';
+let _prd_todos = [];
+let _prd_estado = '';
+let _prd_buscar = '';
 let _prd_editando = null;
 
 // ── Cargar ────────────────────────────────────────────
@@ -1651,7 +1678,7 @@ async function prd_cargar() {
         }
 
         prd_renderTabla();
-    } catch(e) {
+    } catch (e) {
         document.getElementById('prd_tbody').innerHTML =
             `<tr><td colspan="7" class="empty-state" style="color:#dc2626">
                  ${e.message}
@@ -1680,9 +1707,9 @@ function prd_renderTabla() {
     const esAdmin = usuarioLocal?.tipo_usuario === 'ADMIN';
 
     let lista = _prd_todos.filter(p => {
-        const matchEstado  = !_prd_estado || p.estado === _prd_estado;
-        const texto        = `${p.nombre||''} ${p.cedula||''} ${p.finca||''}`.toLowerCase();
-        const matchBuscar  = !_prd_buscar || texto.includes(_prd_buscar);
+        const matchEstado = !_prd_estado || p.estado === _prd_estado;
+        const texto = `${p.nombre || ''} ${p.cedula || ''} ${p.finca || ''}`.toLowerCase();
+        const matchBuscar = !_prd_buscar || texto.includes(_prd_buscar);
         return matchEstado && matchBuscar;
     });
 
@@ -1694,11 +1721,11 @@ function prd_renderTabla() {
     }
 
     tbody.innerHTML = lista.map(p => {
-        const nombre   = p.nombre || p.usuario?.nombre || '—';
+        const nombre = p.nombre || p.usuario?.nombre || '—';
         const apellido = p.usuario?.apellido || '';
-        const cedula   = p.cedula  || p.usuario?.cedula  || '—';
+        const cedula = p.cedula || p.usuario?.cedula || '—';
         const iniciales = nombre[0]?.toUpperCase() || '?';
-        const activo    = p.estado === 'ACTIVO';
+        const activo = p.estado === 'ACTIVO';
         const qrValido = p.codigo_qr && p.codigo_qr.startsWith('data:image');
         const qrCell = qrValido
             ? `<button class="prd-qr-icon-btn" onclick="qr_ver(${p.id_productor})" title="Ver código QR">
@@ -1762,11 +1789,11 @@ function prd_abrirPanel() {
     document.getElementById('prd_cedula_readonly').style.display = 'none';
     document.getElementById('prd_campos_usuario').style.display = '';
 
-    ['prd_f_nombre','prd_f_apellido','prd_f_cedula','prd_f_telefono',
-     'prd_f_finca','prd_f_ubicacion','prd_f_email','prd_f_password'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
+    ['prd_f_nombre', 'prd_f_apellido', 'prd_f_cedula', 'prd_f_telefono',
+        'prd_f_finca', 'prd_f_ubicacion', 'prd_f_email', 'prd_f_password'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
     document.getElementById('prd_msg').textContent = '';
     document.getElementById('prd_msg').className = 'hp-msg';
 
@@ -1784,22 +1811,19 @@ function prd_abrirEditar(id) {
     document.getElementById('prd_btn_accion').innerHTML = '<i class="fi fi-rr-check"></i> Guardar cambios';
     document.getElementById('prd_btn_accion').onclick = prd_guardarEdicion;
 
-    // Cédula → solo lectura
     document.getElementById('prd_f_cedula').style.display = 'none';
     document.getElementById('prd_cedula_readonly').style.display = '';
     document.getElementById('prd_cedula_val').textContent = p.cedula || p.usuario?.cedula || '—';
 
-    // Ocultar sección usuario (solo se crea al inicio)
     document.getElementById('prd_campos_usuario').style.display = 'none';
 
-    // CORRECCIÓN: nombre y apellido viven en p.usuario, no en p directamente
-    const nombre   = p.usuario?.nombre   || p.nombre   || '';
+    const nombre = p.usuario?.nombre || p.nombre || '';
     const apellido = p.usuario?.apellido || p.apellido || '';
 
-    document.getElementById('prd_f_nombre').value    = nombre;
-    document.getElementById('prd_f_apellido').value  = apellido;
-    document.getElementById('prd_f_telefono').value  = p.telefono || p.usuario?.telefono || '';
-    document.getElementById('prd_f_finca').value     = p.finca     || '';
+    document.getElementById('prd_f_nombre').value = nombre;
+    document.getElementById('prd_f_apellido').value = apellido;
+    document.getElementById('prd_f_telefono').value = p.telefono || p.usuario?.telefono || '';
+    document.getElementById('prd_f_finca').value = p.finca || '';
     document.getElementById('prd_f_ubicacion').value = p.ubicacion || '';
 
     document.getElementById('prd_msg').textContent = '';
@@ -1818,13 +1842,13 @@ function prd_cerrarPanel() {
 // ── Crear ──────────────────────────────────────────────
 async function prd_crear() {
     const msg = document.getElementById('prd_msg');
-    const nombre   = document.getElementById('prd_f_nombre').value.trim();
+    const nombre = document.getElementById('prd_f_nombre').value.trim();
     const apellido = document.getElementById('prd_f_apellido').value.trim();
-    const cedula   = document.getElementById('prd_f_cedula').value.trim();
+    const cedula = document.getElementById('prd_f_cedula').value.trim();
     const telefono = document.getElementById('prd_f_telefono').value.trim();
-    const finca    = document.getElementById('prd_f_finca').value.trim();
-    const ubicacion= document.getElementById('prd_f_ubicacion').value.trim();
-    const email    = document.getElementById('prd_f_email').value.trim();
+    const finca = document.getElementById('prd_f_finca').value.trim();
+    const ubicacion = document.getElementById('prd_f_ubicacion').value.trim();
+    const email = document.getElementById('prd_f_email').value.trim();
     const password = document.getElementById('prd_f_password').value;
 
     if (!nombre || !apellido || !cedula || !email || !password) {
@@ -1851,7 +1875,7 @@ async function prd_crear() {
         msg.className = 'hp-msg ok';
         msg.textContent = ' Productor creado correctamente.';
         setTimeout(() => { prd_cerrarPanel(); prd_cargar(); }, 1200);
-    } catch(e) {
+    } catch (e) {
         msg.className = 'hp-msg error';
         msg.textContent = ` ${e.message}`;
     }
@@ -1862,10 +1886,10 @@ async function prd_guardarEdicion() {
     const msg = document.getElementById('prd_msg');
     if (!_prd_editando) return;
 
-    const nombre    = document.getElementById('prd_f_nombre').value.trim();
-    const apellido  = document.getElementById('prd_f_apellido').value.trim();
-    const telefono  = document.getElementById('prd_f_telefono').value.trim();
-    const finca     = document.getElementById('prd_f_finca').value.trim();
+    const nombre = document.getElementById('prd_f_nombre').value.trim();
+    const apellido = document.getElementById('prd_f_apellido').value.trim();
+    const telefono = document.getElementById('prd_f_telefono').value.trim();
+    const finca = document.getElementById('prd_f_finca').value.trim();
     const ubicacion = document.getElementById('prd_f_ubicacion').value.trim();
 
     if (!nombre) {
@@ -1916,7 +1940,7 @@ async function prd_guardarEdicion() {
         msg.className = 'hp-msg ok';
         msg.textContent = 'Productor actualizado correctamente.';
         setTimeout(() => { prd_cerrarPanel(); prd_renderTabla(); }, 1200);
-    } catch(e) {
+    } catch (e) {
         msg.className = 'hp-msg error';
         msg.textContent = ` ${e.message}`;
     }
@@ -1942,7 +1966,7 @@ async function prd_toggleEstado(id, nombre, estadoActual) {
         const p = _prd_todos.find(x => x.id_productor === id);
         if (p) p.estado = nuevoEstado;
         prd_renderTabla();
-    } catch(e) {
+    } catch (e) {
         alert(`Error: ${e.message}`);
     }
 }
@@ -1965,7 +1989,7 @@ async function prd_regenerarQR(id) {
         const p = _prd_todos.find(x => x.id_productor === id);
         if (p && data.data?.codigo_qr) p.codigo_qr = data.data.codigo_qr;
         prd_renderTabla();
-    } catch(e) {
+    } catch (e) {
         alert(`Error: ${e.message}`);
         btn.disabled = false;
         btn.style.opacity = '1';
@@ -1986,21 +2010,21 @@ function qr_ver(id_productor) {
         return;
     }
 
-    const nombre       = p.usuario?.nombre  || p.nombre  || 'Productor';
-    const apellido     = p.usuario?.apellido || '';
-    const cedula       = p.usuario?.cedula   || p.cedula  || '—';
-    const finca        = p.finca || 'Sin finca';
-    const inicial      = (nombre[0] || 'P').toUpperCase();
+    const nombre = p.usuario?.nombre || p.nombre || 'Productor';
+    const apellido = p.usuario?.apellido || '';
+    const cedula = p.usuario?.cedula || p.cedula || '—';
+    const finca = p.finca || 'Sin finca';
+    const inicial = (nombre[0] || 'P').toUpperCase();
     const nombreCompleto = `${nombre} ${apellido}`.trim();
 
     document.getElementById('qr_modal_inicial').textContent = inicial;
-    document.getElementById('qr_modal_nombre').textContent  = nombreCompleto;
-    document.getElementById('modal-qr-meta').textContent    = `Cédula: ${cedula}  ·  Finca: ${finca}`;
-    document.getElementById('modal-qr-canvas').innerHTML    =
+    document.getElementById('qr_modal_nombre').textContent = nombreCompleto;
+    document.getElementById('modal-qr-meta').textContent = `Cédula: ${cedula}  ·  Finca: ${finca}`;
+    document.getElementById('modal-qr-canvas').innerHTML =
         `<img id="qr-img" src="${p.codigo_qr}" alt="QR" style="width:240px;height:240px;border-radius:10px;border:1px solid #e5e7eb;display:block">`;
 
     const dl = document.getElementById('qr_modal_dl');
-    dl.href     = p.codigo_qr;
+    dl.href = p.codigo_qr;
     dl.download = `QR_${nombreCompleto.replace(/\s+/g, '_')}.png`;
 
     document.getElementById('modalQRProductor').style.display = 'flex';
@@ -2011,10 +2035,10 @@ function qr_cerrar() {
 }
 
 function qr_imprimir() {
-    const img    = document.getElementById('qr-img');
+    const img = document.getElementById('qr-img');
     if (!img) { alert('No hay QR para imprimir'); return; }
-    const nombre  = document.getElementById('qr_modal_nombre').textContent;
-    const meta    = document.getElementById('modal-qr-meta').textContent;
+    const nombre = document.getElementById('qr_modal_nombre').textContent;
+    const meta = document.getElementById('modal-qr-meta').textContent;
     const inicial = nombre[0].toUpperCase();
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QR ${nombre}</title>
@@ -2053,7 +2077,7 @@ function qr_imprimir() {
       </body></html>`;
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'width=520,height=620');
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
@@ -2264,7 +2288,7 @@ function pro_abrirPanel() {
     document.getElementById('pro_btn_guardar').innerHTML = '<i class="fi fi-rr-check"></i> Guardar producto';
     document.getElementById('pro_btn_guardar').disabled = false;
 
-    ['pro_f_nombre','pro_f_descripcion','pro_f_precio_base'].forEach(id => {
+    ['pro_f_nombre', 'pro_f_descripcion', 'pro_f_precio_base'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -2289,9 +2313,9 @@ function pro_abrirEditar(id) {
     document.getElementById('pro_btn_guardar').innerHTML = '<i class="fi fi-rr-check"></i> Guardar cambios';
     document.getElementById('pro_btn_guardar').disabled = false;
 
-    document.getElementById('pro_f_nombre').value       = p.nombre        || '';
-    document.getElementById('pro_f_descripcion').value  = p.descripcion   || '';
-    document.getElementById('pro_f_precio_base').value  = p.precio_base   ?? '';
+    document.getElementById('pro_f_nombre').value = p.nombre || '';
+    document.getElementById('pro_f_descripcion').value = p.descripcion || '';
+    document.getElementById('pro_f_precio_base').value = p.precio_base ?? '';
 
     /*const cat = document.getElementById('pro_f_categoria');
     if (cat) cat.value = p.categoria || '';*/
@@ -2328,7 +2352,7 @@ async function pro_guardar() {
     }
 
     const precioBaseVal = document.getElementById('pro_f_precio_base').value;
-    const precioDiaVal  = document.getElementById('pro_f_precio_dia').value;
+    const precioDiaVal = document.getElementById('pro_f_precio_dia').value;
 
     if (precioBaseVal && Number(precioBaseVal) < 0) {
         msg.style.display = 'block';
@@ -2340,11 +2364,11 @@ async function pro_guardar() {
 
     const body = {
         nombre,
-        descripcion:  document.getElementById('pro_f_descripcion').value.trim() || undefined,
-        categoria:    document.getElementById('pro_f_categoria').value  || undefined,
-        unidad_medida: document.getElementById('pro_f_unidad').value    || undefined,
-        precio_base:  precioBaseVal !== '' ? Number(precioBaseVal) : 0,
-        precio_dia:   precioDiaVal  !== '' ? Number(precioDiaVal)  : undefined,
+        descripcion: document.getElementById('pro_f_descripcion').value.trim() || undefined,
+        categoria: document.getElementById('pro_f_categoria').value || undefined,
+        unidad_medida: document.getElementById('pro_f_unidad').value || undefined,
+        precio_base: precioBaseVal !== '' ? Number(precioBaseVal) : 0,
+        precio_dia: precioDiaVal !== '' ? Number(precioDiaVal) : undefined,
     };
 
     const btn = document.getElementById('pro_btn_guardar');
@@ -2419,20 +2443,20 @@ async function pro_toggleDisponible(id, nombre, actual) {
 // ════════════════════════════════════════════════════════
 //  MÓDULO COMPRAS
 // ════════════════════════════════════════════════════════
-let _cmp_todos  = [];
+let _cmp_todos = [];
 let _cmp_buscar = '';
 let _cmp_estado = '';
 
 async function cmp_cargar() {
     const token = localStorage.getItem('token');
     try {
-        const res  = await fetch(`${API_URL}/compras`, {
+        const res = await fetch(`${API_URL}/compras`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const json = await res.json();
         _cmp_todos = Array.isArray(json) ? json : (json.data || []);
         cmp_renderTabla();
-    } catch(e) {
+    } catch (e) {
         document.getElementById('cmp_tbody').innerHTML =
             `<tr><td colspan="7" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
     }
@@ -2452,13 +2476,13 @@ function cmp_renderTabla() {
     if (!tbody) return;
 
     const lista = _cmp_todos.filter(c => {
-        const txt = `${c.numero_factura||''} ${c.productor?.nombre||''} ${c.productor?.usuario?.nombre||''}`.toLowerCase();
+        const txt = `${c.numero_factura || ''} ${c.productor?.nombre || ''} ${c.productor?.usuario?.nombre || ''}`.toLowerCase();
         const okBuscar = !_cmp_buscar || txt.includes(_cmp_buscar);
         const okEstado = !_cmp_estado || c.estado === _cmp_estado;
         return okBuscar && okEstado;
     });
 
-    document.getElementById('cmp_count').textContent = `${lista.length} registro${lista.length!==1?'s':''}`;
+    document.getElementById('cmp_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
@@ -2470,16 +2494,16 @@ function cmp_renderTabla() {
 
     tbody.innerHTML = lista.map(c => {
         const productor = c.productor?.usuario?.nombre
-            ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido||''}`.trim()
+            ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
             : (c.productor?.nombre || '—');
         const nDetalles = c.detalles?.length ?? '—';
         return `<tr>
-            <td style="font-family:monospace;font-size:.82em;font-weight:700">${c.numero_factura||'—'}</td>
+            <td style="font-family:monospace;font-size:.82em;font-weight:700">${c.numero_factura || '—'}</td>
             <td>${productor}</td>
             <td style="font-size:.85em;color:#6b7280">${fmtFecha(c.fecha_compra)}</td>
             <td style="text-align:center">${nDetalles}</td>
             <td style="font-weight:700;color:#111827">${fmt(c.total)}</td>
-            <td><span class="badge-estado badge-${c.estado||'pendiente'}">${c.estado||'pendiente'}</span></td>
+            <td><span class="badge-estado badge-${c.estado || 'pendiente'}">${c.estado || 'pendiente'}</span></td>
             <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                     <button class="usr-btn-action usr-btn-edit" title="Ver detalle"
@@ -2488,27 +2512,56 @@ function cmp_renderTabla() {
                     </button>
                 </div>
             </td>
+            <td>
+                <button class="usr-btn-action usr-btn-del" title="Eliminar compra"
+                        onclick="cmp_desactivar(${c.id_compra})">
+                    <i class="fi fi-rr-trash"></i>
+                </button>
+            </td>
         </tr>`;
     }).join('');
+}
+function cmp_desactivar(id) {
+    if (!confirm('¿Confirma que desea desactivar esta compra? Esta acción se puede revertir.')) return;
+
+    const token = localStorage.getItem('token');
+
+    fetch(`${API_URL}/compras/${id}/desactivar`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ activo: false }) // aquí "activo" es el campo que marca si está disponible
+    })
+        .then(res => {
+            if (!res.ok) return res.json().then(err => { throw new Error(err.message || 'Error al desactivar'); });
+
+            // Actualizamos la lista local, filtrando o marcando como inactivo
+            _cmp_todos = _cmp_todos.map(c => c.id_compra === id ? { ...c, activo: false } : c);
+
+            cmp_renderTabla(); // renderizamos la tabla con los cambios
+        })
+        .catch(e => alert(`Error: ${e.message}`));
 }
 
 // ════════════════════════════════════════════════════════
 //  MÓDULO VENTAS
 // ════════════════════════════════════════════════════════
-let _vnt_todos  = [];
+let _vnt_todos = [];
 let _vnt_buscar = '';
 let _vnt_estado = '';
 
 async function vnt_cargar() {
     const token = localStorage.getItem('token');
     try {
-        const res  = await fetch(`${API_URL}/ventas`, {
+        const res = await fetch(`${API_URL}/ventas`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const json = await res.json();
         _vnt_todos = Array.isArray(json) ? json : (json.data || []);
         vnt_renderTabla();
-    } catch(e) {
+    } catch (e) {
         document.getElementById('vnt_tbody').innerHTML =
             `<tr><td colspan="7" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
     }
@@ -2528,13 +2581,13 @@ function vnt_renderTabla() {
     if (!tbody) return;
 
     const lista = _vnt_todos.filter(v => {
-        const txt = `${v.numero_factura||''} ${v.cliente||''}`.toLowerCase();
+        const txt = `${v.numero_factura || ''} ${v.cliente || ''}`.toLowerCase();
         const okBuscar = !_vnt_buscar || txt.includes(_vnt_buscar);
         const okEstado = !_vnt_estado || v.estado === _vnt_estado;
         return okBuscar && okEstado;
     });
 
-    document.getElementById('vnt_count').textContent = `${lista.length} registro${lista.length!==1?'s':''}`;
+    document.getElementById('vnt_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
@@ -2547,14 +2600,14 @@ function vnt_renderTabla() {
     tbody.innerHTML = lista.map(v => {
         const nDetalles = v.detalles?.length ?? '—';
         return `<tr>
-            <td style="font-family:monospace;font-size:.82em;font-weight:700">${v.numero_factura||'—'}</td>
-            <td>${v.cliente||'—'}</td>
+            <td style="font-family:monospace;font-size:.82em;font-weight:700">${v.numero_factura || '—'}</td>
+            <td>${v.comerciante?.nombre ?? '-'}</td>
             <td style="font-size:.85em;color:#6b7280">${fmtFecha(v.fecha_venta)}</td>
             <td style="text-align:center">${nDetalles}</td>
             <td style="font-weight:700;color:#111827">${fmt(v.total)}</td>
-            <td><span class="badge-estado badge-${v.estado||'pendiente'}">${v.estado||'pendiente'}</span></td>
+            <td><span class="badge-estado badge-${v.estado || 'pendiente'}">${v.estado || 'pendiente'}</span></td>
             <td>
-                <div style="display:flex;gap:6px;justify-content:flex-end">
+                <div style="display:flex;gap:6px;justify-content:flex-end margin-right:-18px">
                     <button class="usr-btn-action usr-btn-edit" title="Ver detalle"
                             onclick="det_abrir('venta', ${v.id_venta})">
                         <i class="fi fi-rr-eye"></i>
@@ -2573,11 +2626,11 @@ async function det_abrir(tipo, id) {
     const modal = document.getElementById('det_modal');
     modal.style.display = 'flex';
 
-    document.getElementById('det_titulo').textContent    = tipo === 'compra' ? 'Detalle de Compra' : ' Detalle de Venta';
+    document.getElementById('det_titulo').textContent = tipo === 'compra' ? 'Detalle de Compra' : ' Detalle de Venta';
     document.getElementById('det_subtitulo').textContent = 'Cargando...';
-    document.getElementById('det_info').innerHTML        = '';
-    document.getElementById('det_tbody').innerHTML       = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">Cargando...</td></tr>';
-    document.getElementById('det_total').textContent     = '';
+    document.getElementById('det_info').innerHTML = '';
+    document.getElementById('det_tbody').innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">Cargando...</td></tr>';
+    document.getElementById('det_total').textContent = '';
 
     try {
         const url = tipo === 'compra' ? `${API_URL}/compras/${id}` : `${API_URL}/ventas/${id}`;
@@ -2594,18 +2647,18 @@ async function det_abrir(tipo, id) {
         let infoHTML = '';
         if (tipo === 'compra') {
             const prod = d.productor?.usuario?.nombre
-                ? `${d.productor.usuario.nombre} ${d.productor.usuario.apellido||''}`.trim()
+                ? `${d.productor.usuario.nombre} ${d.productor.usuario.apellido || ''}`.trim()
                 : (d.productor?.nombre || '—');
             infoHTML = `
                 <div class="det-info-item"><span class="det-info-label">Productor</span><span class="det-info-value">${prod}</span></div>
                 <div class="det-info-item"><span class="det-info-label">Fecha compra</span><span class="det-info-value">${fmtFecha(d.fecha_compra)}</span></div>
-                <div class="det-info-item"><span class="det-info-label">Estado</span><span class="det-info-value"><span class="badge-estado badge-${d.estado||'pendiente'}">${d.estado||'pendiente'}</span></span></div>
+                <div class="det-info-item"><span class="det-info-label">Estado</span><span class="det-info-value"><span class="badge-estado badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span></span></div>
                 <div class="det-info-item"><span class="det-info-label">Total</span><span class="det-info-value" style="color:#0aae0a">${fmt(d.total)}</span></div>`;
         } else {
             infoHTML = `
-                <div class="det-info-item"><span class="det-info-label">Cliente</span><span class="det-info-value">${d.cliente||'—'}</span></div>
+                <div class="det-info-item"><span class="det-info-label">Cliente</span><span class="det-info-value">${d.cliente || '—'}</span></div>
                 <div class="det-info-item"><span class="det-info-label">Fecha venta</span><span class="det-info-value">${fmtFecha(d.fecha_venta)}</span></div>
-                <div class="det-info-item"><span class="det-info-label">Estado</span><span class="det-info-value"><span class="badge-estado badge-${d.estado||'pendiente'}">${d.estado||'pendiente'}</span></span></div>
+                <div class="det-info-item"><span class="det-info-label">Estado</span><span class="det-info-value"><span class="badge-estado badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span></span></div>
                 <div class="det-info-item"><span class="det-info-label">Total</span><span class="det-info-value" style="color:#0aae0a">${fmt(d.total)}</span></div>`;
         }
         document.getElementById('det_info').innerHTML = infoHTML;
@@ -2619,14 +2672,14 @@ async function det_abrir(tipo, id) {
             document.getElementById('det_tbody').innerHTML = detalles.map(item => `
                 <tr>
                     <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6">${item.producto?.nombre || '—'}</td>
-                    <td style="padding:8px 10px;text-align:right;border-bottom:1px solid #f3f4f6">${item.cantidad} ${item.producto?.unidad_medida||''}</td>
+                    <td style="padding:8px 10px;text-align:right;border-bottom:1px solid #f3f4f6">${item.cantidad} ${item.producto?.unidad_medida || ''}</td>
                     <td style="padding:8px 10px;text-align:right;border-bottom:1px solid #f3f4f6">${fmt(item.precio_unitario)}</td>
                     <td style="padding:8px 10px;text-align:right;border-bottom:1px solid #f3f4f6;font-weight:700">${fmt(item.subtotal)}</td>
                 </tr>`).join('');
         }
         document.getElementById('det_total').textContent = fmt(d.total);
 
-    } catch(e) {
+    } catch (e) {
         document.getElementById('det_subtitulo').textContent = 'Error al cargar';
         document.getElementById('det_tbody').innerHTML =
             `<tr><td colspan="4" style="padding:20px;text-align:center;color:#ef4444">${e.message}</td></tr>`;
@@ -2640,39 +2693,39 @@ function det_cerrar() {
 // ════════════════════════════════════════════════════════
 //  MÓDULO HISTORIAL
 // ════════════════════════════════════════════════════════
-let _his_tabActual   = 'transacciones';
+let _his_tabActual = 'transacciones';
 let _his_transacciones = [];
-let _his_precios       = [];
-let _his_buscar        = '';
+let _his_precios = [];
+let _his_buscar = '';
 
 async function his_cargar() {
     const token = localStorage.getItem('token');
 
     // Fechas
     const inicio = document.getElementById('his_fecha_inicio')?.value || '';
-    const fin    = document.getElementById('his_fecha_fin')?.value    || '';
+    const fin = document.getElementById('his_fecha_fin')?.value || '';
     const params = new URLSearchParams();
     if (inicio) params.append('inicio', inicio);
-    if (fin)    params.append('fin', fin);
+    if (fin) params.append('fin', fin);
     const qs = params.toString() ? '?' + params.toString() : '';
 
     try {
         if (_his_tabActual === 'transacciones') {
-            const res  = await fetch(`${API_URL}/historial/transacciones${qs}`, {
+            const res = await fetch(`${API_URL}/historial/transacciones${qs}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const json = await res.json();
             _his_transacciones = Array.isArray(json) ? json : (json.data || []);
             his_renderTransacciones();
         } else {
-            const res  = await fetch(`${API_URL}/historial/precios${qs}`, {
+            const res = await fetch(`${API_URL}/historial/precios${qs}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const json = await res.json();
             _his_precios = Array.isArray(json) ? json : (json.data || []);
             his_renderPrecios();
         }
-    } catch(e) {
+    } catch (e) {
         const id = _his_tabActual === 'transacciones' ? 'his_tbody_trans' : 'his_tbody_precios';
         document.getElementById(id).innerHTML =
             `<tr><td colspan="7" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
@@ -2688,7 +2741,7 @@ function his_setTab(tab, btn) {
     document.querySelectorAll('.his-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('his_tab_transacciones').style.display = tab === 'transacciones' ? '' : 'none';
-    document.getElementById('his_tab_precios').style.display       = tab === 'precios'       ? '' : 'none';
+    document.getElementById('his_tab_precios').style.display = tab === 'precios' ? '' : 'none';
     his_cargar();
 }
 
@@ -2702,11 +2755,11 @@ function his_renderTransacciones() {
     if (!tbody) return;
 
     const lista = _his_transacciones.filter(t => {
-        const txt = `${t.tipo_transaccion||''} ${t.estado||''}`.toLowerCase();
+        const txt = `${t.tipo_transaccion || ''} ${t.estado || ''}`.toLowerCase();
         return !_his_buscar || txt.includes(_his_buscar);
     });
 
-    document.getElementById('his_count').textContent = `${lista.length} registro${lista.length!==1?'s':''}`;
+    document.getElementById('his_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
@@ -2717,12 +2770,12 @@ function his_renderTransacciones() {
 
     tbody.innerHTML = lista.map(t => `<tr>
         <td style="font-weight:700;color:#111827">#${t.id_historial}</td>
-        <td><span class="badge-estado badge-${t.tipo_transaccion==='compra'?'compra':'venta'}">${t.tipo_transaccion}</span></td>
+        <td><span class="badge-estado badge-${t.tipo_transaccion === 'compra' ? 'compra' : 'venta'}">${t.tipo_transaccion}</span></td>
         <td style="font-size:.84em;color:#6b7280">${t.fecha_transaccion ? new Date(t.fecha_transaccion).toLocaleString('es-CO') : '—'}</td>
         <td style="font-weight:700">${fmt(t.monto)}</td>
-        <td><span class="badge-estado badge-${t.estado||'pendiente'}">${t.estado||'—'}</span></td>
-        <td style="font-size:.82em;color:#6b7280">${t.id_compra ? '#'+t.id_compra : '—'}</td>
-        <td style="font-size:.82em;color:#6b7280">${t.id_venta  ? '#'+t.id_venta  : '—'}</td>
+        <td><span class="badge-estado badge-${t.estado || 'pendiente'}">${t.estado || '—'}</span></td>
+        <td style="font-size:.82em;color:#6b7280">${t.id_compra ? '#' + t.id_compra : '—'}</td>
+        <td style="font-size:.82em;color:#6b7280">${t.id_venta ? '#' + t.id_venta : '—'}</td>
     </tr>`).join('');
 }
 
@@ -2731,11 +2784,11 @@ function his_renderPrecios() {
     if (!tbody) return;
 
     const lista = _his_precios.filter(p => {
-        const txt = `${p.producto?.nombre||''} ${p.motivo||''}`.toLowerCase();
+        const txt = `${p.producto?.nombre || ''} ${p.motivo || ''}`.toLowerCase();
         return !_his_buscar || txt.includes(_his_buscar);
     });
 
-    document.getElementById('his_count').textContent = `${lista.length} registro${lista.length!==1?'s':''}`;
+    document.getElementById('his_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
@@ -2760,14 +2813,14 @@ function his_exportarExcel() {
 
     // Usamos TSV (tab-separated) con BOM UTF-8 → Excel abre cada columna separada correctamente
     const TAB = '\t';
-    const NL  = '\r\n';
+    const NL = '\r\n';
     const esc = v => {
         const s = String(v ?? '');
         // Si contiene tab o salto de línea, encerramos en comillas
         return s.includes('\t') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const fmtFecha = d => d ? new Date(d).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' }) : '';
-    const fmtMonto = n => n != null ? Number(n).toLocaleString('es-CO', { minimumFractionDigits:2 }) : '';
+    const fmtFecha = d => d ? new Date(d).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const fmtMonto = n => n != null ? Number(n).toLocaleString('es-CO', { minimumFractionDigits: 2 }) : '';
 
     let filas = [];
 
@@ -2780,7 +2833,7 @@ function his_exportarExcel() {
             fmtMonto(t.monto),
             t.estado || '',
             t.id_compra || '',
-            t.id_venta  || ''
+            t.id_venta || ''
         ]));
     } else {
         filas.push(['ID', 'Producto', 'Precio ($)', 'Fecha Cambio', 'Motivo']);
@@ -2793,12 +2846,12 @@ function his_exportarExcel() {
         ]));
     }
 
-    const tsv  = filas.map(r => r.map(esc).join(TAB)).join(NL);
+    const tsv = filas.map(r => r.map(esc).join(TAB)).join(NL);
     const blob = new Blob(['\uFEFF' + tsv], { type: 'text/tab-separated-values;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `historial_${_his_tabActual}_${new Date().toISOString().slice(0,10)}.xls`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial_${_his_tabActual}_${new Date().toISOString().slice(0, 10)}.xls`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
@@ -2808,9 +2861,9 @@ function his_exportarPDF() {
     const datos = _his_tabActual === 'transacciones' ? _his_transacciones : _his_precios;
     if (!datos.length) { alert('No hay datos para exportar'); return; }
 
-    const fmt  = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
+    const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
     const titulo = _his_tabActual === 'transacciones' ? 'Historial de Transacciones' : 'Historial de Precios';
-    const fecha  = new Date().toLocaleDateString('es-CO', { dateStyle: 'long' });
+    const fecha = new Date().toLocaleDateString('es-CO', { dateStyle: 'long' });
 
     let filas = '';
     let cabecera = '';
@@ -2819,16 +2872,16 @@ function his_exportarPDF() {
         filas = datos.map(t => `<tr>
             <td>#${t.id_historial}</td><td>${t.tipo_transaccion}</td>
             <td>${t.fecha_transaccion ? new Date(t.fecha_transaccion).toLocaleString('es-CO') : '—'}</td>
-            <td>${fmt(t.monto)}</td><td>${t.estado||'—'}</td>
-            <td>${t.id_compra?'#'+t.id_compra:'—'}</td><td>${t.id_venta?'#'+t.id_venta:'—'}</td>
+            <td>${fmt(t.monto)}</td><td>${t.estado || '—'}</td>
+            <td>${t.id_compra ? '#' + t.id_compra : '—'}</td><td>${t.id_venta ? '#' + t.id_venta : '—'}</td>
         </tr>`).join('');
     } else {
         cabecera = '<tr><th>ID</th><th>Producto</th><th>Precio</th><th>Fecha</th><th>Motivo</th></tr>';
         filas = datos.map(p => `<tr>
-            <td>#${p.id_historial_precio}</td><td>${p.producto?.nombre||'—'}</td>
+            <td>#${p.id_historial_precio}</td><td>${p.producto?.nombre || '—'}</td>
             <td>${fmt(p.precio)}</td>
             <td>${p.fecha_cambio ? new Date(p.fecha_cambio).toLocaleString('es-CO') : '—'}</td>
-            <td>${p.motivo||'—'}</td>
+            <td>${p.motivo || '—'}</td>
         </tr>`).join('');
     }
 
@@ -2853,7 +2906,7 @@ function his_exportarPDF() {
     </body></html>`;
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'width=900,height=700');
     setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
@@ -2882,32 +2935,33 @@ function his_exportarPDF() {
     }
 
     async function dbg_load() {
-        const token   = localStorage.getItem('token') || '';
+        const token = localStorage.getItem('token') || '';
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
         const [vR, cR, prR, plR] = await Promise.allSettled([
-            fetch(`${window.API_URL}/ventas`,                 { headers }),
-            fetch(`${window.API_URL}/compras`,                { headers }),
-            fetch(`${window.API_URL}/productos`,              { headers }),
+            fetch(`${window.API_URL}/ventas`, { headers }),
+            fetch(`${window.API_URL}/compras`, { headers }),
+            fetch(`${window.API_URL}/productos`, { headers }),
             fetch(`${window.API_URL}/productores?todos=true`, { headers }),
+            fetch(`${window.API_URL}/comerciantes?todos=true`, { headers }) // opcional, si quieres contar comerciantes también
         ]);
 
-        const vArr  = vR.status  === 'fulfilled' ? await vR.value.json()  : [];
-        const cArr  = cR.status  === 'fulfilled' ? await cR.value.json()  : [];
+        const vArr = vR.status === 'fulfilled' ? await vR.value.json() : [];
+        const cArr = cR.status === 'fulfilled' ? await cR.value.json() : [];
         const prArr = prR.status === 'fulfilled' ? await prR.value.json() : [];
         const plRaw = plR.status === 'fulfilled' ? await plR.value.json() : [];
         const plArr = Array.isArray(plRaw) ? plRaw : (plRaw.data || []);
 
         const activos = plArr.filter(p => p.estado === 'ACTIVO').length;
-        const pct     = plArr.length ? Math.round(activos / plArr.length * 100) : 100;
+        const pct = plArr.length ? Math.round(activos / plArr.length * 100) : 100;
 
         const vals = {
-            ventas:      [vArr.length,  '', 1400],
-            compras:     [cArr.length,  '', 1400],
-            productos:   [prArr.length, '', 1300],
+            ventas: [vArr.length, '', 1400],
+            compras: [cArr.length, '', 1400],
+            productos: [prArr.length, '', 1300],
             productores: [plArr.length, '', 1300],
-            analisis:    [pct,          '%', 1600],
-            reportes:    [vArr.length + cArr.length, '', 1500],
+            analisis: [pct, '%', 1600],
+            reportes: [vArr.length + cArr.length, '', 1500],
         };
 
         // Animar los 2 ids de cada métrica (original + clon)
@@ -2932,17 +2986,17 @@ function his_exportarPDF() {
    Actualiza métricas automáticamente
 ========================================= */
 
-async function actualizarMetricasDashboard(){
+async function actualizarMetricasDashboard() {
 
-    try{
+    try {
 
         const token = localStorage.getItem("token");
 
         const [comprasRes, ventasRes, productosRes, productoresRes] = await Promise.all([
-            fetch(`${API_URL}/compras`, { headers:{Authorization:`Bearer ${token}`} }),
-            fetch(`${API_URL}/ventas`, { headers:{Authorization:`Bearer ${token}`} }),
-            fetch(`${API_URL}/productos`, { headers:{Authorization:`Bearer ${token}`} }),
-            fetch(`${API_URL}/productores?todos=true`, { headers:{Authorization:`Bearer ${token}`} })
+            fetch(`${API_URL}/compras`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_URL}/ventas`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_URL}/productos`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_URL}/productores?todos=true`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
 
         const compras = await comprasRes.json();
@@ -2968,7 +3022,7 @@ async function actualizarMetricasDashboard(){
 
             const tipo = el.dataset.metric;
 
-            if(metricas[tipo] !== undefined){
+            if (metricas[tipo] !== undefined) {
 
                 const nuevoValor = metricas[tipo];
                 animarNumero(el, nuevoValor);
@@ -2977,7 +3031,7 @@ async function actualizarMetricasDashboard(){
 
         });
 
-    }catch(error){
+    } catch (error) {
         console.error("Error actualizando métricas:", error);
     }
 
@@ -2988,28 +3042,28 @@ async function actualizarMetricasDashboard(){
    ANIMACIÓN DEL CONTADOR
 ========================================= */
 
-function animarNumero(elemento, valorFinal){
+function animarNumero(elemento, valorFinal) {
 
     const valorActual = parseInt(elemento.textContent) || 0;
     const incremento = Math.ceil((valorFinal - valorActual) / 20);
 
     let contador = valorActual;
 
-    const intervalo = setInterval(()=>{
+    const intervalo = setInterval(() => {
 
         contador += incremento;
 
-        if(
+        if (
             (incremento > 0 && contador >= valorFinal) ||
             (incremento < 0 && contador <= valorFinal)
-        ){
+        ) {
             contador = valorFinal;
             clearInterval(intervalo);
         }
 
         elemento.textContent = contador;
 
-    },30);
+    }, 30);
 
 }
 
@@ -3043,13 +3097,13 @@ function _generarPDF(titulo, cabecera, filas, totalHTML) {
     </style></head><body>
     <h1>🌱 AgroTrace — ${titulo}</h1>
     <div class="sub">Generado el ${fecha} · ${filas.length} registros</div>
-    <table><thead>${cabecera}</thead><tbody>${filas.map(r=>`<tr>${r.map(c=>`<td>${c??'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <table><thead>${cabecera}</thead><tbody>${filas.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
     ${totalHTML ? `<div class="total">${totalHTML}</div>` : ''}
     <div class="footer">AgroTrace · Sistema de Trazabilidad</div>
     <script>window.addEventListener('load',()=>{setTimeout(()=>window.print(),400)})<\/script>
     </body></html>`;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'width=900,height=700');
     setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
@@ -3069,7 +3123,7 @@ function _generarExcel(nombreArchivo, nombreHoja, encabezados, filas) {
         }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, nombreHoja);
-        XLSX.writeFile(wb, `${nombreArchivo}_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `${nombreArchivo}_${new Date().toISOString().slice(0, 10)}.xlsx`);
     }
     if (window.XLSX) {
         _doExport();
@@ -3087,15 +3141,15 @@ function _generarExcel(nombreArchivo, nombreHoja, encabezados, filas) {
 function his_exportarExcel() {
     const datos = _his_tabActual === 'transacciones' ? _his_transacciones : _his_precios;
     if (!datos.length) { alert('No hay datos para exportar'); return; }
-    const fmtF = d => d ? new Date(d).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' }) : '';
+    const fmtF = d => d ? new Date(d).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '';
     const fmtM = n => n != null ? Number(n).toLocaleString('es-CO', { minimumFractionDigits: 2 }) : '';
     let encabezados, filas;
     if (_his_tabActual === 'transacciones') {
         encabezados = ['ID', 'Tipo', 'Fecha', 'Monto ($)', 'Estado', 'ID Compra', 'ID Venta'];
-        filas = datos.map(t => [t.id_historial, t.tipo_transaccion||'', fmtF(t.fecha_transaccion), fmtM(t.monto), t.estado||'', t.id_compra||'', t.id_venta||'']);
+        filas = datos.map(t => [t.id_historial, t.tipo_transaccion || '', fmtF(t.fecha_transaccion), fmtM(t.monto), t.estado || '', t.id_compra || '', t.id_venta || '']);
     } else {
         encabezados = ['ID', 'Producto', 'Precio ($)', 'Fecha Cambio', 'Motivo'];
-        filas = datos.map(p => [p.id_historial_precio, p.producto?.nombre||'', fmtM(p.precio), fmtF(p.fecha_cambio), p.motivo||'']);
+        filas = datos.map(p => [p.id_historial_precio, p.producto?.nombre || '', fmtM(p.precio), fmtF(p.fecha_cambio), p.motivo || '']);
     }
     _generarExcel(`historial_${_his_tabActual}`, 'Historial', encabezados, filas);
 }
@@ -3110,7 +3164,7 @@ function rep_setTab(tab, btn) {
     _rep_tab = tab;
     document.querySelectorAll('#reportes .an-tab').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    ['entregas','compras','ventas','desfase'].forEach(t => {
+    ['entregas', 'compras', 'ventas', 'desfase'].forEach(t => {
         const p = document.getElementById(`rep_panel_${t}`);
         if (p) p.classList.toggle('active', t === tab);
     });
@@ -3127,39 +3181,39 @@ async function rep_cargarFiltros() {
             fetch(`${API_URL}/productos`, { headers: h })
         ]);
         const productores = await prdRes.json();
-        const productos   = await proRes.json();
+        const productos = await proRes.json();
         const prdArr = Array.isArray(productores) ? productores : (productores.data || []);
-        const proArr = Array.isArray(productos)   ? productos   : (productos.data || []);
+        const proArr = Array.isArray(productos) ? productos : (productos.data || []);
 
         const selPrd = document.getElementById('rep_ent_productor');
         prdArr.forEach(p => {
-            const nombre = p.usuario ? `${p.usuario.nombre} ${p.usuario.apellido||''}`.trim() : (p.nombre||`#${p.id_productor}`);
+            const nombre = p.usuario ? `${p.usuario.nombre} ${p.usuario.apellido || ''}`.trim() : (p.nombre || `#${p.id_productor}`);
             selPrd.innerHTML += `<option value="${p.id_productor}">${nombre}</option>`;
         });
         const selPro = document.getElementById('rep_ent_producto');
         proArr.forEach(p => {
             selPro.innerHTML += `<option value="${p.id_producto}">${p.nombre}</option>`;
         });
-    } catch(e) { console.warn('rep_cargarFiltros:', e.message); }
+    } catch (e) { console.warn('rep_cargarFiltros:', e.message); }
 }
 
 async function rep_cargarEntregas() {
     const token = localStorage.getItem('token') || '';
     const inicio = document.getElementById('rep_ent_inicio').value;
-    const fin    = document.getElementById('rep_ent_fin').value;
-    const idPrd  = document.getElementById('rep_ent_productor').value;
-    const idPro  = document.getElementById('rep_ent_producto').value;
+    const fin = document.getElementById('rep_ent_fin').value;
+    const idPrd = document.getElementById('rep_ent_productor').value;
+    const idPro = document.getElementById('rep_ent_producto').value;
     let qs = [];
     if (inicio) qs.push(`inicio=${inicio}`);
-    if (fin)    qs.push(`fin=${fin}`);
-    if (idPrd)  qs.push(`id_productor=${idPrd}`);
+    if (fin) qs.push(`fin=${fin}`);
+    if (idPrd) qs.push(`id_productor=${idPrd}`);
 
     const tbody = document.getElementById('rep_ent_tbody');
     const countEl = document.getElementById('rep_ent_count');
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Cargando...</td></tr>`;
     showLoading();
     try {
-        const res  = await fetch(`${API_URL}/compras${qs.length ? '?'+qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API_URL}/compras${qs.length ? '?' + qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
         let compras = Array.isArray(json) ? json : (json.data || []);
 
@@ -3167,12 +3221,12 @@ async function rep_cargarEntregas() {
         let rows = [];
         compras.forEach(c => {
             const productor = c.productor?.usuario
-                ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido||''}`.trim()
+                ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
                 : (c.productor?.nombre || '—');
             const fecha = c.fecha_compra ? new Date(c.fecha_compra).toLocaleDateString('es-CO') : '—';
             const detalles = c.detalles || [];
             if (!detalles.length) {
-                rows.push({ productor, producto:'—', peso:'—', precio:'—', total: c.total||0, fecha });
+                rows.push({ productor, producto: '—', peso: '—', precio: '—', total: c.total || 0, fecha });
             } else {
                 detalles.forEach(det => {
                     if (idPro && String(det.producto?.id_producto) !== String(idPro)) return;
@@ -3200,10 +3254,10 @@ async function rep_cargarEntregas() {
                 <td>${r.peso} kg</td><td>${fmt(r.precio)}</td>
                 <td style="font-weight:700">${fmt(r.total)}</td><td>${r.fecha}</td>
             </tr>`).join('');
-            const totalGen = rows.reduce((s, r) => s + parseFloat(r.total||0), 0);
+            const totalGen = rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
             document.getElementById('rep_ent_total').textContent = `Total general: ${fmt(totalGen)}`;
         }
-    } catch(e) {
+    } catch (e) {
         tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:#ef4444">${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
@@ -3211,16 +3265,16 @@ async function rep_cargarEntregas() {
 async function rep_cargarCompras() {
     const token = localStorage.getItem('token') || '';
     const inicio = document.getElementById('rep_cmp_inicio').value;
-    const fin    = document.getElementById('rep_cmp_fin').value;
+    const fin = document.getElementById('rep_cmp_fin').value;
     let qs = [];
     if (inicio) qs.push(`inicio=${inicio}`);
-    if (fin)    qs.push(`fin=${fin}`);
+    if (fin) qs.push(`fin=${fin}`);
 
     const tbody = document.getElementById('rep_cmp_tbody');
     tbody.innerHTML = `<tr><td colspan="3" class="empty-state">Cargando...</td></tr>`;
     showLoading();
     try {
-        const res  = await fetch(`${API_URL}/compras${qs.length ? '?'+qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API_URL}/compras${qs.length ? '?' + qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
         const compras = Array.isArray(json) ? json : (json.data || []);
 
@@ -3230,7 +3284,7 @@ async function rep_cargarCompras() {
             (c.detalles || []).forEach(det => {
                 const key = det.producto?.nombre || 'Sin nombre';
                 if (!mapa[key]) mapa[key] = { producto: key, kg: 0, total: 0 };
-                mapa[key].kg    += parseFloat(det.cantidad || 0);
+                mapa[key].kg += parseFloat(det.cantidad || 0);
                 mapa[key].total += parseFloat(det.subtotal || det.cantidad * det.precio_unitario || 0);
             });
         });
@@ -3249,7 +3303,7 @@ async function rep_cargarCompras() {
             const totalGen = rows.reduce((s, r) => s + r.total, 0);
             document.getElementById('rep_cmp_total').textContent = `Total general: ${fmt(totalGen)}`;
         }
-    } catch(e) {
+    } catch (e) {
         tbody.innerHTML = `<tr><td colspan="3" class="empty-state" style="color:#ef4444">${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
@@ -3257,16 +3311,16 @@ async function rep_cargarCompras() {
 async function rep_cargarVentas() {
     const token = localStorage.getItem('token') || '';
     const inicio = document.getElementById('rep_vnt_inicio').value;
-    const fin    = document.getElementById('rep_vnt_fin').value;
+    const fin = document.getElementById('rep_vnt_fin').value;
     let qs = [];
     if (inicio) qs.push(`inicio=${inicio}`);
-    if (fin)    qs.push(`fin=${fin}`);
+    if (fin) qs.push(`fin=${fin}`);
 
     const tbody = document.getElementById('rep_vnt_tbody');
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Cargando...</td></tr>`;
     showLoading();
     try {
-        const res  = await fetch(`${API_URL}/ventas${qs.length ? '?'+qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API_URL}/ventas${qs.length ? '?' + qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
         const ventas = Array.isArray(json) ? json : (json.data || []);
 
@@ -3284,7 +3338,7 @@ async function rep_cargarVentas() {
                 });
             });
             if (!(v.detalles || []).length) {
-                rows.push({ comerciante, producto: '—', cantidad: '—', total: v.total||0, fecha });
+                rows.push({ comerciante, producto: '—', cantidad: '—', total: v.total || 0, fecha });
             }
         });
         _rep_data.ventas = rows;
@@ -3297,10 +3351,10 @@ async function rep_cargarVentas() {
                 <td>${r.comerciante}</td><td>${r.producto}</td>
                 <td>${r.cantidad}</td><td style="font-weight:700">${fmt(r.total)}</td><td>${r.fecha}</td>
             </tr>`).join('');
-            const totalGen = rows.reduce((s, r) => s + parseFloat(r.total||0), 0);
+            const totalGen = rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
             document.getElementById('rep_vnt_total').textContent = `Total general: ${fmt(totalGen)}`;
         }
-    } catch(e) {
+    } catch (e) {
         tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:#ef4444">${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
@@ -3308,11 +3362,11 @@ async function rep_cargarVentas() {
 async function rep_cargarDesfase() {
     const token = localStorage.getItem('token') || '';
     const inicio = document.getElementById('rep_des_inicio').value;
-    const fin    = document.getElementById('rep_des_fin').value;
+    const fin = document.getElementById('rep_des_fin').value;
     let qs = [];
     if (inicio) qs.push(`inicio=${inicio}`);
-    if (fin)    qs.push(`fin=${fin}`);
-    const qStr = qs.length ? '?'+qs.join('&') : '';
+    if (fin) qs.push(`fin=${fin}`);
+    const qStr = qs.length ? '?' + qs.join('&') : '';
 
     const tbody = document.getElementById('rep_des_tbody');
     tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Cargando...</td></tr>`;
@@ -3320,19 +3374,19 @@ async function rep_cargarDesfase() {
     try {
         const [cRes, vRes] = await Promise.all([
             fetch(`${API_URL}/compras${qStr}`, { headers: { Authorization: `Bearer ${token}` } }),
-            fetch(`${API_URL}/ventas${qStr}`,  { headers: { Authorization: `Bearer ${token}` } })
+            fetch(`${API_URL}/ventas${qStr}`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
         const compras = await cRes.json();
-        const ventas  = await vRes.json();
+        const ventas = await vRes.json();
         const cArr = Array.isArray(compras) ? compras : (compras.data || []);
-        const vArr = Array.isArray(ventas)  ? ventas  : (ventas.data  || []);
+        const vArr = Array.isArray(ventas) ? ventas : (ventas.data || []);
 
         const mapaC = {}, mapaV = {};
-        cArr.forEach(c => (c.detalles||[]).forEach(det => {
+        cArr.forEach(c => (c.detalles || []).forEach(det => {
             const k = det.producto?.nombre || 'Sin nombre';
             mapaC[k] = (mapaC[k] || 0) + parseFloat(det.cantidad || 0);
         }));
-        vArr.forEach(v => (v.detalles||[]).forEach(det => {
+        vArr.forEach(v => (v.detalles || []).forEach(det => {
             const k = det.producto?.nombre || 'Sin nombre';
             mapaV[k] = (mapaV[k] || 0) + parseFloat(det.cantidad || 0);
         }));
@@ -3341,7 +3395,7 @@ async function rep_cargarDesfase() {
         const rows = productos.map(p => ({
             producto: p,
             comprado: mapaC[p] || 0,
-            vendido:  mapaV[p] || 0,
+            vendido: mapaV[p] || 0,
             diferencia: (mapaC[p] || 0) - (mapaV[p] || 0)
         }));
         _rep_data.desfase = rows;
@@ -3360,7 +3414,7 @@ async function rep_cargarDesfase() {
                 </tr>`;
             }).join('');
         }
-    } catch(e) {
+    } catch (e) {
         tbody.innerHTML = `<tr><td colspan="4" class="empty-state" style="color:#ef4444">${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
@@ -3373,25 +3427,25 @@ function rep_exportarPDF(tab) {
         entregas: {
             titulo: 'Reporte de Entregas por Productor',
             cab: '<tr><th>Productor</th><th>Producto</th><th>Peso (kg)</th><th>Precio/kg</th><th>Total</th><th>Fecha</th></tr>',
-            fila: r => [r.productor, r.producto, r.peso+' kg', r.precio != null ? '$'+Number(r.precio).toLocaleString('es-CO') : '—', r.total != null ? '$'+Number(r.total).toLocaleString('es-CO') : '—', r.fecha],
-            total: () => { const t = data.reduce((s,r)=>s+parseFloat(r.total||0),0); return `Total general: $${t.toLocaleString('es-CO')}`; }
+            fila: r => [r.productor, r.producto, r.peso + ' kg', r.precio != null ? '$' + Number(r.precio).toLocaleString('es-CO') : '—', r.total != null ? '$' + Number(r.total).toLocaleString('es-CO') : '—', r.fecha],
+            total: () => { const t = data.reduce((s, r) => s + parseFloat(r.total || 0), 0); return `Total general: $${t.toLocaleString('es-CO')}`; }
         },
         compras: {
             titulo: 'Reporte de Compras',
             cab: '<tr><th>Producto</th><th>Total comprado (kg)</th><th>Total pagado</th></tr>',
-            fila: r => [r.producto, Number(r.kg).toLocaleString('es-CO')+' kg', '$'+Number(r.total).toLocaleString('es-CO')],
-            total: () => { const t = data.reduce((s,r)=>s+r.total,0); return `Total general: $${t.toLocaleString('es-CO')}`; }
+            fila: r => [r.producto, Number(r.kg).toLocaleString('es-CO') + ' kg', '$' + Number(r.total).toLocaleString('es-CO')],
+            total: () => { const t = data.reduce((s, r) => s + r.total, 0); return `Total general: $${t.toLocaleString('es-CO')}`; }
         },
         ventas: {
             titulo: 'Reporte de Ventas',
             cab: '<tr><th>Comerciante</th><th>Producto</th><th>Cantidad</th><th>Total vendido</th><th>Fecha</th></tr>',
-            fila: r => [r.comerciante, r.producto, r.cantidad, r.total != null ? '$'+Number(r.total).toLocaleString('es-CO') : '—', r.fecha],
-            total: () => { const t = data.reduce((s,r)=>s+parseFloat(r.total||0),0); return `Total general: $${t.toLocaleString('es-CO')}`; }
+            fila: r => [r.comerciante, r.producto, r.cantidad, r.total != null ? '$' + Number(r.total).toLocaleString('es-CO') : '—', r.fecha],
+            total: () => { const t = data.reduce((s, r) => s + parseFloat(r.total || 0), 0); return `Total general: $${t.toLocaleString('es-CO')}`; }
         },
         desfase: {
             titulo: 'Comparación Compras vs Ventas',
             cab: '<tr><th>Producto</th><th>Total comprado (kg)</th><th>Total vendido (kg)</th><th>Diferencia</th></tr>',
-            fila: r => [r.producto, Number(r.comprado).toLocaleString('es-CO')+' kg', Number(r.vendido).toLocaleString('es-CO')+' kg', (r.diferencia>=0?'+':'')+Number(r.diferencia).toLocaleString('es-CO')+' kg'],
+            fila: r => [r.producto, Number(r.comprado).toLocaleString('es-CO') + ' kg', Number(r.vendido).toLocaleString('es-CO') + ' kg', (r.diferencia >= 0 ? '+' : '') + Number(r.diferencia).toLocaleString('es-CO') + ' kg'],
             total: null
         }
     };
@@ -3405,22 +3459,22 @@ function rep_exportarExcel(tab) {
     const cfgs = {
         entregas: {
             nombre: 'reporte_entregas', hoja: 'Entregas',
-            cols: ['Productor','Producto','Peso (kg)','Precio/kg','Total','Fecha'],
+            cols: ['Productor', 'Producto', 'Peso (kg)', 'Precio/kg', 'Total', 'Fecha'],
             fila: r => [r.productor, r.producto, r.peso, r.precio, r.total, r.fecha]
         },
         compras: {
             nombre: 'reporte_compras', hoja: 'Compras',
-            cols: ['Producto','Total comprado (kg)','Total pagado'],
+            cols: ['Producto', 'Total comprado (kg)', 'Total pagado'],
             fila: r => [r.producto, r.kg, r.total]
         },
         ventas: {
             nombre: 'reporte_ventas', hoja: 'Ventas',
-            cols: ['Comerciante','Producto','Cantidad','Total vendido','Fecha'],
+            cols: ['Comerciante', 'Producto', 'Cantidad', 'Total vendido', 'Fecha'],
             fila: r => [r.comerciante, r.producto, r.cantidad, r.total, r.fecha]
         },
         desfase: {
             nombre: 'reporte_desfase', hoja: 'Compras vs Ventas',
-            cols: ['Producto','Total comprado (kg)','Total vendido (kg)','Diferencia'],
+            cols: ['Producto', 'Total comprado (kg)', 'Total vendido (kg)', 'Diferencia'],
             fila: r => [r.producto, r.comprado, r.vendido, r.diferencia]
         }
     };
@@ -3439,7 +3493,7 @@ let _det_data_actual = null;
 
 // Parche a det_abrir para guardar los datos globalmente
 const _orig_det_abrir = det_abrir;
-window.det_abrir = async function(tipo, id) {
+window.det_abrir = async function (tipo, id) {
     _det_tipo_actual = tipo;
     _det_data_actual = null;
     await _orig_det_abrir(tipo, id);
@@ -3447,9 +3501,9 @@ window.det_abrir = async function(tipo, id) {
 };
 
 function det_descargarPDF() {
-    const titulo    = document.getElementById('det_titulo').textContent;
+    const titulo = document.getElementById('det_titulo').textContent;
     const subtitulo = document.getElementById('det_subtitulo').textContent;
-    const total     = document.getElementById('det_total').textContent;
+    const total = document.getElementById('det_total').textContent;
     // Leer info
     const infoItems = document.querySelectorAll('#det_info .det-info-item');
     let infoHTML = '<table style="width:100%;margin-bottom:20px;font-size:.85em"><tbody>';
@@ -3483,14 +3537,14 @@ function det_descargarPDF() {
     <div class="sub">${subtitulo} · Generado el ${fecha}</div>
     ${infoHTML}
     <table><thead>${cabecera}</thead><tbody>
-    ${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
+    ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}
     </tbody></table>
     <div class="total-row">Total: <span style="color:#0aae0a">${total}</span></div>
     <div class="footer">AgroTrace · Sistema de Trazabilidad</div>
     <script>window.addEventListener('load',()=>{setTimeout(()=>window.print(),400)})<\/script>
     </body></html>`;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'width=900,height=700');
     setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
@@ -3502,18 +3556,18 @@ let _ranking_data = [];
 
 // Reemplazar analisis_loadRanking para incluir fechas
 const _orig_loadRanking = analisis_loadRanking;
-window.analisis_loadRanking = async function() {
-    const tipo   = document.getElementById('ar_tipo').value;
+window.analisis_loadRanking = async function () {
+    const tipo = document.getElementById('ar_tipo').value;
     const inicio = document.getElementById('ar_inicio')?.value || '';
-    const fin    = document.getElementById('ar_fin')?.value    || '';
-    const labels = { total:'Total producido', promedio:'Promedio por entrega', frecuencia:'Frecuencia de entregas' };
+    const fin = document.getElementById('ar_fin')?.value || '';
+    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
     document.getElementById('ar_tipo_label').textContent = labels[tipo];
     showLoading();
     try {
         let qs = [`tipo=${tipo}`];
         if (inicio) qs.push(`inicio=${inicio}`);
-        if (fin)    qs.push(`fin=${fin}`);
-        const res  = await fetch(`${API_URL}/estadisticas/ranking?${qs.join('&')}`);
+        if (fin) qs.push(`fin=${fin}`);
+        const res = await fetch(`${API_URL}/estadisticas/ranking?${qs.join('&')}`);
         const data = await res.json();
         _ranking_data = Array.isArray(data) ? data : [];
 
@@ -3523,8 +3577,8 @@ window.analisis_loadRanking = async function() {
             destroyAnalisisChart('ranking');
         } else {
             tbody.innerHTML = _ranking_data.map(r => {
-                const medalla = r.posicion===1?'🥇':r.posicion===2?'🥈':r.posicion===3?'🥉':'';
-                const nombre  = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
+                const medalla = r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : '';
+                const nombre = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
                 return `<tr>
                     <td style="font-weight:800;color:#111827">${r.posicion}</td>
                     <td style="font-weight:600">${nombre}</td>
@@ -3533,34 +3587,34 @@ window.analisis_loadRanking = async function() {
                 </tr>`;
             }).join('');
             destroyAnalisisChart('ranking');
-            const colors = _ranking_data.map((_,i) => `hsla(${130-(i*12)},65%,45%,0.8)`);
+            const colors = _ranking_data.map((_, i) => `hsla(${130 - (i * 12)},65%,45%,0.8)`);
             const ctx = document.getElementById('ar_chart').getContext('2d');
             analisisCharts.ranking = new Chart(ctx, {
-                type:'bar',
-                data:{
+                type: 'bar',
+                data: {
                     labels: _ranking_data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `Productor ${d.id_productor}`),
-                    datasets:[{ data: _ranking_data.map(d=>d.valor), backgroundColor:colors, borderRadius:6 }]
+                    datasets: [{ data: _ranking_data.map(d => d.valor), backgroundColor: colors, borderRadius: 6 }]
                 },
-                options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
             });
         }
-    } catch(e) {
+    } catch (e) {
         document.getElementById('ar_tbody').innerHTML = `<tr><td colspan="4" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
     } finally { hideLoading(); }
 };
 
 function ranking_exportarPDF() {
     if (!_ranking_data.length) { alert('Primero genera el ranking'); return; }
-    const tipo   = document.getElementById('ar_tipo').value;
+    const tipo = document.getElementById('ar_tipo').value;
     const inicio = document.getElementById('ar_inicio')?.value || '';
-    const fin    = document.getElementById('ar_fin')?.value    || '';
-    const labels = { total:'Total producido', promedio:'Promedio por entrega', frecuencia:'Frecuencia de entregas' };
+    const fin = document.getElementById('ar_fin')?.value || '';
+    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
     const titulo = `Ranking de Productores — ${labels[tipo]}`;
-    const periodo = (inicio || fin) ? ` · Período: ${inicio||'inicio'} → ${fin||'hoy'}` : '';
+    const periodo = (inicio || fin) ? ` · Período: ${inicio || 'inicio'} → ${fin || 'hoy'}` : '';
     const cab = '<tr><th>#</th><th>Productor</th><th>Valor</th><th></th></tr>';
     const filas = _ranking_data.map(r => {
-        const medalla = r.posicion===1?'🥇':r.posicion===2?'🥈':r.posicion===3?'🥉':'';
-        const nombre  = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
+        const medalla = r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : '';
+        const nombre = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
         return [r.posicion, nombre, formatNumber(parseFloat(r.valor).toFixed(2)), medalla];
     });
     _generarPDF(titulo + periodo, cab, filas, '');
@@ -3568,9 +3622,9 @@ function ranking_exportarPDF() {
 
 function ranking_exportarExcel() {
     if (!_ranking_data.length) { alert('Primero genera el ranking'); return; }
-    const tipo   = document.getElementById('ar_tipo').value;
-    const labels = { total:'Total producido', promedio:'Promedio por entrega', frecuencia:'Frecuencia de entregas' };
-    const cols  = ['Posición', 'Productor', labels[tipo]];
+    const tipo = document.getElementById('ar_tipo').value;
+    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
+    const cols = ['Posición', 'Productor', labels[tipo]];
     const filas = _ranking_data.map(r => [
         r.posicion,
         (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`,
@@ -3590,33 +3644,33 @@ async function db_cargarActividades() {
     tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Cargando...</td></tr>';
     try {
         const [cRes, vRes, prdRes, prRes] = await Promise.allSettled([
-            fetch(`${API_URL}/compras`,                { headers: h }),
-            fetch(`${API_URL}/ventas`,                 { headers: h }),
+            fetch(`${API_URL}/compras`, { headers: h }),
+            fetch(`${API_URL}/ventas`, { headers: h }),
             fetch(`${API_URL}/productores?todos=true`, { headers: h }),
-            fetch(`${API_URL}/productos`,              { headers: h }),
+            fetch(`${API_URL}/productos`, { headers: h }),
         ]);
-        const compras    = cRes.status   === 'fulfilled' ? await cRes.value.json()   : [];
-        const ventas     = vRes.status   === 'fulfilled' ? await vRes.value.json()   : [];
-        const productores= prdRes.status === 'fulfilled' ? await prdRes.value.json() : [];
-        const productos  = prRes.status  === 'fulfilled' ? await prRes.value.json()  : [];
+        const compras = cRes.status === 'fulfilled' ? await cRes.value.json() : [];
+        const ventas = vRes.status === 'fulfilled' ? await vRes.value.json() : [];
+        const productores = prdRes.status === 'fulfilled' ? await prdRes.value.json() : [];
+        const productos = prRes.status === 'fulfilled' ? await prRes.value.json() : [];
 
-        const cArr  = (Array.isArray(compras)    ? compras    : compras.data    || []).slice(0, 10);
-        const vArr  = (Array.isArray(ventas)     ? ventas     : ventas.data     || []).slice(0, 10);
-        const prdArr= (Array.isArray(productores)? productores: productores.data|| []).slice(0, 5);
-        const proArr= (Array.isArray(productos)  ? productos  : productos.data  || []).slice(0, 5);
+        const cArr = (Array.isArray(compras) ? compras : compras.data || []).slice(0, 10);
+        const vArr = (Array.isArray(ventas) ? ventas : ventas.data || []).slice(0, 10);
+        const prdArr = (Array.isArray(productores) ? productores : productores.data || []).slice(0, 5);
+        const proArr = (Array.isArray(productos) ? productos : productos.data || []).slice(0, 5);
 
         let actividades = [];
 
         cArr.forEach(c => {
             const productor = c.productor?.usuario
-                ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido||''}`.trim()
+                ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
                 : (c.productor?.nombre || '—');
             actividades.push({
                 fecha: c.fecha_compra || c.createdAt,
                 tipo: 'Compra',
                 color: '#16a34a',
                 usuario: productor,
-                desc: `Compra #${c.numero_factura||c.id_compra} · $${Number(c.total||0).toLocaleString('es-CO')}`
+                desc: `Compra #${c.numero_factura || c.id_compra} · $${Number(c.total || 0).toLocaleString('es-CO')}`
             });
         });
         vArr.forEach(v => actividades.push({
@@ -3624,10 +3678,10 @@ async function db_cargarActividades() {
             tipo: 'Venta',
             color: '#2563eb',
             usuario: v.cliente || '—',
-            desc: `Venta #${v.numero_factura||v.id_venta} · $${Number(v.total||0).toLocaleString('es-CO')}`
+            desc: `Venta #${v.numero_factura || v.id_venta} · $${Number(v.total || 0).toLocaleString('es-CO')}`
         }));
         prdArr.forEach(p => {
-            const nombre = p.usuario ? `${p.usuario.nombre} ${p.usuario.apellido||''}`.trim() : (p.nombre||'—');
+            const nombre = p.usuario ? `${p.usuario.nombre} ${p.usuario.apellido || ''}`.trim() : (p.nombre || '—');
             actividades.push({
                 fecha: p.createdAt,
                 tipo: 'Productor',
@@ -3641,7 +3695,7 @@ async function db_cargarActividades() {
             tipo: 'Producto',
             color: '#d97706',
             usuario: 'Admin',
-            desc: `Producto: ${p.nombre} · $${Number(p.precio_dia||p.precio_base||0).toLocaleString('es-CO')}/kg`
+            desc: `Producto: ${p.nombre} · $${Number(p.precio_dia || p.precio_base || 0).toLocaleString('es-CO')}/kg`
         }));
 
         // Ordenar por fecha desc, tomar 20
@@ -3655,7 +3709,7 @@ async function db_cargarActividades() {
             return;
         }
         tbody.innerHTML = actividades.map(a => {
-            const fechaStr = new Date(a.fecha).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' });
+            const fechaStr = new Date(a.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
             return `<tr>
                 <td style="white-space:nowrap;font-size:.82em;color:#6b7280">${fechaStr}</td>
                 <td><span style="background:${a.color}18;color:${a.color};padding:2px 8px;border-radius:20px;font-size:.78em;font-weight:700">${a.tipo}</span></td>
@@ -3663,21 +3717,323 @@ async function db_cargarActividades() {
                 <td style="font-size:.85em;color:#374151">${a.desc}</td>
             </tr>`;
         }).join('');
-    } catch(e) {
+    } catch (e) {
         tbody.innerHTML = `<tr><td colspan="4" class="empty-state" style="color:#ef4444">${e.message}</td></tr>`;
     }
 }
 
 // Cargar actividades cuando se muestra el dashboard
-(function() {
+(function () {
     const _origMS = mostrarSeccion;
-    window.mostrarSeccion = function(sectionId) {
+    window.mostrarSeccion = function (sectionId) {
         _origMS(sectionId);
         if (sectionId === 'dashboard') db_cargarActividades();
-        if (sectionId === 'reportes')  rep_cargarFiltros();
+        if (sectionId === 'reportes') rep_cargarFiltros();
     };
     // También carga al inicio
     window.addEventListener('DOMContentLoaded', () => {
         setTimeout(db_cargarActividades, 1500);
     });
 })();
+// =============================
+// COMERCIANTES
+// =============================
+
+let _com_todos = [];
+let _com_filtrados = [];
+let _com_editando = null;
+
+
+// CARGAR COMERCIANTES
+async function com_cargar() {
+
+    const token = localStorage.getItem("token");
+
+    try {
+
+        const res = await fetch(`${API_URL}/comerciantes`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok) throw new Error("Error cargando comerciantes");
+
+        _com_todos = await res.json();
+        _com_filtrados = [..._com_todos];
+
+        document.getElementById("com_count").innerText =
+            `${_com_filtrados.length} registros`;
+
+        com_render();
+
+
+    } catch (e) {
+
+        alert(e.message);
+
+    }
+
+}
+
+
+
+// RENDER TABLA
+function com_render() {
+
+    const tbody = document.getElementById("com_tbody");
+
+    if (!_com_filtrados.length) {
+
+        tbody.innerHTML =
+            `<tr>
+            <td colspan="6" class="empty-state">
+            No hay comerciantes
+            </td>
+        </tr>`;
+
+        return;
+    }
+
+    tbody.innerHTML = _com_filtrados.map(c => `
+
+        <tr>
+
+        <td>${c.id_comerciante}</td>
+
+        <td>${c.nombre}</td>
+
+        <td>${c.telefono}</td>
+
+        <td>${c.direccion || '-'}</td>
+
+        <td>
+            ${c.activo
+            ? '<span class="badge-success">Activo</span>'
+            : '<span class="badge-danger">Inactivo</span>'}
+        </td>
+
+        <td>
+
+            <button class="usr-btn-action"
+            onclick="com_editar(${c.id_comerciante})"
+            title="Editar">
+
+            <i class="fi fi-rr-edit"></i>
+            </button>
+
+            <button class="usr-btn-action usr-btn-del"
+            onclick="com_desactivar(${c.id_comerciante})"
+            title="Desactivar">
+
+            <i class="fi fi-rr-trash"></i>
+            </button>
+
+        </td>
+
+        </tr>
+
+    `).join('');
+
+}
+
+
+
+// BUSCAR
+function com_filtrar(texto) {
+
+    texto = texto.toLowerCase();
+
+    _com_filtrados = _com_todos.filter(c =>
+
+        c.nombre.toLowerCase().includes(texto) ||
+        c.telefono.includes(texto)
+
+    );
+
+    document.getElementById("com_count").innerText =
+        `${_com_filtrados.length} registros`;
+
+    com_render();
+
+}
+
+
+
+// ABRIR FORMULARIO
+function com_abrirPanel() {
+
+    _com_editando = null;
+
+    document.getElementById("com_nombre").value = "";
+    document.getElementById("com_telefono").value = "";
+    document.getElementById("com_direccion").value = "";
+
+    document.getElementById("com_panel").classList.add("open");
+
+}
+
+
+
+// EDITAR
+function com_editar(id) {
+
+    const c = _com_todos.find(x => x.id_comerciante === id);
+
+    if (!c) return;
+
+    _com_editando = id;
+
+    document.getElementById("com_nombre").value = c.nombre;
+    document.getElementById("com_telefono").value = c.telefono;
+    document.getElementById("com_direccion").value = c.direccion || "";
+
+    document.getElementById("com_panel").classList.add("open");
+
+}
+
+
+
+// GUARDAR
+async function com_guardar() {
+
+    const nombre = document.getElementById("com_nombre").value.trim();
+    const telefono = document.getElementById("com_telefono").value.trim();
+    const direccion = document.getElementById("com_direccion").value.trim();
+
+    if (!nombre || !telefono) {
+
+        alert("Nombre y teléfono son obligatorios");
+        return;
+
+    }
+
+    const token = localStorage.getItem("token");
+
+    const data = {
+        nombre,
+        telefono,
+        direccion
+    };
+
+    try {
+
+        let res;
+
+        if (_com_editando) {
+
+            res = await fetch(`${API_URL}/comerciantes/${_com_editando}`, {
+
+                method: "PUT",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+
+                body: JSON.stringify(data)
+
+            });
+
+        } else {
+
+            res = await fetch(`${API_URL}/comerciantes`, {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+
+                body: JSON.stringify(data)
+
+            });
+
+        }
+
+        if (!res.ok) {
+
+            const err = await res.json();
+            throw new Error(err.message || "Error guardando");
+
+        }
+
+        document.getElementById("com_panel").classList.remove("open");
+
+        com_cargar();
+
+    } catch (e) {
+
+        alert(e.message);
+
+    }
+
+}
+
+
+
+// DESACTIVAR
+async function com_desactivar(id) {
+
+    if (!confirm("¿Desactivar comerciante?")) return;
+
+    const token = localStorage.getItem("token");
+
+    try {
+
+        const res = await fetch(`${API_URL}/comerciantes/${id}`, {
+
+            method: "PATCH",
+
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+
+            body: JSON.stringify({ activo: false })
+
+        });
+
+        if (!res.ok) {
+
+            const err = await res.json();
+            throw new Error(err.message);
+
+        }
+
+        com_cargar();
+
+    } catch (e) {
+
+        alert(e.message);
+
+    }
+
+}
+
+
+
+function com_abrirPanel() {
+
+    document
+        .getElementById("com_panel")
+        .classList.add("open");
+
+    document
+        .getElementById("com_overlay")
+        .classList.add("show");
+
+}
+
+function com_cerrarPanel() {
+
+    document
+        .getElementById("com_panel")
+        .classList.remove("open");
+
+    document
+        .getElementById("com_overlay")
+        .classList.remove("show");
+
+}

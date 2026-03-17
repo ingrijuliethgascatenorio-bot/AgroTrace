@@ -12,7 +12,7 @@ export class VentasService {
 
   findAll(): Promise<Venta[]> {
     return this.ventaRepo.find({
-      relations: ['detalles', 'detalles.producto'],
+      relations: ['detalles', 'detalles.producto', 'comerciante'],
       order: { id_venta: 'DESC' },
     });
   }

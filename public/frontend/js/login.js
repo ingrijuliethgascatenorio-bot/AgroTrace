@@ -1,47 +1,97 @@
-const form = document.getElementById("loginForm");
+const form = document.getElementById('loginForm');
 
-form.addEventListener("submit", async function (e) {
+form.addEventListener('submit', async function (e) {
     e.preventDefault();
 
-    const email    = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
     const btnLogin = form.querySelector('.btn-login');
+    const errEl    = document.getElementById('login_error');
 
-    btnLogin.disabled     = true;
-    btnLogin.textContent  = 'Ingresando...';
+    btnLogin.disabled    = true;
+    btnLogin.textContent = 'Ingresando...';
+    if (errEl) errEl.style.display = 'none';
 
     try {
-        const response = await fetch("http://localhost:3000/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password })
+        const response = await fetch('http://localhost:3000/api/auth/login', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email, password }),
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            // ── Guardar token y usuario completo ──
-            localStorage.setItem("token",   data.token);
-            localStorage.setItem("usuario", JSON.stringify(data.usuario));
+            // ── Guardar sesión ──────────────────────────────
+            localStorage.setItem('token',   data.token);
+            localStorage.setItem('usuario', JSON.stringify(data.usuario));
 
-            // ── Redirigir según rol ──
-            const tipo = data.usuario.tipo_usuario;
+            // ── Redirigir según rol (tipo_usuario) ──────────
+            const rol = data.usuario?.tipo_usuario;
 
-            if      (tipo === 'ADMIN')    window.location.href = "./index.html";
-            else if (tipo === 'VENDEDOR') window.location.href = "./vendedor.html";
-            else if (tipo === 'PRODUCTOR') window.location.href = "./productor.html";
-            else     window.location.href = "./login.html";
+            const rutas = {
+                ADMIN:     './index.html',
+                PRODUCTOR: './vista_productor/productor.html',
+                OPERARIO:  './operario.html',
+            };
+
+            const destino = rutas[rol];
+
+            if (destino) {
+                window.location.replace(destino);
+            } else {
+                // Rol desconocido — limpiar y mostrar error
+                localStorage.removeItem('token');
+                localStorage.removeItem('usuario');
+                mostrarError('Rol de usuario no reconocido. Contacta al administrador.');
+                btnLogin.disabled    = false;
+                btnLogin.textContent = 'Ingresar';
+            }
 
         } else {
-            alert(data.message || "Credenciales incorrectas");
+            mostrarError(data.message || 'Correo o contraseña incorrectos.');
             btnLogin.disabled    = false;
             btnLogin.textContent = 'Ingresar';
         }
 
     } catch (error) {
-        console.error(error);
-        alert("No se pudo conectar con el servidor");
+        console.error('Error de red:', error);
+        mostrarError('No se pudo conectar con el servidor. Verifica tu conexión.');
         btnLogin.disabled    = false;
         btnLogin.textContent = 'Ingresar';
     }
 });
+
+function mostrarError(msg) {
+    // Intentar mostrar en elemento dedicado
+    let errEl = document.getElementById('login_error');
+    if (!errEl) {
+        // Si no existe, crearlo debajo del formulario
+        errEl = document.createElement('p');
+        errEl.id = 'login_error';
+        errEl.style.cssText = 'color:#dc2626;font-size:.85em;font-weight:600;margin-top:10px;text-align:center';
+        form.appendChild(errEl);
+    }
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+}
+
+// ── Si ya hay sesión activa al cargar el login → redirigir directo ──
+(function () {
+    const token   = localStorage.getItem('token');
+    const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+    if (!token || !usuario) return;
+
+    const rol = usuario.tipo_usuario;
+    if (rol === 'ADMIN') {
+        window.location.replace('./index.html');
+    }if (rol === 'PRODUCTOR') {
+        window.location.replace('./vista_productor/vista-productor/productor.html');
+    } else if (rol === 'OPERARIO') {
+        window.location.replace('./operario.html');
+    } else {
+        // Rol desconocido — limpiar sesión
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+    }
+})();

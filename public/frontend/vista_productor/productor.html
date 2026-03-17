@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/public/frontend/manifest.json">
+    <meta name="theme-color" content="#16a34a">
+    <title>AgroTrace — Mi Dashboard</title>
+
+
+    <!-- ════ GUARD DE ACCESO — Solo PRODUCTOR / OPERARIO ════ -->
+    <script>
+        (function () {
+            var token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            var usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+            if (!token || !usuario) { window.location.replace('../../login.html'); return; }
+            var rol = usuario.tipo_usuario;
+            if (rol === 'ADMIN' || rol === 'VENDEDOR') { window.location.replace('../../index.html'); return; }
+            if (rol !== 'PRODUCTOR' && rol !== 'OPERARIO') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('usuario');
+                window.location.replace('../../login.html');
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/productor.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link rel="stylesheet"
+        href="https://cdn-uicons.flaticon.com/2.3.0/uicons-bold-straight/css/uicons-bold-straight.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="icon" href="/public/frontend/iconos/icon-192.png">
+</head>
+
+<body>
+
+    <!-- ══════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-logo">
+            <img src="../img/logo (1).png" alt="AgroTrace" class="sidebar-logo-img">
+            <button class="menu-toggle" id="menu_toggle" title="Menú">
+                <i class="fi fi-rr-menu-burger"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <span class="nav-label">PRINCIPAL</span>
+
+            <button class="nav-btn active" data-section="inicio" data-tip="Inicio">
+                <i class="fi fi-rr-home"></i>
+                <span>Inicio</span>
+            </button>
+
+            <button class="nav-btn" data-section="historial" data-tip="Mis entregas">
+                <i class="fi fi-rr-box"></i>
+                <span>Mis entregas</span>
+            </button>
+
+            <span class="nav-label">MI CUENTA</span>
+
+            <button class="nav-btn" data-section="perfil" data-tip="Mi perfil">
+                <i class="fi fi-rr-user"></i>
+                <span>Mi perfil</span>
+            </button>
+
+            <button class="nav-btn" data-section="mi-qr" data-tip="Mi código QR">
+                <i class="fi fi-bs-qrcode"></i>
+                <span>Mi código QR</span>
+            </button>
+
+            <div class="nav-spacer"></div>
+
+            <button class="nav-btn nav-btn-logout" data-tip="Cerrar sesión" onclick="cerrarSesion()">
+                <i class="fi fi-rr-sign-out-alt"></i>
+                <span>Cerrar sesión</span>
+            </button>
+        </nav>
+    </aside>
+
+    <!-- ══════════════════════════════════════════
+     CONTENEDOR PRINCIPAL
+══════════════════════════════════════════ -->
+    <div class="main-container" id="main_container">
+
+        <!-- ── TOPBAR ── -->
+        <header class="topbar">
+            <div class="topbar-inner">
+                <div class="topbar-left">
+                    <span class="topbar-page-title" id="topbar_title">Inicio</span>
+                </div>
+                <div class="topbar-right">
+                    <div class="hp-trigger" onclick="togglePanelUsuario()">
+                        <div class="hp-avatar" id="hp_avatar">?</div>
+                        <div class="hp-info">
+                            <span class="hp-nombre" id="hp_nombre">Cargando...</span>
+                            <span class="hp-rol-badge">Productor</span>
+                        </div>
+                        <i class="fi fi-rr-angle-small-down hp-chevron" id="hp_chevron"></i>
+                    </div>
+
+                    <!-- Dropdown usuario -->
+                    <div class="hp-menu" id="hp_menu">
+
+                        <button class="hp-menu-item hp-menu-item-danger" onclick="cerrarSesion()">
+                            <i class="fi fi-rr-sign-out-alt"></i> Cerrar sesión
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ── CONTENIDO ── -->
+        <main class="content">
+            <section id="inicio" class="section active">
+
+                <!-- Hero bienvenida -->
+                <div class="prd-hero">
+                    <div class="prd-hero-bg"></div>
+                    <div class="prd-hero-content">
+                        <div class="prd-hero-badge">🌱 AgroTrace · Productor</div>
+                        <p class="prd-hero-greeting" id="hero_saludo">Bienvenido</p>
+                        <h1 class="prd-hero-name" id="hero_nombre">—</h1>
+                        <p class="prd-hero-sub">Consulta el historial de tus entregas y tus ingresos</p>
+                    </div>
+                    <div class="prd-hero-wave">
+                        <svg viewBox="0 0 1200 36" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M0,36 C300,0 900,0 1200,36 L1200,36 L0,36 Z" fill="#f4f6f9" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- KPIs -->
+                <div class="kpi-grid">
+
+                    <!-- Tarjeta 1: Entregas (verde) -->
+                    <div class="kpi-card kpi-card-1">
+                        <!-- Pon aquí tu imagen: src="../img/kpi-entregas.jpg" -->
+                        <div class="kpi-bg" style="background-image:url('../img/p.tarj1.jpg')"></div>
+                        <div class="kpi-overlay"></div>
+                        <div class="kpi-shine"></div>
+                        <div class="kpi-body-new">
+                            <div class="kpi-top-row">
+                                <div class="kpi-icon-glass">
+                                    <i class="fi fi-rr-box"></i>
+                                </div>
+                                <span class="kpi-pill">Entregas</span>
+                            </div>
+                            <div class="kpi-bottom-row">
+                                <div class="kpi-value" id="kpi_entregas">—</div>
+                                <div class="kpi-sub">Entregas registradas</div>
+                                <div class="kpi-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 2: Kilogramos (azul) -->
+                    <div class="kpi-card kpi-card-2">
+                        <div class="kpi-bg" style="background-image:url('../img/p.tarj2.jpg')"></div>
+                        <div class="kpi-overlay"></div>
+                        <div class="kpi-shine"></div>
+                        <div class="kpi-body-new">
+                            <div class="kpi-top-row">
+                                <div class="kpi-icon-glass">
+                                    <i class="fi fi-rr-scale"></i>
+                                </div>
+                                <span class="kpi-pill">Kilogramos</span>
+                            </div>
+                            <div class="kpi-bottom-row">
+                                <div class="kpi-value" id="kpi_kg">—</div>
+                                <div class="kpi-sub">kg entregados en total</div>
+                                <div class="kpi-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 3: Ingresos (naranja) -->
+                    <div class="kpi-card kpi-card-3">
+                        <div class="kpi-bg" style="background-image:url('../img/p.tarj3.jpg')"></div>
+                        <div class="kpi-overlay"></div>
+                        <div class="kpi-shine"></div>
+                        <div class="kpi-body-new">
+                            <div class="kpi-top-row">
+                                <div class="kpi-icon-glass">
+                                    <i class="fi fi-rr-coins"></i>
+                                </div>
+                                <span class="kpi-pill">Ingresos</span>
+                            </div>
+                            <div class="kpi-bottom-row">
+                                <div class="kpi-value" id="kpi_dinero">—</div>
+                                <div class="kpi-sub">Ingresos acumulados</div>
+                                <div class="kpi-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 4: Última entrega (morado) -->
+                    <div class="kpi-card kpi-card-4">
+                        <div class="kpi-bg" style="background-image:url('../img/tarjeta4.jpeg')"></div>
+                        <div class="kpi-overlay"></div>
+                        <div class="kpi-shine"></div>
+                        <div class="kpi-body-new">
+                            <div class="kpi-top-row">
+                                <div class="kpi-icon-glass">
+                                    <i class="fi fi-rr-calendar"></i>
+                                </div>
+                                <span class="kpi-pill">Última entrega</span>
+                            </div>
+                            <div class="kpi-bottom-row">
+                                <div class="kpi-value kpi-value-sm" id="kpi_ultima">—</div>
+                                <div class="kpi-sub">Fecha más reciente</div>
+                                <div class="kpi-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Últimas entregas preview -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <i class="fi fi-rr-time-past" style="color:var(--primary)"></i>
+                            Últimas entregas
+                        </span>
+                        <button class="card-link-btn" onclick="mostrarSeccion('historial')">
+                            Ver todas <i class="fi fi-rr-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="prd-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Producto</th>
+                                    <th>Peso</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inicio_tbody">
+                                <tr>
+                                    <td colspan="5" class="empty-cell"><span class="skeleton-inline"></span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <button id="btnInstalarApp" style="display: none;">
+                    📲 Instalar AgroTrace
+                </button>
+            </section>
+
+            <!-- ════════════════════════════════
+             HISTORIAL DE ENTREGAS
+        ════════════════════════════════ -->
+            <section id="historial" class="section">
+
+                <div class="sec-header-row">
+                    <div class="section-header">
+                        <h2>Mis entregas</h2>
+                        <p>Historial completo de tus entregas registradas por el operario</p>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="card card-filters">
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label class="filter-label">
+                                <i class="fi fi-rr-calendar"></i> Mes
+                            </label>
+                            <select id="filt_mes" class="filter-select">
+                                <option value="">Todos los meses</option>
+                                <option value="1">Enero</option>
+                                <option value="2">Febrero</option>
+                                <option value="3">Marzo</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Mayo</option>
+                                <option value="6">Junio</option>
+                                <option value="7">Julio</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">
+                                <i class="fi fi-rr-calendar"></i> Año
+                            </label>
+                            <select id="filt_anio" class="filter-select">
+                                <option value="">Todos los años</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button class="prd-btn prd-btn-primary" onclick="aplicarFiltros()">
+                                <i class="fi fi-rr-search"></i> Filtrar
+                            </button>
+                            <button class="prd-btn prd-btn-ghost" onclick="limpiarFiltros()">
+                                <i class="fi fi-rr-cross"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Meta row -->
+                <div class="table-meta-row">
+                    <span class="table-count" id="hist_count">0 registros</span>
+                    <button class="btn-export" onclick="exportarCSV()">
+                        <i class="fi fi-rr-file-spreadsheet"></i> Exportar Excel
+                    </button>
+                </div>
+
+                <!-- Tabla historial -->
+                <div class="card">
+                    <div class="table-wrap">
+                        <table class="prd-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Producto</th>
+                                    <th>Peso (kg)</th>
+                                    <th>Precio / kg</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hist_tbody">
+                                <tr>
+                                    <td colspan="6" class="empty-cell">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
+             MI PERFIL
+        ════════════════════════════════ -->
+            <section id="perfil" class="section">
+
+                <div class="sec-header-row">
+                    <div class="section-header">
+                        <h2>Mi perfil</h2>
+                        <p>Tu información personal en AgroTrace</p>
+                    </div>
+                </div>
+
+                <div class="perfil-layout">
+
+                    <!-- Tarjeta avatar lateral -->
+                    <div class="perfil-avatar-card">
+                        <div class="perfil-avatar-circle" id="perfil_avatar">?</div>
+                        <div class="perfil-avatar-nombre" id="perfil_nombre_display">—</div>
+                        <span class="perfil-rol-tag">Productor</span>
+                        <div class="perfil-lock-notice">
+                            <i class="fi fi-rr-lock"></i>
+                            Solo puedes editar teléfono y ubicación
+                        </div>
+                    </div>
+
+                    <!-- Columna de datos -->
+                    <div class="perfil-data-col">
+
+                        <!-- Datos de identidad (solo lectura) -->
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">
+                                    <i class="fi fi-rr-shield-check"></i> Datos de identidad
+                                </span>
+                                <span class="readonly-badge">
+                                    <i class="fi fi-rr-lock"></i> Solo lectura
+                                </span>
+                            </div>
+                            <div class="perfil-fields">
+                                <div class="pf-row">
+                                    <span class="pf-key"><i class="fi fi-rr-user"></i> Nombre completo</span>
+                                    <span class="pf-val" id="pf_nombre">—</span>
+                                </div>
+                                <div class="pf-row">
+                                    <span class="pf-key"><i class="fi fi-rr-id-badge"></i> Cédula</span>
+                                    <span class="pf-val" id="pf_cedula">—</span>
+                                </div>
+                                <div class="pf-row">
+                                    <span class="pf-key"><i class="fi fi-rr-home"></i> Finca</span>
+                                    <span class="pf-val" id="pf_finca">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Datos editables -->
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">
+                                    <i class="fi fi-rr-edit"></i> Datos que puedes editar
+                                </span>
+                            </div>
+                            <div class="perfil-fields">
+                                <div class="pf-row pf-row-edit">
+                                    <label class="pf-key" for="inp_telefono">
+                                        <i class="fi fi-rr-phone-call"></i> Teléfono
+                                    </label>
+                                    <input id="inp_telefono" type="tel" class="pf-input" placeholder="Ej: 3201234567"
+                                        maxlength="15">
+                                </div>
+                                <div class="pf-row pf-row-edit">
+                                    <label class="pf-key" for="inp_ubicacion">
+                                        <i class="fi fi-rr-marker"></i> Ubicación
+                                    </label>
+                                    <input id="inp_ubicacion" type="text" class="pf-input"
+                                        placeholder="Ej: Florencia - Caquetá">
+                                </div>
+                            </div>
+                            <div class="prd-msg" id="perfil_msg"></div>
+                            <div class="perfil-save-row">
+                                <button class="prd-btn prd-btn-primary" id="btn_guardar_perfil"
+                                    onclick="guardarPerfil()">
+                                    <i class="fi fi-rr-check"></i> Guardar cambios
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
+             MI QR
+        ════════════════════════════════ -->
+            <section id="mi-qr" class="section">
+
+                <div class="sec-header-row">
+                    <div class="section-header">
+                        <h2>Mi código QR</h2>
+                        <p>Úsalo para que el operario registre tu entrega</p>
+                    </div>
+                </div>
+
+                <div class="qr-layout">
+
+                    <!-- Tarjeta QR -->
+                    <div class="qr-card">
+                        <div class="qr-card-header">
+                            <div class="qr-avatar" id="qr_avatar">?</div>
+                            <div class="qr-card-info">
+                                <span class="qr-card-nombre" id="qr_nombre">—</span>
+                                <span class="qr-card-cedula" id="qr_cedula">—</span>
+                            </div>
+                        </div>
+
+                        <div class="qr-img-wrap" id="qr_img_wrap">
+                            <div class="qr-placeholder">
+                                <i class="fi fi-rr-qr" style="font-size:2.2em;color:#d1d5db"></i>
+                                <span>Generando QR...</span>
+                            </div>
+                        </div>
+
+                        <div class="qr-brand-bar">🌱 AgroTrace · Sistema de Trazabilidad Agrícola</div>
+
+                        <div class="qr-actions">
+                            <button class="prd-btn prd-btn-ghost qr-btn" onclick="qr_imprimir()">
+                                <i class="fi fi-rr-print"></i> Imprimir
+                            </button>
+                            <a class="prd-btn prd-btn-primary qr-btn" id="qr_dl_btn" onclick="descargarQR(event)">
+                                <i class="fi fi-rr-download"></i> Descargar
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Info lateral -->
+                    <div class="qr-info-col">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">
+                                    <i class="fi fi-rr-info"></i> ¿Cómo funciona?
+                                </span>
+                            </div>
+                            <p class="qr-info-text">
+                                Tu código QR es tu identificación única en AgroTrace. El operario recolector lo
+                                escaneará cada vez que recoja tu producción, registrando la entrega automáticamente.
+                            </p>
+                            <ol class="qr-steps">
+                                <li class="qr-step">
+                                    <div class="qr-step-num">1</div>
+                                    <div>Descarga o imprime tu QR y tenlo disponible en tu finca.</div>
+                                </li>
+                                <li class="qr-step">
+                                    <div class="qr-step-num">2</div>
+                                    <div>Cuando llegue el operario de recolección, muéstrale el QR.</div>
+                                </li>
+                                <li class="qr-step">
+                                    <div class="qr-step-num">3</div>
+                                    <div>El sistema registra tu entrega con peso y precio del día.</div>
+                                </li>
+                                <li class="qr-step">
+                                    <div class="qr-step-num">4</div>
+                                    <div>Consulta tus entregas en "Mis entregas" cuando quieras.</div>
+                                </li>
+                            </ol>
+                            <div class="qr-info-note">
+                                <i class="fi fi-rr-shield-check"></i>
+                                El QR contiene tu cédula y está vinculado exclusivamente a tu cuenta.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ══ BOTTOM NAV (móvil) ══ -->
+        <nav class="bottom-nav" id="bottom_nav">
+            <button class="bn-item active" data-section="inicio">
+                <i class="fi fi-rr-home"></i>
+                <span>Inicio</span>
+            </button>
+            <button class="bn-item" data-section="historial">
+                <i class="fi fi-rr-box"></i>
+                <span>Entregas</span>
+            </button>
+            <button class="bn-item" data-section="perfil">
+                <i class="fi fi-rr-user"></i>
+                <span>Perfil</span>
+            </button>
+            <button class="bn-item" data-section="mi-qr">
+                <i class="fi fi-bs-qrcode"></i>
+                <span>Mi QR</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- ══ LOADING ══ -->
+    <div class="prd-loading" id="prd_loading">
+        <div class="prd-spinner"></div>
+        <p>Cargando...</p>
+    </div>
+
+    <script src="js/productor.js"></script>
+    <script src="js/cache.js"></script>
+    <script src="js/offline.js"></script>
+    <script src="js/sync.js"></script>
+
+</body>
+
+</html>

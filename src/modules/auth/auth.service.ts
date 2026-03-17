@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-// src/modules/auth/auth.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,7 +15,6 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     @InjectRepository(Productor)
     private readonly productorRepository: Repository<Productor>,
   ) {}
@@ -44,14 +39,22 @@ export class AuthService {
         );
       }
 
-      const qr = await QRCode.toDataURL(registerDto.cedula);
+      // Limpiar cédula — solo números para el QR
+      const cedulaSoloNumeros = registerDto.cedula.replace(/\D/g, '');
+
+      const qr = await QRCode.toDataURL(cedulaSoloNumeros, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 300,
+      });
 
       const productor = this.productorRepository.create({
-        //nombre: registerDto.nombre,
-        cedula: registerDto.cedula,
-        telefono: registerDto.telefono,
+        cedula: cedulaSoloNumeros,
+        telefono: registerDto.telefono || null,
+        ubicacion: registerDto.ubicacion || null,
         estado: 'ACTIVO',
         codigo_qr: qr,
+        id_usuario: usuario.id_usuario,
       });
 
       await this.productorRepository.save(productor);

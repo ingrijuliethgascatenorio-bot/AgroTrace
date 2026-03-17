@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Usuario } from '../users/entities/usuario.entity';
 import { DetalleVenta } from './detalle_venta.entity';
+import { Comerciante } from '../comerciante/comerciante.entity';
 
 @Entity('venta')
 export class Venta {
@@ -17,11 +18,11 @@ export class Venta {
   @Column({ name: 'id_operario' })
   id_operario: number;
 
+  @Column({ name: 'id_comerciante' })
+  id_comerciante: number;
+
   @Column({ type: 'date', name: 'fecha_venta' })
   fecha_venta: string;
-
-  @Column({ length: 150 })
-  cliente: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   total: number;
@@ -32,10 +33,17 @@ export class Venta {
   @Column({ nullable: true, unique: true, name: 'numero_factura' })
   numero_factura: string;
 
-  @ManyToOne(() => Usuario, { eager: false, nullable: true })
+  @ManyToOne(() => Usuario)
   @JoinColumn({ name: 'id_operario' })
   operario: Usuario;
 
-  @OneToMany(() => DetalleVenta, (d) => d.venta, { cascade: true, eager: true })
+  @ManyToOne(() => Comerciante)
+  @JoinColumn({ name: 'id_comerciante' })
+  comerciante: Comerciante;
+
+  @OneToMany(() => DetalleVenta, (d) => d.venta, {
+    cascade: true,
+    eager: true,
+  })
   detalles: DetalleVenta[];
 }

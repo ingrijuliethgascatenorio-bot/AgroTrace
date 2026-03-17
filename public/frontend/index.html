@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroTrace - Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-thin-rounded/css/uicons-thin-rounded.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -33,6 +34,10 @@
                     class="fi fi-rr-shopping-cart"></i><span>Compras</span></button>
             <button class="nav-btn" data-section="ventas" data-tip="Ventas"><i
                     class="fi fi-rr-stats"></i><span>Ventas</span></button>
+            <button class="nav-btn" data-section="comerciantes" data-tip="Comerciantes">
+                <i class="fi fi-rr-shop"></i>
+                <span>Comerciantes</span>
+            </button>
             <button class="nav-btn" data-section="productores" data-tip="Productores"><i
                     class="fi fi-rr-trophy"></i><span>Productores</span></button>
             <button class="nav-btn" data-section="productos" data-tip="Productos"><i
@@ -95,12 +100,12 @@
                     </div>
                 </div>
 
-                <!-- ══ MODAL GUÍA ¿Qué puedo hacer? ══ -->
+                <!-- ══ MODAL GUÍA  ══ -->
                 <div class="db-guia-overlay" id="db_guia_overlay" onclick="db_cerrarGuia()"></div>
                 <div class="db-guia-modal" id="db_guia_modal">
                     <button class="db-guia-close" onclick="db_cerrarGuia()"><i class="fi fi-rr-cross"></i></button>
                     <div class="db-guia-header">
-                        <span class="db-guia-tag">🌱 AgroTrace</span>
+                        <span class="db-guia-tag">AgroTrace</span>
                         <h2 class="db-guia-title">¿Qué puedo hacer?</h2>
                         <p class="db-guia-intro">Explora todos los módulos del sistema</p>
                     </div>
@@ -232,126 +237,38 @@
                                 </div>
                                 <div class="dbg-img"><img src="img/tarjeta10.jpeg" alt="Productores"></div>
                             </div>
-
-                            <!-- Clones para loop infinito 
-                            <div class="dbg-card" onclick="mostrarSeccion('ventas')">
-                                <div class="dbg-img"><img src="img/tarjeta4.jpeg" alt="Ventas"></div>
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-ts-selling"></i>Módulo</span>
-                                    <div class="dbg-name">Ventas</div>
-                                    <div class="dbg-num" id="dbg_ventas_2" data-metric="ventas">—</div>
-                                    <div class="dbg-desc">Gestión y seguimiento de las ventas registradas en la plataforma.</div>
-                                </div>
-                            </div>
-                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('compras')">
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-rs-grocery-bag"></i>Módulo</span>
-                                    <div class="dbg-name">Compras</div>
-                                    <div class="dbg-num" id="dbg_compras_2" data-metric="compras">—</div>
-                                    <div class="dbg-desc">Permite registrar y gestionar todas las compras realizadas dentro del sistema.</div>
-                                </div>
-                                <div class="dbg-img"><img src="img/tarjeta5.png" alt="Compras"></div>
-                            </div>
-                            <div class="dbg-card" onclick="mostrarSeccion('productos')">
-                                <div class="dbg-img"><img src="img/tarjeta6.png" alt="Productos"></div>
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-rr-box"></i>Módulo</span>
-                                    <div class="dbg-name">Productos</div>
-                                    <div class="dbg-num" id="dbg_productos_2" data-metric="productos">—</div>
-                                    <div class="dbg-desc">Administración del inventario de productos disponibles en el sistema.</div>
-                                </div>
-                            </div>
-                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('productores')">
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-sr-users-alt"></i> Módulo</span>
-                                    <div class="dbg-name">Productores</div>
-                                    <div class="dbg-num" id="dbg_productores_2" data-metric="productores">—</div>
-                                    <div class="dbg-desc">Registro e información de los productores que participan en la plataforma.</div>
-                                </div>
-                                <div class="dbg-img"><img src="img/tarjeta10.jpeg" alt="Productores"></div>
-                            </div>-->
-
                         </div>
                     </div>
 
-                    <!--Fila inferior ← izquierda
-                    <div class="dbg-row dbg-row-bot">
-                        <div class="dbg-belt" id="dbg_belt_bot">
 
-                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('productores')">
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-sr-users-alt"></i>Módulo</span>
-                                    <div class="dbg-name">Productores</div>
-                                    <div class="dbg-num" id="dbg_productores_1" data-metric="productores">—</div>
-                                    <div class="dbg-desc">Registro e información de los productores que participan en la plataforma.</div>
-                                </div>
-                                <div class="dbg-img"><img src="img/tarjeta7.jpeg" alt="Productores"></div>
-                            </div>
 
-                            <div class="dbg-card" onclick="mostrarSeccion('analisis')">
-                                <div class="dbg-img"><img src="img/tarjeta8.jpeg" alt="Análisis"></div>
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-rr-chart-line-up"></i> Módulo</span>
-                                    <div class="dbg-name">Análisis</div>
-                                    <div class="dbg-num" id="dbg_analisis_1" data-metric="analisis">—<span class="dbg-num-suf">%</span></div>
-                                    <div class="dbg-desc">Módulo donde se visualizan estadísticas, tendencias y análisis de los datos registrados en el sistema.</div>
-                                </div>
-                            </div>
-
-                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('historial')">
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-rr-document"></i>Módulo</span>
-                                    <div class="dbg-name">Reportes</div>
-                                    <div class="dbg-num" id="dbg_reportes_1" data-metric="reportes">—</div>
-                                    <div class="dbg-desc">Generación y visualización de reportes para analizar la información del sistema.</div>
-                                </div>
-                                <div class="dbg-img"><img src="img/tarjeta9.jpeg" alt="Reportes"></div>
-                            </div>
-
-                             Clones 
-                            
-                            <div class="dbg-card" onclick="mostrarSeccion('analisis')">
-                                <div class="dbg-img"><img src="img/tarjeta5.png" alt="Análisis"></div>
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-rr-chart-line-up"></i> Módulo</span>
-                                    <div class="dbg-name">Análisis</div>
-                                    <div class="dbg-num" id="dbg_analisis_2" data-metric="analisis">—<span class="dbg-num-suf">%</span></div>
-                                    <div class="dbg-desc">Módulo donde se visualizan estadísticas, tendencias y análisis de los datos registrados en el sistema.</div>
-                                </div>
-                            </div>
-                            <div class="dbg-card dbg-card-r" onclick="mostrarSeccion('historial')">
-                                <div class="dbg-body">
-                                    <span class="dbg-tag"><i class="fi fi-rr-document"></i>Módulo</span>
-                                    <div class="dbg-name">Reportes</div>
-                                    <div class="dbg-num" id="dbg_reportes_2" data-metric="reportes">—</div>
-                                    <div class="dbg-desc">Generación y visualización de reportes para analizar la información del sistema.</div>
-                                </div>
-                                <div class="dbg-img"><img src="img/tarjeta6.png" alt="Reportes"></div>
-                            </div>
-
+                    <!-- ══ ACTIVIDADES RECIENTES ══ -->
+                    <div style="margin-top:32px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                            <h3 style="margin:0;font-size:1em;font-weight:700;color:#111827">Actividades recientes</h3>
+                            <button class="an-btn" onclick="db_cargarActividades()"
+                                style="font-size:.78em;padding:6px 12px">
+                                <i class="fi fi-rr-refresh"></i> Actualizar
+                            </button>
+                        </div>
+                        <div class="usr-table-wrap">
+                            <table class="usr-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Usuario</th>
+                                        <th>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db_actividades_tbody">
+                                    <tr>
+                                        <td colspan="4" class="empty-state">Cargando actividades...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div> /dbg-root -->
-
-                <!-- ══ ACTIVIDADES RECIENTES ══ -->
-                <div style="margin-top:32px">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-                        <h3 style="margin:0;font-size:1em;font-weight:700;color:#111827">Actividades recientes</h3>
-                        <button class="an-btn" onclick="db_cargarActividades()" style="font-size:.78em;padding:6px 12px">
-                            <i class="fi fi-rr-refresh"></i> Actualizar
-                        </button>
-                    </div>
-                    <div class="usr-table-wrap">
-                        <table class="usr-table">
-                            <thead>
-                                <tr><th>Fecha</th><th>Tipo</th><th>Usuario</th><th>Descripción</th></tr>
-                            </thead>
-                            <tbody id="db_actividades_tbody">
-                                <tr><td colspan="4" class="empty-state">Cargando actividades...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
             </section>
 
@@ -507,13 +424,17 @@
                                 <option value="promedio">Promedio por entrega</option>
                                 <option value="frecuencia">Frecuencia de entregas</option>
                             </select>
-                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="ar_inicio" class="an-input"></div>
-                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="ar_fin" class="an-input"></div>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="ar_inicio"
+                                    class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="ar_fin"
+                                    class="an-input"></div>
                             <button class="an-btn" onclick="analisis_loadRanking()">
                                 <i class="fi fi-rr-refresh"></i> Generar
                             </button>
-                            <button class="an-btn" style="background:#374151" onclick="ranking_exportarExcel()"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
-                            <button class="an-btn" style="background:#dc2626" onclick="ranking_exportarPDF()"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                            <button class="an-btn" style="background:#374151" onclick="ranking_exportarExcel()"><i
+                                    class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="ranking_exportarPDF()"><i
+                                    class="fi fi-rr-file-pdf"></i> PDF</button>
                         </div>
                     </div>
                     <div class="an-grid-2">
@@ -614,7 +535,8 @@
                                 <th>Productos</th>
                                 <th>Total</th>
                                 <th>Estado</th>
-                                <th></th>
+                                <th>Detalles</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="cmp_tbody">
@@ -656,7 +578,7 @@
                                 <th>Productos</th>
                                 <th>Total</th>
                                 <th>Estado</th>
-                                <th></th>
+                                <th>Detalles</th>
                             </tr>
                         </thead>
                         <tbody id="vnt_tbody">
@@ -667,7 +589,58 @@
                     </table>
                 </div>
             </section>
+            <!-- COMERCIANTES -->
+            <section id="comerciantes" class="section">
 
+                <div class="usr-header">
+                    <div class="section-header" style="margin-bottom:0">
+                        <h2>Comerciantes</h2>
+                        <p>Gestión de comerciantes del sistema</p>
+                    </div>
+
+                    <button class="btn-nuevo" onclick="com_abrirPanel()">
+                        <i class="fi fi-rr-user-add"></i> Nuevo comerciante
+                    </button>
+                </div>
+
+                <div class="usr-toolbar">
+
+                    <div class="usr-search">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="com_buscar" placeholder="Buscar comerciante..."
+                            oninput="com_filtrar(this.value)">
+                    </div>
+
+                </div>
+
+                <div class="usr-count" id="com_count">0 registros</div>
+
+                <div class="usr-table-wrap">
+
+                    <table class="usr-table">
+
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Teléfono</th>
+                                <th>Dirección</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="com_tbody">
+                            <tr>
+                                <td colspan="6" class="empty-state">Cargando...</td>
+                            </tr>
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
             <!-- PRODUCTORES -->
             <section id="productores" class="section">
                 <div class="usr-header">
@@ -882,37 +855,65 @@
 
                 <!-- Tabs de reportes -->
                 <div class="an-tabs" style="margin-bottom:20px">
-                    <button class="an-tab active" onclick="rep_setTab('entregas', this)"><i class="fi fi-rr-box"></i><span>Entregas</span></button>
-                    <button class="an-tab" onclick="rep_setTab('compras', this)"><i class="fi fi-rr-shopping-cart"></i><span>Compras</span></button>
-                    <button class="an-tab" onclick="rep_setTab('ventas', this)"><i class="fi fi-rr-stats"></i><span>Ventas</span></button>
-                    <button class="an-tab" onclick="rep_setTab('desfase', this)"><i class="fi fi-rr-balance-scale"></i><span>Compras vs Ventas</span></button>
+                    <button class="an-tab active" onclick="rep_setTab('entregas', this)"><i
+                            class="fi fi-rr-box"></i><span>Entregas</span></button>
+                    <button class="an-tab" onclick="rep_setTab('compras', this)"><i
+                            class="fi fi-rr-shopping-cart"></i><span>Compras</span></button>
+                    <button class="an-tab" onclick="rep_setTab('ventas', this)"><i
+                            class="fi fi-rr-stats"></i><span>Ventas</span></button>
+                    <button class="an-tab" onclick="rep_setTab('desfase', this)"><i
+                            class="fi fi-rr-balance-scale"></i><span>Compras vs Ventas</span></button>
                 </div>
 
                 <!-- ══ PANEL ENTREGAS ══ -->
                 <div id="rep_panel_entregas" class="analisis-panel active">
                     <div class="an-panel-header">
                         <div>
-                            <h3 class="an-panel-title"><i class="fi fi-rr-box"></i> Reporte de entregas por productor</h3>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-box"></i> Reporte de entregas por productor
+                            </h3>
                             <p class="an-panel-desc">Detalle de entregas con peso, precio y total pagado</p>
                         </div>
                         <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
-                            <select id="rep_ent_productor" class="an-select"><option value="">Todos los productores</option></select>
-                            <select id="rep_ent_producto" class="an-select"><option value="">Todos los productos</option></select>
-                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_ent_inicio" class="an-input"></div>
-                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_ent_fin" class="an-input"></div>
-                            <button class="an-btn" onclick="rep_cargarEntregas()"><i class="fi fi-rr-search"></i> Generar</button>
-                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('entregas')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
-                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('entregas')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                            <select id="rep_ent_productor" class="an-select">
+                                <option value="">Todos los productores</option>
+                            </select>
+                            <select id="rep_ent_producto" class="an-select">
+                                <option value="">Todos los productos</option>
+                            </select>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_ent_inicio"
+                                    class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_ent_fin"
+                                    class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarEntregas()"><i class="fi fi-rr-search"></i>
+                                Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('entregas')"><i
+                                    class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('entregas')"><i
+                                    class="fi fi-rr-file-pdf"></i> PDF</button>
                         </div>
                     </div>
                     <div class="usr-count" id="rep_ent_count">0 registros</div>
                     <div class="usr-table-wrap">
                         <table class="usr-table">
-                            <thead><tr><th>Productor</th><th>Producto</th><th>Peso (kg)</th><th>Precio/kg</th><th>Total</th><th>Fecha</th></tr></thead>
-                            <tbody id="rep_ent_tbody"><tr><td colspan="6" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Productor</th>
+                                    <th>Producto</th>
+                                    <th>Peso (kg)</th>
+                                    <th>Precio/kg</th>
+                                    <th>Total</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep_ent_tbody">
+                                <tr>
+                                    <td colspan="6" class="empty-state">Genera el reporte para ver datos</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
-                    <div id="rep_ent_total" style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
+                    <div id="rep_ent_total"
+                        style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
                 </div>
 
                 <!-- ══ PANEL COMPRAS ══ -->
@@ -923,21 +924,37 @@
                             <p class="an-panel-desc">Total comprado y pagado por producto</p>
                         </div>
                         <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
-                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_cmp_inicio" class="an-input"></div>
-                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_cmp_fin" class="an-input"></div>
-                            <button class="an-btn" onclick="rep_cargarCompras()"><i class="fi fi-rr-search"></i> Generar</button>
-                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('compras')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
-                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('compras')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_cmp_inicio"
+                                    class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_cmp_fin"
+                                    class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarCompras()"><i class="fi fi-rr-search"></i>
+                                Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('compras')"><i
+                                    class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('compras')"><i
+                                    class="fi fi-rr-file-pdf"></i> PDF</button>
                         </div>
                     </div>
                     <div class="usr-count" id="rep_cmp_count">0 registros</div>
                     <div class="usr-table-wrap">
                         <table class="usr-table">
-                            <thead><tr><th>Producto</th><th>Total comprado (kg)</th><th>Total pagado</th></tr></thead>
-                            <tbody id="rep_cmp_tbody"><tr><td colspan="3" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Total comprado (kg)</th>
+                                    <th>Total pagado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep_cmp_tbody">
+                                <tr>
+                                    <td colspan="3" class="empty-state">Genera el reporte para ver datos</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
-                    <div id="rep_cmp_total" style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
+                    <div id="rep_cmp_total"
+                        style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
                 </div>
 
                 <!-- ══ PANEL VENTAS ══ -->
@@ -948,43 +965,78 @@
                             <p class="an-panel-desc">Ventas por comerciante, producto y fecha</p>
                         </div>
                         <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
-                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_vnt_inicio" class="an-input"></div>
-                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_vnt_fin" class="an-input"></div>
-                            <button class="an-btn" onclick="rep_cargarVentas()"><i class="fi fi-rr-search"></i> Generar</button>
-                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('ventas')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
-                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('ventas')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_vnt_inicio"
+                                    class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_vnt_fin"
+                                    class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarVentas()"><i class="fi fi-rr-search"></i>
+                                Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('ventas')"><i
+                                    class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('ventas')"><i
+                                    class="fi fi-rr-file-pdf"></i> PDF</button>
                         </div>
                     </div>
                     <div class="usr-count" id="rep_vnt_count">0 registros</div>
                     <div class="usr-table-wrap">
                         <table class="usr-table">
-                            <thead><tr><th>Comerciante</th><th>Producto</th><th>Cantidad</th><th>Total vendido</th><th>Fecha</th></tr></thead>
-                            <tbody id="rep_vnt_tbody"><tr><td colspan="5" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Comerciante</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Total vendido</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep_vnt_tbody">
+                                <tr>
+                                    <td colspan="5" class="empty-state">Genera el reporte para ver datos</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
-                    <div id="rep_vnt_total" style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
+                    <div id="rep_vnt_total"
+                        style="text-align:right;padding:12px 16px;font-weight:800;font-size:1em;color:#111827"></div>
                 </div>
 
                 <!-- ══ PANEL DESFASE ══ -->
                 <div id="rep_panel_desfase" class="analisis-panel">
                     <div class="an-panel-header">
                         <div>
-                            <h3 class="an-panel-title"><i class="fi fi-rr-balance-scale"></i> Comparación compras vs ventas</h3>
+                            <h3 class="an-panel-title"><i class="fi fi-rr-balance-scale"></i> Comparación compras vs
+                                ventas</h3>
                             <p class="an-panel-desc">Detecta desfase entre lo comprado y lo vendido por producto</p>
                         </div>
                         <div class="an-filter-inline" style="flex-wrap:wrap;gap:8px">
-                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_des_inicio" class="an-input"></div>
-                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_des_fin" class="an-input"></div>
-                            <button class="an-btn" onclick="rep_cargarDesfase()"><i class="fi fi-rr-search"></i> Generar</button>
-                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('desfase')"><i class="fi fi-rr-file-spreadsheet"></i> Excel</button>
-                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('desfase')"><i class="fi fi-rr-file-pdf"></i> PDF</button>
+                            <div class="an-input-labeled"><span>Desde</span><input type="date" id="rep_des_inicio"
+                                    class="an-input"></div>
+                            <div class="an-input-labeled"><span>Hasta</span><input type="date" id="rep_des_fin"
+                                    class="an-input"></div>
+                            <button class="an-btn" onclick="rep_cargarDesfase()"><i class="fi fi-rr-search"></i>
+                                Generar</button>
+                            <button class="an-btn" style="background:#374151" onclick="rep_exportarExcel('desfase')"><i
+                                    class="fi fi-rr-file-spreadsheet"></i> Excel</button>
+                            <button class="an-btn" style="background:#dc2626" onclick="rep_exportarPDF('desfase')"><i
+                                    class="fi fi-rr-file-pdf"></i> PDF</button>
                         </div>
                     </div>
                     <div class="usr-count" id="rep_des_count">0 productos</div>
                     <div class="usr-table-wrap">
                         <table class="usr-table">
-                            <thead><tr><th>Producto</th><th>Total comprado (kg)</th><th>Total vendido (kg)</th><th>Diferencia</th></tr></thead>
-                            <tbody id="rep_des_tbody"><tr><td colspan="4" class="empty-state">Genera el reporte para ver datos</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Total comprado (kg)</th>
+                                    <th>Total vendido (kg)</th>
+                                    <th>Diferencia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep_des_tbody">
+                                <tr>
+                                    <td colspan="4" class="empty-state">Genera el reporte para ver datos</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -1173,14 +1225,16 @@
                     id="usr_f_nombre" class="hp-input" type="text" placeholder="Nombre"></div>
             <div class="hp-campo"><label class="hp-label">Apellido <span style="color:#ef4444">*</span></label><input
                     id="usr_f_apellido" class="hp-input" type="text" placeholder="Apellido"></div>
-            <div id="usr_campo_cedula" class="hp-campo"><label class="hp-label">Cédula</label><input id="usr_f_cedula" class="hp-input"
-                    type="text" placeholder="Número de cédula"></div>
+            <div id="usr_campo_cedula" class="hp-campo"><label class="hp-label">Cédula</label><input id="usr_f_cedula"
+                    class="hp-input" type="text" placeholder="Número de cédula"></div>
             <div id="usr_cedula_readonly" style="display:none">
                 <label class="hp-label">Cédula</label>
-                <div class="hp-campo-readonly"><span id="usr_cedula_val">—</span><span class="hp-readonly-tag">No editable</span></div>
+                <div class="hp-campo-readonly"><span id="usr_cedula_val">—</span><span class="hp-readonly-tag">No
+                        editable</span></div>
             </div>
-            <div class="hp-campo"><label class="hp-label">Correo <span id="usr_email_required" style="color:#ef4444">*</span></label><input
-                    id="usr_f_email" class="hp-input" type="email" placeholder="correo@ejemplo.com"></div>
+            <div class="hp-campo"><label class="hp-label">Correo <span id="usr_email_required"
+                        style="color:#ef4444">*</span></label><input id="usr_f_email" class="hp-input" type="email"
+                    placeholder="correo@ejemplo.com"></div>
             <div class="hp-campo"><label class="hp-label">Teléfono</label><input id="usr_f_telefono" class="hp-input"
                     type="tel" placeholder="3001234567"></div>
             <div class="hp-campo">
@@ -1191,13 +1245,75 @@
                     <option value="PRODUCTOR">Productor</option>
                 </select>
             </div>
-            <div id="usr_campo_password" class="hp-campo"><label class="hp-label">Contraseña <span style="color:#ef4444">*</span></label><input
-                    id="usr_f_password" class="hp-input" type="password" placeholder="Mínimo 6 caracteres"></div>
+            <div id="usr_campo_password" class="hp-campo"><label class="hp-label">Contraseña <span
+                        style="color:#ef4444">*</span></label><input id="usr_f_password" class="hp-input"
+                    type="password" placeholder="Mínimo 6 caracteres"></div>
             <div class="hp-msg" id="usr_msg"></div>
-            <button class="btn-nuevo hp-btn-guardar" id="usr_btn_guardar" onclick="usr_guardar()"><i class="fi fi-rr-user-add"></i> Crear
+            <button class="btn-nuevo hp-btn-guardar" id="usr_btn_guardar" onclick="usr_guardar()"><i
+                    class="fi fi-rr-user-add"></i> Crear
                 usuario</button>
         </div>
     </div>
+    <!-- PANEL COMERCIANTE -->
+    <div id="com_panel" class="side-panel">
+
+        <div class="panel-header">
+
+            <h2 id="com_panel_title">Nuevo comerciante</h2>
+
+            <button class="panel-close" onclick="com_cerrarPanel()">
+                ✕
+            </button>
+
+        </div>
+
+
+        <div class="panel-body">
+
+            <div class="form-group">
+
+                <label>NOMBRE *</label>
+
+                <input type="text" id="com_nombre" placeholder="Nombre del comerciante" />
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>TELÉFONO *</label>
+
+                <input type="text" id="com_telefono" placeholder="Número de teléfono" />
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>DIRECCIÓN</label>
+
+                <input type="text" id="com_direccion" placeholder="Dirección" />
+
+            </div>
+
+        </div>
+
+
+        <div class="panel-footer">
+
+            <button class="btn-cancelar" onclick="com_cerrarPanel()">
+                Cancelar
+            </button>
+
+            <button class="btn-guardar" onclick="com_guardar()">
+                ✓ Guardar comerciante
+            </button>
+
+        </div>
+
+    </div>
+    <!-- FONDO OSCURO -->
+    <div id="com_overlay" class="panel-overlay" onclick="com_cerrarPanel()"></div>
 
     <!-- MODAL QR -->
     <div id="modalQRProductor"
@@ -1289,7 +1405,7 @@
         copyright © 2024 AgroTrace. Todos los derechos reservados. Diseñado y desarrollado por el equipo de AgroTrace.
     </footer>
 
-    <script src="app.js"></script>
+    <script src="./js/app.js"></script>
 </body>
 
 </html>

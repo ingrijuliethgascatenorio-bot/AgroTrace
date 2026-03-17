@@ -11,11 +11,14 @@ import { HistorialModule } from './modules/Historial/historial.module';
 import { VentasModule } from './modules/ventas/ventas.module';
 import { ComprasModule } from './modules/compras/compras.module';
 import { ProductosModule } from './modules/productos/producto.modulo';
+import { ProductorDashboardModule } from './productores/productor-dashboard/productor-dashboard.module';
+import { ComerciantesModule } from './modules/comerciante/comerciante.module';
 
 @Module({
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
+      exclude: ['/api*'],
     }),
 
     ConfigModule.forRoot({
@@ -42,6 +45,8 @@ import { ProductosModule } from './modules/productos/producto.modulo';
     VentasModule,
     HistorialModule,
     ProductosModule,
+    ProductorDashboardModule,
+    ComerciantesModule,
   ],
 })
 export class AppModule {}

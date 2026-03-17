@@ -237,67 +237,142 @@ input::placeholder {
     }
 }
 
-/* RESPONSIVE */
+/* ═══════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════ */
+
+/* ── TABLET (≤ 1024px) ──────────────────
+   Ambas secciones lado a lado, más compactas.
+─────────────────────────────────────────── */
 @media (max-width: 1024px) {
-    .left-section {
-        width: 55%;
-        padding-left: 40px;
+
+    body {
+        overflow: auto;
     }
 
-    .right-section {
+    .left-section {
         width: 50%;
-        clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
+        padding-left: 40px;
+        padding-right: 30px;
+        clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
     }
 
     .left-content h1 {
-        font-size: 2.8rem;
-    }
-
-    .login-container {
-        max-width: 350px;
-        padding: 40px;
-    }
-}
-
-@media (max-width: 768px) {
-    .left-section {
-        width: 100%;
-        height: 40vh;
-        padding: 40px 30px;
-        justify-content: flex-end;
-        clip-path: none;
-    }
-
-    .left-content h1 {
-        font-size: 2rem;
+        font-size: 2.4rem;
     }
 
     .left-content p {
-        font-size: 0.95rem;
+        font-size: 1rem;
     }
 
+    .right-section {
+        width: 55%;
+        clip-path: none;
+        padding: 30px 30px;
+    }
+
+    .login-container {
+        max-width: 360px;
+        padding: 40px 36px;
+    }
+}
+
+/* ── MÓVIL (≤ 768px) ─────────────────────
+   Layout vertical: texto arriba, formulario abajo.
+─────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+    body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background-attachment: scroll;
+    }
+
+    /* Sección texto: bloque superior */
+    .left-section {
+        position: relative;
+        width: 100%;
+        height: auto;
+        min-height: 200px;
+        clip-path: none;
+        padding: 48px 28px 32px;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.28);
+    }
+
+    .left-content {
+        max-width: 100%;
+    }
+
+    .left-content h1 {
+        font-size: 1.85rem;
+        margin-bottom: 12px;
+    }
+
+    .left-content p {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        opacity: 0.9;
+    }
+
+    /* Checklist se oculta en móvil */
     .feature-list {
         display: none;
     }
 
+    /* Sección formulario: bloque inferior */
     .right-section {
+        position: relative;
         width: 100%;
-        height: 60vh;
+        height: auto;
         clip-path: none;
-        padding: 20px;
-    }
-
-    .logo-container {
-        top: 15px;
-        right: 15px;
+        padding: 28px 20px 44px;
+        justify-content: flex-start;
+        align-items: center;
     }
 
     .login-container {
-        max-width: 100%;
-        padding: 30px;
+        width: 100%;
+        max-width: 420px;
+        padding: 32px 24px;
+        border-radius: 18px;
+    }
+
+    .logo-container {
+        margin: 0 auto 4px;
     }
 
     .login-container h2 {
         font-size: 1.6rem;
+    }
+
+    .login-container > p {
+        font-size: 0.88rem;
+        margin-bottom: 22px;
+    }
+
+    input {
+        padding: 11px 14px;
+        font-size: 0.92rem;
+    }
+
+    .btn-login {
+        padding: 13px;
+        font-size: 0.97rem;
+    }
+}
+
+/* ── MÓVIL MUY PEQUEÑO (≤ 380px) ──────── */
+@media (max-width: 380px) {
+    .left-content h1 {
+        font-size: 1.55rem;
+    }
+
+    .login-container {
+        padding: 26px 18px;
     }
 }

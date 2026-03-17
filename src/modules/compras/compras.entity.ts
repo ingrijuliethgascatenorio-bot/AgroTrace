@@ -46,4 +46,7 @@ export class Compra {
     eager: true,
   })
   detalles: DetalleCompra[];
+
+  @Column({ default: true })
+  activo: boolean;
 }
