@@ -1,4 +1,11 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Usuario } from './entities/usuario.entity';
@@ -8,96 +15,141 @@ import { Permission } from '../../common/enums/permissions.enum';
 
 @Injectable()
 export class UsersService {
-    constructor(
-        @InjectRepository(Usuario)
-        private usuariosRepository: Repository<Usuario>,
-    ) {}
+  constructor(
+    @InjectRepository(Usuario)
+    private usuariosRepository: Repository<Usuario>,
+  ) {}
 
-    // ← Solo activos, con cédula, filtro por rol opcional
-    async listarTodos(rol?: string) {
-        const where: any = { activo: true };
-        if (rol) where.tipo_usuario = rol.toUpperCase();
+  // ← Solo activos, con cédula, filtro por rol opcional
+  async listarTodos(rol?: string) {
+    const where: any = { activo: true };
+    if (rol) where.tipo_usuario = rol.toUpperCase();
 
-        const usuarios = await this.usuariosRepository.find({
-            where,
-            order: { fecha_registro: 'DESC' },
-        });
+    const usuarios = await this.usuariosRepository.find({
+      where,
+      order: { fecha_registro: 'DESC' },
+    });
 
-        return usuarios.map(({ password, ...u }) => u);
+    return usuarios.map(({ password, ...u }) => u);
+  }
+
+  async editar(
+    id: number,
+    dto: EditarUsuarioDto,
+  ): Promise<Omit<Usuario, 'password'>> {
+    const usuario = await this.usuariosRepository.findOne({
+      where: { id_usuario: id, activo: true },
+    });
+
+    if (!usuario)
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado.`);
+
+    // Verificar email único si se está cambiando
+    if (dto.email && dto.email !== usuario.email) {
+      const existe = await this.usuariosRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (existe)
+        throw new ConflictException(`El email ${dto.email} ya está en uso.`);
     }
 
-    async editar(id: number, dto: EditarUsuarioDto): Promise<Omit<Usuario, 'password'>> {
-        const usuario = await this.usuariosRepository.findOne({
-            where: { id_usuario: id, activo: true },
-        });
+    Object.assign(usuario, dto);
+    const guardado = await this.usuariosRepository.save(usuario);
+    const { password, ...resultado } = guardado;
+    return resultado;
+  }
 
-        if (!usuario) throw new NotFoundException(`Usuario con ID ${id} no encontrado.`);
+  // Soft delete — solo marca activo = false
+  async desactivar(id: number): Promise<{ mensaje: string }> {
+    const usuario = await this.usuariosRepository.findOne({
+      where: { id_usuario: id, activo: true },
+    });
 
-        // Verificar email único si se está cambiando
-        if (dto.email && dto.email !== usuario.email) {
-            const existe = await this.usuariosRepository.findOne({
-                where: { email: dto.email },
-            });
-            if (existe) throw new ConflictException(`El email ${dto.email} ya está en uso.`);
-        }
+    if (!usuario)
+      throw new NotFoundException(
+        `Usuario con ID ${id} no encontrado o ya inactivo.`,
+      );
 
-        Object.assign(usuario, dto);
-        const guardado = await this.usuariosRepository.save(usuario);
-        const { password, ...resultado } = guardado;
-        return resultado;
+    await this.usuariosRepository.update(id, { activo: false });
+    return {
+      mensaje: `Usuario ${usuario.nombre} ${usuario.apellido} desactivado correctamente.`,
+    };
+  }
+
+  private obtenerPermisosPorDefecto(
+    tipo_usuario: 'ADMIN' | 'VENDEDOR' | 'PRODUCTOR',
+  ): string[] {
+    switch (tipo_usuario) {
+      case 'ADMIN':
+        return Object.values(Permission);
+      case 'VENDEDOR':
+        return [Permission.DASHBOARD, Permission.VENTAS];
+      case 'PRODUCTOR':
+        return [Permission.COMPRAS, Permission.PRODUCTORES];
+      default:
+        return [];
     }
+  }
 
-    // Soft delete — solo marca activo = false
-    async desactivar(id: number): Promise<{ mensaje: string }> {
-        const usuario = await this.usuariosRepository.findOne({
-            where: { id_usuario: id, activo: true },
-        });
+  // ── MODIFICADO: acepta asociacionId como 7mo parámetro ──────────────────
+  async crearUsuario(
+    nombre: string,
+    apellido: string,
+    email: string,
+    passwordPlano: string,
+    telefono: string | null,
+    tipo_usuario: 'ADMIN' | 'VENDEDOR' | 'PRODUCTOR',
+    asociacionId: number, // ← NUEVO
+  ): Promise<Usuario> {
+    // Email único POR asociación
+    const usuarioExistente = await this.usuariosRepository.findOne({
+      where: { email, asociacion_id: asociacionId },
+    });
+    if (usuarioExistente)
+      throw new ConflictException(
+        `El email ${email} ya está registrado en esta asociación.`,
+      );
 
-        if (!usuario) throw new NotFoundException(`Usuario con ID ${id} no encontrado o ya inactivo.`);
+    const passwordEncriptada = await bcrypt.hash(passwordPlano, 10);
+    const permisos = this.obtenerPermisosPorDefecto(tipo_usuario);
 
-        await this.usuariosRepository.update(id, { activo: false });
-        return { mensaje: `Usuario ${usuario.nombre} ${usuario.apellido} desactivado correctamente.` };
-    }
+    const nuevoUsuario = this.usuariosRepository.create({
+      nombre,
+      apellido,
+      email,
+      password: passwordEncriptada,
+      telefono: telefono || null,
+      tipo_usuario,
+      permisos,
+      activo: true,
+      asociacion_id: asociacionId, // ← NUEVO
+    });
+    return this.usuariosRepository.save(nuevoUsuario);
+  }
 
-    // ── Métodos existentes sin cambios ──────────────────────────────
-    private obtenerPermisosPorDefecto(tipo_usuario: 'ADMIN' | 'VENDEDOR' | 'PRODUCTOR'): string[] {
-        switch (tipo_usuario) {
-            case 'ADMIN':    return Object.values(Permission);
-            case 'VENDEDOR': return [Permission.DASHBOARD, Permission.VENTAS];
-            case 'PRODUCTOR': return [Permission.COMPRAS, Permission.PRODUCTORES];
-            default: return [];
-        }
-    }
+  // ── NUEVO: buscar por email filtrando por asociación (para login seguro) ─
+  async buscarPorEmailYAsociacion(
+    email: string,
+    asociacionId: number,
+  ): Promise<Usuario | null> {
+    return this.usuariosRepository.findOne({
+      where: { email, asociacion_id: asociacionId },
+    });
+  }
 
-    async crearUsuario(
-        nombre: string, apellido: string, email: string,
-        passwordPlano: string, telefono: string | null,
-        tipo_usuario: 'ADMIN' | 'VENDEDOR' | 'PRODUCTOR',
-    ): Promise<Usuario> {
-        const usuarioExistente = await this.usuariosRepository.findOne({ where: { email } });
-        if (usuarioExistente) throw new ConflictException(`El email ${email} ya está registrado.`);
+  // ── Sin cambios ──────────────────────────────────────────────────────────
+  async buscarPorEmail(email: string): Promise<Usuario | null> {
+    return this.usuariosRepository.findOne({ where: { email } });
+  }
 
-        const passwordEncriptada = await bcrypt.hash(passwordPlano, 10);
-        const permisos = this.obtenerPermisosPorDefecto(tipo_usuario);
+  async buscarPorId(id: number): Promise<Usuario | null> {
+    return this.usuariosRepository.findOne({ where: { id_usuario: id } });
+  }
 
-        const nuevoUsuario = this.usuariosRepository.create({
-            nombre, apellido, email,
-            password: passwordEncriptada,
-            telefono: telefono || null,
-            tipo_usuario, permisos, activo: true,
-        });
-        return this.usuariosRepository.save(nuevoUsuario);
-    }
-
-    async buscarPorEmail(email: string): Promise<Usuario | null> {
-        return this.usuariosRepository.findOne({ where: { email } });
-    }
-
-    async buscarPorId(id: number): Promise<Usuario | null> {
-        return this.usuariosRepository.findOne({ where: { id_usuario: id } });
-    }
-
-    async verificarPassword(passwordPlana: string, passwordHasheada: string): Promise<boolean> {
-        return bcrypt.compare(passwordPlana, passwordHasheada);
-    }
+  async verificarPassword(
+    passwordPlana: string,
+    passwordHasheada: string,
+  ): Promise<boolean> {
+    return bcrypt.compare(passwordPlana, passwordHasheada);
+  }
 }

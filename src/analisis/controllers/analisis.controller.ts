@@ -1,123 +1,74 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../../modules/auth/jwt-auth.guard';
 import { EstadisticasService } from '../services/estadisticas.service';
 import { ProyeccionesService } from '../services/proyecciones.service';
-import { RankingService } from '../services/ranking.service';
-import { FiltroFechaDto } from '../dto/filtro-fecha.dto';
-import { FiltroProductorDto } from '../dto/filtro-productor.dto';
+import { RankingService }      from '../services/ranking.service';
 
-@ApiTags('Estadísticas y Proyecciones')
+@UseGuards(JwtAuthGuard)
 @Controller('estadisticas')
 export class AnalisisController {
   constructor(
     private readonly estadisticasService: EstadisticasService,
     private readonly proyeccionesService: ProyeccionesService,
-    private readonly rankingService: RankingService,
+    private readonly rankingService:      RankingService,
   ) {}
 
-  /**
-   * Historial por productor y rango de fechas
-   * id_productor es opcional — si no se envía retorna todos
-   */
+  // GET /estadisticas/historial?id_productor=&inicio=&fin=
   @Get('historial')
-  @ApiOperation({ summary: 'Historial de producción por productor y fechas' })
-  @ApiQuery({ name: 'id_productor', required: false, type: Number })
-  @ApiQuery({ name: 'inicio', required: false, type: String })
-  @ApiQuery({ name: 'fin', required: false, type: String })
-  async obtenerHistorial(@Query() filtros: FiltroFechaDto) {
-    // Parsear solo si viene un valor numérico válido
-    const idProductor =
-      filtros.id_productor && filtros.id_productor.trim() !== ''
-        ? parseInt(filtros.id_productor, 10)
-        : undefined;
-
-    // Si parseInt devuelve NaN (valor no numérico) lo descartamos
-    const idFinal =
-      idProductor !== undefined && !isNaN(idProductor)
-        ? idProductor
-        : undefined;
-
-    return await this.estadisticasService.obtenerHistorial(
-      idFinal,
-      filtros.inicio,
-      filtros.fin,
+  obtenerHistorial(
+    @Query('id_productor') id_productor?: string,
+    @Query('inicio')       inicio?: string,
+    @Query('fin')          fin?: string,
+  ) {
+    const idFinal = id_productor && id_productor.trim() !== ''
+      ? parseInt(id_productor, 10) : undefined;
+    return this.estadisticasService.obtenerHistorial(
+      idFinal !== undefined && !isNaN(idFinal) ? idFinal : undefined,
+      inicio,
+      fin,
     );
   }
 
-  /**
-   * Proyección de producción
-   * id_productor es opcional — si no se envía agrega todos
-   */
+  // GET /estadisticas/proyeccion?id_productor=
   @Get('proyeccion')
-  @ApiOperation({ summary: 'Proyección basada en últimas 5 entregas' })
-  @ApiQuery({ name: 'id_productor', required: false, type: Number })
-  async obtenerProyeccion(@Query() filtros: FiltroFechaDto) {
-    const idProductor =
-      filtros.id_productor && filtros.id_productor.trim() !== ''
-        ? parseInt(filtros.id_productor, 10)
-        : undefined;
-
-    const idFinal =
-      idProductor !== undefined && !isNaN(idProductor)
-        ? idProductor
-        : undefined;
-
-    return await this.proyeccionesService.obtenerProyeccion(idFinal);
+  obtenerProyeccion(@Query('id_productor') id_productor?: string) {
+    const idFinal = id_productor && id_productor.trim() !== ''
+      ? parseInt(id_productor, 10) : undefined;
+    return this.proyeccionesService.obtenerProyeccion(
+      idFinal !== undefined && !isNaN(idFinal) ? idFinal : undefined,
+    );
   }
 
-  /**
-   * Tendencia de producción
-   * id_productor es opcional
-   */
+  // GET /estadisticas/tendencia?id_productor=
   @Get('tendencia')
-  @ApiOperation({ summary: 'Tendencia (últimos 3 meses vs 3 anteriores)' })
-  @ApiQuery({ name: 'id_productor', required: false, type: Number })
-  async obtenerTendencia(@Query() filtros: FiltroFechaDto) {
-    const idProductor =
-      filtros.id_productor && filtros.id_productor.trim() !== ''
-        ? parseInt(filtros.id_productor, 10)
-        : undefined;
-
-    const idFinal =
-      idProductor !== undefined && !isNaN(idProductor)
-        ? idProductor
-        : undefined;
-
-    return await this.estadisticasService.obtenerTendencia(idFinal);
+  obtenerTendencia(@Query('id_productor') id_productor?: string) {
+    const idFinal = id_productor && id_productor.trim() !== ''
+      ? parseInt(id_productor, 10) : undefined;
+    return this.estadisticasService.obtenerTendencia(
+      idFinal !== undefined && !isNaN(idFinal) ? idFinal : undefined,
+    );
   }
 
-  /**
-   * Ranking de productores
-   */
+  // GET /estadisticas/ranking?tipo=total&inicio=&fin=
   @Get('ranking')
-  @ApiOperation({
-    summary: 'Ranking de productores por total/promedio/frecuencia',
-  })
-  @ApiQuery({
-    name: 'tipo',
-    required: false,
-    enum: ['total', 'promedio', 'frecuencia'],
-  })
-  async obtenerRanking(@Query() filtros: FiltroProductorDto) {
-    const tipo = (filtros.tipo || 'total') as
-      | 'total'
-      | 'promedio'
-      | 'frecuencia';
-    return await this.rankingService.obtenerRanking(tipo);
+  obtenerRanking(
+    @Query('tipo')   tipo?: string,
+    @Query('inicio') inicio?: string,
+    @Query('fin')    fin?: string,
+  ) {
+    const tipoFinal = (tipo || 'total') as 'total' | 'promedio' | 'frecuencia';
+    return this.rankingService.obtenerRanking(tipoFinal, inicio, fin);
   }
 
-  /**
-   * Planificación de ruta
-   */
+  // GET /estadisticas/planificacion?precio=&capacidad=
   @Get('planificacion')
-  @ApiOperation({ summary: 'Planificación de ruta con proyección total' })
-  @ApiQuery({ name: 'precio', required: true, type: Number })
-  @ApiQuery({ name: 'capacidad', required: true, type: Number })
-  async planificarRuta(@Query() filtros: FiltroProductorDto) {
-    return await this.proyeccionesService.planificarRuta(
-      filtros.precio,
-      filtros.capacidad,
+  planificarRuta(
+    @Query('precio')    precio?: string,
+    @Query('capacidad') capacidad?: string,
+  ) {
+    return this.proyeccionesService.planificarRuta(
+      parseFloat(precio ?? '0'),
+      parseFloat(capacidad ?? '0'),
     );
   }
 }

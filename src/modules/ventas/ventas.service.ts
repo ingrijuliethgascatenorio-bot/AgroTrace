@@ -20,9 +20,17 @@ export class VentasService {
   async findOne(id: number): Promise<Venta> {
     const v = await this.ventaRepo.findOne({
       where: { id_venta: id },
-      relations: ['detalles', 'detalles.producto'],
+      relations: ['detalles', 'detalles.producto', 'comerciante'],
     });
     if (!v) throw new NotFoundException(`Venta #${id} no encontrada`);
     return v;
+  }
+
+  async cambiarEstado(id: number, estado: string): Promise<Venta> {
+    const v = await this.ventaRepo.findOne({ where: { id_venta: id } });
+    if (!v) throw new NotFoundException(`Venta #${id} no encontrada`);
+    v.estado = estado;
+    await this.ventaRepo.save(v);
+    return this.findOne(id);
   }
 }

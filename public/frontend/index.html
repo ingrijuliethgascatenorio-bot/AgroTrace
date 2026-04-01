@@ -38,11 +38,17 @@
                 <i class="fi fi-rr-shop"></i>
                 <span>Comerciantes</span>
             </button>
+            <button class="nav-btn" data-section="precios" data-tip="Precios">
+                <i class="fi fi-rr-coins"></i>
+                <span>Precios</span>
+            </button>
             <button class="nav-btn" data-section="productores" data-tip="Productores"><i
                     class="fi fi-rr-trophy"></i><span>Productores</span></button>
             <button class="nav-btn" data-section="productos" data-tip="Productos"><i
                     class="fi fi-rr-box"></i><span>Productos</span></button>
             <span class="nav-label">SISTEMA</span>
+            <!--<button class="nav-btn" data-section="stock" data-tip="Stock / Inventario">
+                <i class="fi fi-rr-boxes"></i><span>Stock</span></button>-->
             <button class="nav-btn" data-section="historial" data-tip="Historial"><i
                     class="fi fi-rr-clock"></i><span>Historial</span></button>
             <button class="nav-btn" data-section="reportes" data-tip="Reportes"><i
@@ -78,7 +84,7 @@
                 <!-- Contenido hero -->
                 <div class="db-hero">
                     <div class="db-hero-content">
-                        <div class="db-hero-badge">🌱 Sistema Activo</div>
+                        <div class="db-hero-badge">Sistema Activo</div>
                         <h1 class="db-hero-title">AgroTrace</h1>
                         <p class="db-hero-subtitle">Plataforma de trazabilidad agrícola</p>
                         <div class="db-hero-greeting-row">
@@ -366,15 +372,17 @@
                                 <thead>
                                     <tr>
                                         <th>Fecha</th>
-                                        <th>Cantidad</th>
-                                        <th>Unidad</th>
-                                        <th>Lote</th>
+                                        <th>Productor</th>
+                                        <th>Producto</th>
+                                        <th>kg</th>
+                                        <th>Precio/kg (productor)</th>
+                                        <th>Total pagado</th>
                                         <th>Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ah_tbody">
                                     <tr>
-                                        <td colspan="5" class="empty-state">Selecciona un productor y consulta</td>
+                                        <td colspan="7" class="empty-state">Selecciona un productor y consulta</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -456,7 +464,7 @@
                                             <th>#</th>
                                             <th>Productor</th>
                                             <th>Valor</th>
-                                            <th></th>
+                                            <th>Total pagado</th>
                                         </tr>
                                     </thead>
                                     <tbody id="ar_tbody">
@@ -531,22 +539,24 @@
                             <tr>
                                 <th>Factura</th>
                                 <th>Productor</th>
+                                <th>Operario</th>
                                 <th>Fecha</th>
                                 <th>Productos</th>
                                 <th>Total</th>
                                 <th>Estado</th>
+                                <th>Comprobante / Pago</th>
                                 <th>Detalles</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="cmp_tbody">
                             <tr>
-                                <td colspan="7" class="empty-state">Cargando...</td>
+                                <td colspan="10" class="empty-state">Cargando...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-            </section>
+            </section> 
 
             <!-- VENTAS -->
             <section id="ventas" class="section">
@@ -574,16 +584,18 @@
                             <tr>
                                 <th>Factura</th>
                                 <th>Cliente</th>
+                                <th>Operario</th>
                                 <th>Fecha</th>
                                 <th>Productos</th>
                                 <th>Total</th>
                                 <th>Estado</th>
+                                <th>Correo</th>
                                 <th>Detalles</th>
                             </tr>
                         </thead>
                         <tbody id="vnt_tbody">
                             <tr>
-                                <td colspan="7" class="empty-state">Cargando...</td>
+                                <td colspan="9" class="empty-state">Cargando...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -648,8 +660,16 @@
                         <h2>Productores</h2>
                         <p>Gestión de productores</p>
                     </div>
-                    <button id="prd_btn_nuevo" class="btn-nuevo" onclick="prd_abrirPanel()"><i
-                            class="fi fi-rr-user-add"></i> Nuevo productor</button>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button onclick="prd_regenerarTodosQR()"
+                                style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;
+                                       padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;
+                                       font-weight:600;display:flex;align-items:center;gap:6px">
+                            <i class="fi fi-rr-qrcode"></i> Regenerar todos los QR
+                        </button>
+                        <button id="prd_btn_nuevo" class="btn-nuevo" onclick="prd_abrirPanel()"><i
+                                class="fi fi-rr-user-add"></i> Nuevo productor</button>
+                    </div>
                 </div>
                 <div class="usr-toolbar">
                     <div class="usr-search">
@@ -764,13 +784,13 @@
                     <table class="usr-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Número</th>
                                 <th>Tipo</th>
                                 <th>Fecha</th>
-                                <th>Monto</th>
+                                <th>Contraparte</th>
+                                <th>Producto / Peso</th>
+                                <th>Total</th>
                                 <th>Estado</th>
-                                <th>Compra</th>
-                                <th>Venta</th>
                             </tr>
                         </thead>
                         <tbody id="his_tbody_trans">
@@ -784,16 +804,18 @@
                     <table class="usr-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Producto</th>
-                                <th>Precio</th>
+                                <th>Precio base/kg</th>
+                                <th>Transporte</th>
+                                <th>Costo transp./kg</th>
+                                <th>Precio productor/kg</th>
                                 <th>Fecha</th>
-                                <th>Motivo</th>
+                                <th>Estado</th>
                             </tr>
                         </thead>
                         <tbody id="his_tbody_precios">
                             <tr>
-                                <td colspan="5" class="empty-state">Sin datos</td>
+                                <td colspan="7" class="empty-state">Carga el historial de precios pulsando «Filtrar»</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1042,8 +1064,181 @@
                 </div>
             </section>
 
-        </main>
+            <!-- ══════════════════════════════════════════
+                 PRECIOS
+                 ══════════════════════════════════════════ -->
+            <section id="precios" class="section">
+
+                <div class="prc-section-header">
+                    <div class="prc-header-left">
+                        <h2>Precios por kilogramo</h2>
+                        <p>Define el precio semanal de compra/venta para cada producto</p>
+                    </div>
+                    <!-- Banner de notificación inline con el título -->
+                    <div id="prc_banner" style="display:none;border-radius:10px;padding:8px 16px;font-weight:600;font-size:.85em;align-self:center"></div>
+                </div>
+
+                <!-- Layout 2 columnas -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+
+                    <!-- ─── FORMULARIO ─── -->
+                    <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+                        <h3 style="font-size:.95rem;font-weight:700;margin:0 0 20px;color:#111827">
+                            <i class="fi fi-rr-edit" style="margin-right:6px"></i>Registrar precio
+                        </h3>
+
+                        <div id="prc_banner_form" style="display:none;border-radius:8px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:14px"></div>
+
+                        <!-- Producto -->
+                        <div class="hp-campo" style="margin-bottom:16px">
+                            <label class="hp-label">Producto <span style="color:#ef4444">*</span></label>
+                            <select id="prc_sel_producto" class="hp-input"
+                                    onchange="prc_alProductoCambia(this.value)">
+                                <option value="">-- Seleccionar producto --</option>
+                            </select>
+                        </div>
+
+                        <!-- Precio base -->
+                        <div class="hp-campo" style="margin-bottom:16px">
+                            <label class="hp-label">Precio base / kg ($COP) <span style="color:#ef4444">*</span></label>
+                            <input id="prc_inp_precio_base" class="hp-input" type="number"
+                                   placeholder="Ej: 2500" min="1" step="1"
+                                   oninput="prc_previewVenta()" />
+                        </div>
+
+                        <!-- Preview precios de venta -->
+                        <div id="prc_preview_venta" style="display:none;background:#f0fdf4;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.83rem">
+                            <div style="font-weight:700;color:#166534;margin-bottom:6px">Precios de venta al comerciante</div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                                <span style="color:#6b7280">EL PRIMO (precio base exacto)</span>
+                                <strong id="prc_prev_primo"></strong>
+                            </div>
+                            <div style="display:flex;justify-content:space-between">
+                                <span style="color:#6b7280">Otros comerciantes (+$100/kg)</span>
+                                <strong id="prc_prev_otro"></strong>
+                            </div>
+                        </div>
+
+                        <!-- Precio actual si ya existe -->
+                        <div id="prc_precio_actual_wrap" style="display:none;background:#fef3c7;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:#92400e">
+                            Precio actual registrado: <strong id="prc_precio_actual_val"></strong>/kg — se sobreescribirá
+                        </div>
+
+                        <!-- Botón guardar -->
+                        <button class="btn-nuevo hp-btn-guardar" style="width:100%;margin:0"
+                                onclick="prc_guardarPrecioBase()">
+                            <i class="fi fi-rr-check"></i> Guardar precio
+                        </button>
+                    </div>
+
+                </div>
+
+
+            </section>
+
+        
+            <!-- ═══════════════════════════════ STOCK ═══════════════════════════════ -->
+            <section id="stock" class="section">
+                <div class="section-header">
+                    <h2>Stock / Inventario</h2>
+                    <p>Kilos disponibles por producto. Se suma al cerrar rutas y se resta al registrar ventas.</p>
+                </div>
+
+                <!-- KPI cards -->
+                <div id="stk_kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px"></div>
+
+                <!-- Toolbar -->
+                <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+                    <div class="usr-search" style="flex:1;min-width:200px">
+                        <i class="fi fi-rr-search"></i>
+                        <input class="usr-search-input" id="stk_buscar" placeholder="Buscar producto..."
+                               oninput="stk_filtrar(this.value)">
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button onclick="stk_cargar()" class="an-btn">↺ Refrescar</button>
+                    </div>
+                </div>
+
+                <div class="usr-count" id="stk_count">0 productos</div>
+
+                <!-- Tabla stock -->
+                <div class="usr-table-wrap" style="margin-bottom:24px">
+                    <table class="usr-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th style="text-align:right">Disponible</th>
+                                <th style="text-align:right">Total acumulado</th>
+                                <th>Nivel</th>
+                                <th>Estado</th>
+                                <th>Movimientos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stk_tbody">
+                            <tr><td colspan="6" class="empty-state">Cargando inventario...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Historial de movimientos -->
+                <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                        <h3 style="font-size:.95rem;font-weight:700;margin:0">Historial de movimientos</h3>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="stk_filtro_tipo" onchange="stk_cargarMovimientos()"
+                                style="border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;font-size:.83rem">
+                                <option value="">Todos</option>
+                                <option value="ENTRADA">Solo entradas (rutas)</option>
+                                <option value="SALIDA">Solo salidas (ventas)</option>
+                            </select>
+                            <button onclick="stk_cargarMovimientos()" class="an-btn" style="font-size:.82rem">Filtrar</button>
+                        </div>
+                    </div>
+                    <div class="usr-table-wrap">
+                        <table class="usr-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Producto</th>
+                                    <th style="text-align:right">Kilos</th>
+                                    <th>Referencia</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stk_movs_tbody">
+                                <tr><td colspan="6" class="empty-state">Cargando movimientos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            </main>
     </div>
+
+    <!-- MODAL ALERTA MIÉRCOLES PRECIOS -->
+    <div id="prc_modal_alerta" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
+        onclick="if(event.target===this)prc_cerrarAlerta(false)">
+        <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.22);animation:slideUp .3s ease">
+            <div style="font-size:3rem;margin-bottom:12px"></div>
+            <h2 style="font-size:1.15rem;font-weight:800;color:#111827;margin-bottom:8px">Debes ingresar los precios de la semana</h2>
+            <p style="font-size:.87rem;color:#6b7280;line-height:1.6;margin-bottom:24px">
+                Es miércoles y no hay precios registrados para esta semana.<br>
+                Ve a <strong>Precios</strong> para definir los valores.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                <button class="btn-nuevo hp-btn-guardar" style="margin:0" onclick="prc_cerrarAlerta(true)">
+                    Ir a Precios →
+                </button>
+                <button class="an-btn" onclick="prc_cerrarAlerta(false)">Recordar luego</button>
+            </div>
+        </div>
+    </div>
+    <style>
+    @keyframes slideUp { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
+    #prc_modal_alerta.show { display:flex !important; }
+    </style>
 
     <!-- LOADING -->
     <div class="loading-overlay" id="loading">
@@ -1262,7 +1457,7 @@
             <h2 id="com_panel_title">Nuevo comerciante</h2>
 
             <button class="panel-close" onclick="com_cerrarPanel()">
-                ✕
+                X
             </button>
 
         </div>
@@ -1296,6 +1491,14 @@
 
             </div>
 
+            <div class="form-group">
+
+                <label>CORREO ELECTRÓNICO</label>
+
+                <input type="email" id="com_email" placeholder="correo@ejemplo.com" />
+
+            </div>
+
         </div>
 
 
@@ -1306,7 +1509,7 @@
             </button>
 
             <button class="btn-guardar" onclick="com_guardar()">
-                ✓ Guardar comerciante
+                Guardar comerciante
             </button>
 
         </div>
@@ -1405,7 +1608,19 @@
         copyright © 2024 AgroTrace. Todos los derechos reservados. Diseñado y desarrollado por el equipo de AgroTrace.
     </footer>
 
+    <!-- Módulos offline globales -->
+    <script src="./js/agro-db.js"></script>
+    <script src="./js/agro-sync.js"></script>
     <script src="./js/app.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('[Admin] Service Worker registrado'))
+            .catch(err => console.error('[Admin] SW error:', err));
+        });
+      }
+    </script>
 </body>
 
 </html>

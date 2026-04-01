@@ -3,8 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="manifest" href="/public/frontend/manifest.json">
     <meta name="theme-color" content="#16a34a">
     <title>AgroTrace — Mi Dashboard</title>
 
@@ -25,7 +27,8 @@
         })();
     </script>
 
-    <link rel="stylesheet" href="css/productor.css">
+    <link rel="stylesheet" href="css/productor.css?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
     <link rel="stylesheet"
@@ -33,6 +36,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="icon" href="/public/frontend/iconos/icon-192.png">
+    <link rel="manifest" href="../../manifest.json">
 </head>
 
 <body>
@@ -123,7 +127,8 @@
                 <div class="prd-hero">
                     <div class="prd-hero-bg"></div>
                     <div class="prd-hero-content">
-                        <div class="prd-hero-badge">🌱 AgroTrace · Productor</div>
+                        <div class="prd-hero-badge"> <span><i class="fa-solid fa-seedling"></i></span>AgroTrace ·
+                            Productor</div>
                         <p class="prd-hero-greeting" id="hero_saludo">Bienvenido</p>
                         <h1 class="prd-hero-name" id="hero_nombre">—</h1>
                         <p class="prd-hero-sub">Consulta el historial de tus entregas y tus ingresos</p>
@@ -330,11 +335,13 @@
                                     <th>Precio / kg</th>
                                     <th>Total</th>
                                     <th>Estado</th>
+                                    <th>Comprobante / Recibo</th>
+                                    <th>Detalle</th>
                                 </tr>
                             </thead>
                             <tbody id="hist_tbody">
                                 <tr>
-                                    <td colspan="6" class="empty-cell">Cargando...</td>
+                                    <td colspan="8" class="empty-cell">Cargando...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -409,7 +416,7 @@
                                     <label class="pf-key" for="inp_telefono">
                                         <i class="fi fi-rr-phone-call"></i> Teléfono
                                     </label>
-                                    <input id="inp_telefono" type="tel" class="pf-input" placeholder="Ej: 3201234567"
+                                    <input id="inp_telefono" type="tel" class="pf-input" placeholder="Ej: 3201234567" inputmode="numeric" pattern="[0-9]*"
                                         maxlength="15">
                                 </div>
                                 <div class="pf-row pf-row-edit">
@@ -547,10 +554,76 @@
         <p>Cargando...</p>
     </div>
 
-    <script src="js/productor.js"></script>
-    <script src="js/cache.js"></script>
-    <script src="js/offline.js"></script>
-    <script src="js/sync.js"></script>
+    <!-- ══ MÓDULOS OFFLINE ══ -->
+    <script src="../js/agro-db.js"></script>
+    <script src="../js/agro-sync.js"></script>
+    <!-- Módulos offline globales (reemplaza cache.js, offline.js, sync.js) -->
+    <script src="js/productor.js?v=5"></script>
+    <script>
+        console.log('[HTML] JS cargado OK. Token:', localStorage.getItem('token') ? 'SI' : 'NO');
+        console.log('[HTML] usuario raw:', localStorage.getItem('usuario'));
+    </script>
+
+
+    <!-- ══ MODAL DETALLE DE ENTREGA (Factura) ══════════════════════════════ -->
+    <div id="prd_det_modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);
+               backdrop-filter:blur(6px);align-items:center;justify-content:center"
+        onclick="if(event.target===this) prd_det_cerrar()">
+        <div style="background:#fff;border-radius:20px;width:560px;max-width:95vw;
+                    max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.22)">
+            <!-- Header -->
+            <div style="padding:18px 20px 14px;border-bottom:1px solid #f0f0f0;
+                        display:flex;justify-content:space-between;align-items:center;
+                        position:sticky;top:0;background:#fff;z-index:1">
+                <div>
+                    <div style="font-size:1em;font-weight:800;color:#111827">Detalle de Entrega</div>
+                    <div style="font-size:.8em;color:#9ca3af;margin-top:2px" id="prd_det_subtitulo"></div>
+                </div>
+                <button onclick="prd_det_cerrar()" style="background:none;border:none;cursor:pointer;color:#9ca3af;
+                           font-size:1.4em;padding:4px 8px;border-radius:8px">✕</button>
+            </div>
+            <!-- Body -->
+            <div style="padding:20px">
+                <!-- Info cards -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px" id="prd_det_info">
+                </div>
+                <!-- Tabla productos -->
+                <table style="width:100%;border-collapse:collapse;font-size:.84em">
+                    <thead>
+                        <tr style="background:#f0fdf4">
+                            <th style="padding:10px;text-align:left;font-size:.7em;font-weight:700;
+                                color:#166534;text-transform:uppercase;border-bottom:1px solid #d1fae5">Producto</th>
+                            <th style="padding:10px;text-align:right;font-size:.7em;font-weight:700;
+                                color:#166534;text-transform:uppercase;border-bottom:1px solid #d1fae5">Cantidad</th>
+                            <th style="padding:10px;text-align:right;font-size:.7em;font-weight:700;
+                                color:#166534;text-transform:uppercase;border-bottom:1px solid #d1fae5">P. Unitario
+                            </th>
+                            <th style="padding:10px;text-align:right;font-size:.7em;font-weight:700;
+                                color:#166534;text-transform:uppercase;border-bottom:1px solid #d1fae5">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prd_det_tbody"></tbody>
+                </table>
+                <!-- Footer modal -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+                    <button onclick="prd_det_descargarPDF()" style="background:#dc2626;color:#fff;border:none;border-radius:10px;
+                               padding:8px 18px;font-size:.85em;font-weight:700;cursor:pointer">
+                        Descargar PDF
+                    </button>
+                    <div style="font-size:1.1em;font-weight:800;color:#111827">
+                        Total: <span id="prd_det_total" style="color:#16a34a"></span>
+                    </div>
+                </div>
+                <!-- Comprobante si existe -->
+                <div id="prd_det_comprobante" style="display:none;margin-top:12px;
+                    background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:.83rem">
+                    Comprobante de pago:
+                    <a id="prd_det_comp_link" href="#" target="_blank"
+                        style="color:#166534;font-weight:700;margin-left:6px">Ver archivo →</a>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </body>
 

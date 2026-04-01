@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsBoolean, Length } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsEmail,
+  Length,
+} from 'class-validator';
 
 export class CrearComercianteDto {
   @IsString()
@@ -13,6 +19,10 @@ export class CrearComercianteDto {
   @IsString()
   @Length(0, 150)
   direccion?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 }
 
 export class EditarComercianteDto {
@@ -30,6 +40,10 @@ export class EditarComercianteDto {
   @IsString()
   @Length(0, 150)
   direccion?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsOptional()
   @IsBoolean()

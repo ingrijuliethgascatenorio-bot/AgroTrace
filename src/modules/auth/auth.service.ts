@@ -1,3 +1,4 @@
+// src/modules/auth/auth.service.ts  — REEMPLAZA el archivo existente
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,8 +20,10 @@ export class AuthService {
     private readonly productorRepository: Repository<Productor>,
   ) {}
 
+  // ── REGISTRO ─────────────────────────────────────────────────────────────
   async register(
     registerDto: RegisterDto,
+    asociacionId: number, // ← recibido del middleware
   ): Promise<{ usuario: Omit<Usuario, 'password'>; token: string }> {
     const usuario = await this.usersService.crearUsuario(
       registerDto.nombre,
@@ -29,9 +32,9 @@ export class AuthService {
       registerDto.password,
       registerDto.telefono || null,
       registerDto.tipo_usuario,
+      asociacionId, // ← pasa al servicio de usuarios
     );
 
-    // Si el usuario es PRODUCTOR creamos el productor automáticamente
     if (registerDto.tipo_usuario === 'PRODUCTOR') {
       if (!registerDto.cedula) {
         throw new BadRequestException(
@@ -39,7 +42,6 @@ export class AuthService {
         );
       }
 
-      // Limpiar cédula — solo números para el QR
       const cedulaSoloNumeros = registerDto.cedula.replace(/\D/g, '');
 
       const qr = await QRCode.toDataURL(cedulaSoloNumeros, {
@@ -51,36 +53,35 @@ export class AuthService {
       const productor = this.productorRepository.create({
         cedula: cedulaSoloNumeros,
         telefono: registerDto.telefono || null,
-        ubicacion: registerDto.ubicacion || null,
+        ubicacion: (registerDto as any).ubicacion || null,
         estado: 'ACTIVO',
         codigo_qr: qr,
         id_usuario: usuario.id_usuario,
+        asociacion_id: asociacionId, // ← NUEVO
       });
 
       await this.productorRepository.save(productor);
     }
 
-    const payload = {
-      id_usuario: usuario.id_usuario,
-      tipo_usuario: usuario.tipo_usuario,
-      email: usuario.email,
-      permisos: usuario.permisos,
-    };
-
-    const token = this.jwtService.sign(payload);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const token = this._firmarToken(usuario);
     const { password: _pwd, ...usuarioSinPassword } = usuario;
-
     return { usuario: usuarioSinPassword, token };
   }
 
+  // ── LOGIN ─────────────────────────────────────────────────────────────────
   async login(
     loginDto: LoginDto,
+    asociacionId: number, // ← recibido del middleware
   ): Promise<{ usuario: Omit<Usuario, 'password'>; token: string }> {
     const { email, password } = loginDto;
 
-    const usuario = await this.usersService.buscarPorEmail(email);
+    console.log('>>> asociacionId recibido:', asociacionId); // ← AGREGAR
+    console.log('>>> email:', email); // ← AGREGAR
+
+    const usuario = await this.usersService.buscarPorEmailYAsociacion(
+      email,
+      asociacionId,
+    );
 
     if (!usuario) {
       throw new BadRequestException('Email o contraseña incorrectos');
@@ -94,19 +95,20 @@ export class AuthService {
     if (!passwordValida) {
       throw new BadRequestException('Email o contraseña incorrectos');
     }
+    const token = this._firmarToken(usuario);
+    const { password: _pwd, ...usuarioSinPassword } = usuario;
+    return { usuario: usuarioSinPassword, token };
+  }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  private _firmarToken(usuario: Usuario): string {
     const payload = {
       id_usuario: usuario.id_usuario,
       tipo_usuario: usuario.tipo_usuario,
       email: usuario.email,
       permisos: usuario.permisos,
+      asociacion_id: usuario.asociacion_id, // 🔥 CLAVE
     };
-
-    const token = this.jwtService.sign(payload);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _pwd, ...usuarioSinPassword } = usuario;
-
-    return { usuario: usuarioSinPassword, token };
+    return this.jwtService.sign(payload);
   }
 }

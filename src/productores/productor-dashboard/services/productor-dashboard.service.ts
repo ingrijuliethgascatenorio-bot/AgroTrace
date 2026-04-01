@@ -97,14 +97,23 @@ export class ProductorDashboardService {
     ]);
 
     return (rows ?? []).map((r: any) => ({
-      id_compra:       Number(r.id_compra),
-      fecha:           r.fecha,
-      numero_factura:  r.numero_factura ?? null,
-      producto:        r.producto,
-      peso:            Number(r.peso),
-      precio_unitario: Number(r.precio_unitario),
-      total:           Number(r.total),
-      estado:          r.estado,
+      id_compra:          Number(r.id_compra),
+      fecha:              r.fecha,
+      numero_factura:     r.numero_factura ?? null,
+      producto:           r.producto,
+      peso:               Number(r.peso),
+      // IMPORTANTE: preservar null — Number(null)=0 haría que el frontend
+      // no pueda distinguir "sin precio aún" de "precio = $0"
+      precio_unitario:    r.precio_unitario != null ? Number(r.precio_unitario) : null,
+      total:              r.total           != null ? Number(r.total)           : null,
+      // Estados del ciclo de vida de la entrega
+      estado_liquidacion: r.estado_liquidacion ?? 'PENDIENTE_LIQUIDACION',
+      estado_pago:        r.estado_pago        ?? 'PENDIENTE',
+      comprobante_pago:   r.comprobante_pago   ?? null,
+      ruta_id:            r.ruta_id            ?? null,
+      ruta_precio_final:  r.ruta_precio_final  != null ? Number(r.ruta_precio_final) : null,
+      // estado genérico (compatibilidad)
+      estado:             r.estado_liquidacion ?? 'PENDIENTE_LIQUIDACION',
     })) as EntregaHistorial[];
   }
 

@@ -24,14 +24,6 @@ export class ProductoresService {
     private readonly dataSource: DataSource,
   ) {}
 
-  /**
-   * Crea el registro en la tabla productores a partir de un usuario ya creado.
-   * Llamar desde auth.service.ts cuando tipo_usuario === 'PRODUCTOR':
-   *
-   *   if (dto.tipo_usuario === 'PRODUCTOR') {
-   *     await this.productoresService.crearDesdeUsuario(usuarioGuardado, dto);
-   *   }
-   */
   async crearDesdeUsuario(
     usuario: Usuario,
     dto: {
@@ -40,12 +32,17 @@ export class ProductoresService {
       finca?: string;
       ubicacion?: string;
     },
+    asociacionId: number, // ← NUEVO
   ): Promise<Productor> {
-    const cedulaLimpia = (dto.cedula || usuario.cedula || '').replace(/\D/g, '');
+    const cedulaLimpia = (dto.cedula || usuario.cedula || '').replace(
+      /\D/g,
+      '',
+    );
 
-    // Si ya existe un productor con esa cédula no duplicar
     if (cedulaLimpia) {
-      const existente = await this.productorRepo.findOne({ where: { cedula: cedulaLimpia } });
+      const existente = await this.productorRepo.findOne({
+        where: { cedula: cedulaLimpia, asociacion_id: asociacionId }, // ← filtro tenant
+      });
       if (existente) return existente;
     }
 
@@ -56,10 +53,10 @@ export class ProductoresService {
       ubicacion: dto.ubicacion || '',
       id_usuario: usuario.id_usuario,
       estado: 'ACTIVO',
+      asociacion_id: asociacionId, // ← NUEVO
     });
     const guardado = await this.productorRepo.save(productor);
 
-    // QR con cédula solo números
     const codigo_qr = await this._generarQR(guardado.id_productor);
     await this.productorRepo.update(guardado.id_productor, { codigo_qr });
     guardado.codigo_qr = codigo_qr;
@@ -67,24 +64,26 @@ export class ProductoresService {
     return guardado;
   }
 
-  async listar(): Promise<Productor[]> {
+  // ── MODIFICADO: filtra por asociacion_id ─────────────────────────────────
+  async listar(asociacionId: number): Promise<Productor[]> {
     return this.productorRepo.find({
-      where: { estado: 'ACTIVO' },
-      relations: ['usuario'], // ← agregar esto
+      where: { estado: 'ACTIVO', asociacion_id: asociacionId }, // ← filtro tenant
+      relations: ['usuario'],
       order: { id_productor: 'ASC' },
     });
   }
 
-  async listarTodos(): Promise<Productor[]> {
+  async listarTodos(asociacionId: number): Promise<Productor[]> {
     return this.productorRepo.find({
-      relations: ['usuario'], // ← agregar esto
+      where: { asociacion_id: asociacionId }, // ← filtro tenant
+      relations: ['usuario'],
       order: { id_productor: 'ASC' },
     });
   }
 
-  async obtenerPorId(id: number): Promise<Productor> {
+  async obtenerPorId(id: number, asociacionId: number): Promise<Productor> {
     const productor = await this.productorRepo.findOne({
-      where: { id_productor: id },
+      where: { id_productor: id, asociacion_id: asociacionId }, // ← filtro tenant
     });
 
     if (!productor) {
@@ -94,12 +93,14 @@ export class ProductoresService {
     return productor;
   }
 
-  async crear(dto: CrearProductorDto): Promise<Productor> {
+  // ── MODIFICADO: crea con asociacion_id ───────────────────────────────────
+  async crear(
+    dto: CrearProductorDto,
+    asociacionId: number,
+  ): Promise<Productor> {
     return this.dataSource.transaction(async (manager) => {
-      // 1. Verificar cédula única
-      await this._verificarCedulaUnica(dto.cedula);
+      await this._verificarCedulaUnica(dto.cedula, undefined, asociacionId);
 
-      // 2. Crear usuario
       const hash = await bcrypt.hash(dto.password, 10);
       const usuario = manager.create(Usuario, {
         nombre: dto.nombre,
@@ -109,23 +110,25 @@ export class ProductoresService {
         telefono: dto.telefono,
         cedula: dto.cedula,
         tipo_usuario: 'PRODUCTOR',
+        asociacion_id: asociacionId, // ← NUEVO
       });
       const usuarioGuardado = await manager.save(usuario);
 
-      // 3. Crear productor vinculado
       const productor = manager.create(Productor, {
-        //nombre: dto.nombre,
         cedula: dto.cedula,
         telefono: dto.telefono,
         finca: dto.finca,
         ubicacion: dto.ubicacion,
         id_usuario: usuarioGuardado.id_usuario,
         estado: 'ACTIVO',
+        asociacion_id: asociacionId, // ← NUEVO
       });
       const guardado = await manager.save(productor);
 
-      // 4. Generar QR
-      const codigo_qr = await this._generarQR(guardado.id_productor);
+      const codigo_qr = await this._generarQR(
+        guardado.id_productor,
+        dto.cedula,
+      );
       await manager.update(Productor, guardado.id_productor, { codigo_qr });
       guardado.codigo_qr = codigo_qr;
 
@@ -133,139 +136,170 @@ export class ProductoresService {
     });
   }
 
-  async editar(id: number, dto: EditarProductorDto): Promise<Productor> {
-    const productor = await this.obtenerPorId(id);
+  async editar(
+    id: number,
+    dto: EditarProductorDto,
+    asociacionId: number,
+  ): Promise<Productor> {
+    const productor = await this.obtenerPorId(id, asociacionId);
 
     if (productor.estado === 'INACTIVO') {
-            throw new ForbiddenException('No se puede editar un productor inactivo.');
-        }
-
-        if (dto.cedula && dto.cedula !== productor.cedula) {
-            await this._verificarCedulaUnica(dto.cedula, id);
-        }
-
-        Object.assign(productor, dto);
-
-        return this.productorRepo.save(productor);
+      throw new ForbiddenException('No se puede editar un productor inactivo.');
     }
+
+    if (dto.cedula && dto.cedula !== productor.cedula) {
+      await this._verificarCedulaUnica(dto.cedula, id, asociacionId);
+    }
+
+    Object.assign(productor, dto);
+    return this.productorRepo.save(productor);
+  }
 
   async desactivar(
     id: number,
+    asociacionId: number,
   ): Promise<{ mensaje: string; productor: Productor }> {
+    const productor = await this.obtenerPorId(id, asociacionId);
 
-        const productor = await this.obtenerPorId(id);
-
-        if (productor.estado === 'INACTIVO') {
-            throw new ConflictException('El productor ya está inactivo.');
-        }
-
-        await this.productorRepo.update(id, { estado: 'INACTIVO' });
-
-        productor.estado = 'INACTIVO';
-
-        return {
-            mensaje: 'Productor desactivado. Los datos históricos se conservan.',
-            productor,
-        };
+    if (productor.estado === 'INACTIVO') {
+      throw new ConflictException('El productor ya está inactivo.');
     }
+
+    await this.productorRepo.update(id, { estado: 'INACTIVO' });
+    productor.estado = 'INACTIVO';
+
+    return {
+      mensaje: 'Productor desactivado. Los datos históricos se conservan.',
+      productor,
+    };
+  }
 
   async activar(
     id: number,
+    asociacionId: number,
   ): Promise<{ mensaje: string; productor: Productor }> {
-        const productor = await this.obtenerPorId(id);
+    const productor = await this.obtenerPorId(id, asociacionId);
 
-        if (productor.estado === 'ACTIVO') {
-            throw new ConflictException('El productor ya está activo.');
-        }
-
-        await this.productorRepo.update(id, { estado: 'ACTIVO' });
-
-        productor.estado = 'ACTIVO';
-
-        return {
-            mensaje: 'Productor reactivado exitosamente.',
-            productor,
-        };
+    if (productor.estado === 'ACTIVO') {
+      throw new ConflictException('El productor ya está activo.');
     }
 
-    async buscarPorQR(qrCode: string): Promise<Productor> {
-        // El QR ahora contiene solo los números de la cédula
-        const cedulaLimpia = qrCode?.trim().replace(/\D/g, '');
+    await this.productorRepo.update(id, { estado: 'ACTIVO' });
+    productor.estado = 'ACTIVO';
 
-        if (!cedulaLimpia) {
-            throw new BadRequestException(
-                'El código QR no contiene una cédula válida.',
-            );
-        }
+    return {
+      mensaje: 'Productor reactivado exitosamente.',
+      productor,
+    };
+  }
 
-        const productor = await this.productorRepo.findOne({
-            where: { cedula: cedulaLimpia },
-            relations: ['usuario'],
+  async buscarPorQR(qrCode: string, asociacionId: number): Promise<Productor> {
+    const cedulaLimpia = qrCode?.trim().replace(/\D/g, '');
+
+    if (!cedulaLimpia) {
+      throw new BadRequestException(
+        'El código QR no contiene una cédula válida.',
+      );
+    }
+
+    const productor = await this.productorRepo.findOne({
+      where: { cedula: cedulaLimpia, asociacion_id: asociacionId }, // ← filtro tenant
+      relations: ['usuario'],
+    });
+
+    if (!productor) {
+      throw new NotFoundException(
+        `No se encontró ningún productor asociado al QR (cédula: ${cedulaLimpia}).`,
+      );
+    }
+
+    if (productor.estado === 'INACTIVO') {
+      throw new ForbiddenException(
+        'El productor está INACTIVO y no puede registrar compras.',
+      );
+    }
+
+    return productor;
+  }
+
+  async regenerarQR(id: number, asociacionId: number): Promise<Productor> {
+    const productor = await this.obtenerPorId(id, asociacionId);
+    const codigo_qr = await this._generarQR(id);
+    await this.productorRepo.update(id, { codigo_qr });
+    productor.codigo_qr = codigo_qr;
+    return productor;
+  }
+
+  async regenerarQRTodos(asociacionId: number): Promise<{
+    actualizados: number;
+    errores: { id: number; motivo: string }[];
+  }> {
+    const productores = await this.productorRepo.find({
+      where: { asociacion_id: asociacionId }, // ← filtro tenant
+    });
+    let actualizados = 0;
+    const errores: { id: number; motivo: string }[] = [];
+
+    for (const productor of productores) {
+      try {
+        const codigo_qr = await this._generarQR(productor.id_productor);
+        await this.productorRepo.update(productor.id_productor, { codigo_qr });
+        actualizados++;
+      } catch (e) {
+        errores.push({
+          id: productor.id_productor,
+          motivo: e instanceof Error ? e.message : 'Error desconocido',
         });
-
-        if (!productor) {
-            throw new NotFoundException(
-                `No se encontró ningún productor asociado al QR (cédula: ${cedulaLimpia}).`,
-            );
-        }
-
-        if (productor.estado === 'INACTIVO') {
-            throw new ForbiddenException(
-                `El productor está INACTIVO y no puede registrar compras.`,
-            );
-        }
-
-        return productor;
+      }
     }
 
-    async regenerarQR(id: number): Promise<Productor> {
+    return { actualizados, errores };
+  }
 
-        const productor = await this.obtenerPorId(id);
+  private async _generarQR(
+    idProductor: number,
+    cedulaDirecta?: string,
+  ): Promise<string> {
+    let cedulaLimpia: string;
 
-        const codigo_qr = await this._generarQR(id);
-
-        await this.productorRepo.update(id, { codigo_qr });
-
-        productor.codigo_qr = codigo_qr;
-
-        return productor;
+    if (cedulaDirecta) {
+      cedulaLimpia = cedulaDirecta.replace(/\D/g, '');
+    } else {
+      const productor = await this.productorRepo.findOne({
+        where: { id_productor: idProductor },
+      });
+      cedulaLimpia = (productor?.cedula || '').replace(/\D/g, '');
     }
 
-    private async _generarQR(idProductor: number): Promise<string> {
-        // Obtener la cédula del productor para el QR
-        const productor = await this.productorRepo.findOne({
-            where: { id_productor: idProductor },
-        });
-
-        // Usar cédula limpia (solo números). Si no hay cédula, usar el id como fallback
-        const contenido = productor?.cedula
-            ? productor.cedula.replace(/\D/g, '')
-            : String(idProductor);
-
-        return QRCode.toDataURL(contenido, {
-            errorCorrectionLevel: 'H',
-            margin: 2,
-            width: 300,
-        });
+    if (!cedulaLimpia) {
+      throw new BadRequestException(
+        `El productor #${idProductor} no tiene cedula registrada.`,
+      );
     }
+
+    return QRCode.toDataURL(cedulaLimpia, {
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      width: 300,
+    });
+  }
 
   private async _verificarCedulaUnica(
     cedula: string,
     excludeId?: number,
+    asociacionId?: number,
   ): Promise<void> {
+    const donde: any = { cedula };
 
-        const donde: any = { cedula };
-
-        if (excludeId) {
-            donde.id_productor = Not(excludeId);
-        }
+    if (excludeId) donde.id_productor = Not(excludeId);
+    if (asociacionId) donde.asociacion_id = asociacionId; // ← filtro tenant
 
     const existente = await this.productorRepo.findOne({ where: donde });
 
-        if (existente) {
-            throw new ConflictException(
-                `Ya existe un productor registrado con la cédula ${cedula}.`,
-            );
-        }
+    if (existente) {
+      throw new ConflictException(
+        `Ya existe un productor registrado con la cédula ${cedula}.`,
+      );
     }
+  }
 }

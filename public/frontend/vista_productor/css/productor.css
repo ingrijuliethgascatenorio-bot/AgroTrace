@@ -511,7 +511,6 @@ textarea {
     background-size: cover;
     background-position: center;
     opacity: 0.9;
-    /* leve oscurecido para mejor contraste */
 }
 
 .prd-hero-content {
@@ -596,13 +595,14 @@ textarea {
     overflow: hidden;
     min-height: 168px;
     cursor: default;
-    transition: transform .28s cubic-bezier(.34,1.56,.64,1),
-                box-shadow .28s ease;
-    box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    transition: transform .28s cubic-bezier(.34, 1.56, .64, 1),
+        box-shadow .28s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .12);
 }
+
 .kpi-card:hover {
     transform: translateY(-7px) scale(1.02);
-    box-shadow: 0 20px 48px rgba(0,0,0,.2);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, .2);
 }
 
 /* ── Imagen de fondo ── */
@@ -613,6 +613,7 @@ textarea {
     background-position: center;
     transition: transform .45s ease;
 }
+
 .kpi-card:hover .kpi-bg {
     transform: scale(1.08);
 }
@@ -622,29 +623,33 @@ textarea {
     position: absolute;
     inset: 0;
 }
+
 .kpi-card-1 .kpi-overlay {
     background: linear-gradient(135deg,
-        rgba(27,94,32,.88)  0%,
-        rgba(56,142,60,.65) 100%);
-        opacity: 0.88;
+            rgba(27, 94, 32, .88) 0%,
+            rgba(56, 142, 60, .65) 100%);
+    opacity: 0.88;
 }
+
 .kpi-card-2 .kpi-overlay {
     background: linear-gradient(135deg,
-        rgba(21,101,192,.88) 0%,
-        rgba(25, 118, 210, 0.422) 100%);
-        opacity: 0.88;
+            rgba(21, 101, 192, .88) 0%,
+            rgba(25, 118, 210, 0.422) 100%);
+    opacity: 0.88;
 }
+
 .kpi-card-3 .kpi-overlay {
     background: linear-gradient(135deg,
-        rgba(230,81,0,.88)  0%,
-        rgba(245, 123, 0, 0.159) 100%);
-        opacity: 0.88;
+            rgba(230, 81, 0, .88) 0%,
+            rgba(245, 123, 0, 0.159) 100%);
+    opacity: 0.88;
 }
+
 .kpi-card-4 .kpi-overlay {
     background: linear-gradient(135deg,
-        rgba(106,27,154,.88) 0%,
-        rgba(141, 36, 170, 0.268) 100%);
-        opacity: 0.88;
+            rgba(106, 27, 154, .88) 0%,
+            rgba(141, 36, 170, 0.268) 100%);
+    opacity: 0.88;
 }
 
 /* Reflejo de luz en la esquina superior */
@@ -653,8 +658,8 @@ textarea {
     inset: 0;
     z-index: 1;
     background: linear-gradient(135deg,
-        rgba(255,255,255,.14) 0%,
-        transparent 55%);
+            rgba(255, 255, 255, .14) 0%,
+            transparent 55%);
     pointer-events: none;
 }
 
@@ -682,8 +687,8 @@ textarea {
     width: 42px;
     height: 42px;
     border-radius: 12px;
-    background: rgba(255,255,255,.18);
-    border: 1px solid rgba(255,255,255,.30);
+    background: rgba(255, 255, 255, .18);
+    border: 1px solid rgba(255, 255, 255, .30);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -695,13 +700,13 @@ textarea {
 
 /* Etiqueta pill */
 .kpi-pill {
-    background: rgba(255,255,255,.15);
-    border: 1px solid rgba(255,255,255,.25);
+    background: rgba(255, 255, 255, .15);
+    border: 1px solid rgba(255, 255, 255, .25);
     border-radius: 20px;
     padding: 3px 10px;
     font-size: .6em;
     font-weight: 900;
-    color: rgba(255,255,255,.92);
+    color: rgba(255, 255, 255, .92);
     text-transform: uppercase;
     letter-spacing: .8px;
     backdrop-filter: blur(4px);
@@ -720,7 +725,7 @@ textarea {
     color: white;
     line-height: 1;
     letter-spacing: -2px;
-    text-shadow: 0 2px 12px rgba(0,0,0,.25);
+    text-shadow: 0 2px 12px rgba(0, 0, 0, .25);
 }
 
 .kpi-value-sm {
@@ -731,7 +736,7 @@ textarea {
 .kpi-sub {
     font-size: .72em;
     font-weight: 600;
-    color: rgba(255,255,255,.72);
+    color: rgba(255, 255, 255, .72);
     letter-spacing: .2px;
 }
 
@@ -739,25 +744,35 @@ textarea {
 .kpi-bar {
     height: 3px;
     border-radius: 3px;
-    background: rgba(255,255,255,.25);
+    background: rgba(255, 255, 255, .25);
     margin-top: 10px;
     overflow: hidden;
     position: relative;
 }
+
 .kpi-bar::after {
     content: '';
     position: absolute;
-    left: 0; top: 0;
+    left: 0;
+    top: 0;
     height: 100%;
     width: 65%;
-    background: rgba(255,255,255,.85);
+    background: rgba(255, 255, 255, .85);
     border-radius: 3px;
 }
 
 /* ── Clases antiguas ocultas (compatibilidad) ── */
-.kpi-label  { display: none; }
-.kpi-icon   { display: none; }
-.kpi-img-wrap { display: none; }
+.kpi-label {
+    display: none;
+}
+
+.kpi-icon {
+    display: none;
+}
+
+.kpi-img-wrap {
+    display: none;
+}
 
 /* ══════════════════════════════
    CARDS GENÉRICAS
@@ -943,15 +958,17 @@ textarea {
     background-size: 14px;
     padding-right: 32px;
 }
-#btnInstalarApp{
-background:#16a34a;
-color:white;
-border:none;
-padding:10px 16px;
-border-radius:8px;
-font-weight:600;
-cursor:pointer;
+
+#btnInstalarApp {
+    background: #16a34a;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
 }
+
 .filter-select:focus {
     border-color: var(--primary);
 }
@@ -1642,6 +1659,7 @@ cursor:pointer;
 
     .qr-card {
         max-width: 320px;
+        margin: 0 auto;
     }
 
     .kpi-grid {
@@ -1723,5 +1741,82 @@ cursor:pointer;
 @media (max-width: 480px) {
     .kpi-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================
+   TABLAS RESPONSIVAS — PRODUCTOR
+   En pantallas pequeñas cada fila se convierte
+   en una tarjeta vertical para mejor lectura
+   ============================================= */
+
+/* Contenedor con scroll horizontal por defecto */
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+
+    /* Ocultar el thead — las etiquetas van en cada celda via data-label */
+    .prd-table thead {
+        display: none;
+    }
+
+    /* Cada fila se convierte en tarjeta */
+    .prd-table tbody tr {
+        display: block;
+        background: white;
+        border: 1px solid var(--border-mid);
+        border-radius: var(--radius-sm);
+        margin-bottom: 10px;
+        padding: 12px 14px;
+        box-shadow: var(--shadow);
+    }
+
+    /* Cada celda se muestra como fila etiqueta: valor */
+    .prd-table tbody td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.82rem;
+    }
+
+    .prd-table tbody td:last-child {
+        border-bottom: none;
+    }
+
+    /* Etiqueta generada por data-label */
+    .prd-table tbody td::before {
+        content: attr(data-label);
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: var(--gray-500);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+        min-width: 90px;
+    }
+
+    /* Celdas sin label (botones de acción) van centradas */
+    .prd-table tbody td:not([data-label]) {
+        justify-content: flex-end;
+        border-bottom: none;
+        padding-top: 8px;
+    }
+
+    /* Fila vacía de empty-cell */
+    .prd-table tbody td.empty-cell {
+        display: block;
+        text-align: center;
+        border: none;
+        padding: 20px;
+    }
+
+    .prd-table tbody td.empty-cell::before {
+        display: none;
     }
 }

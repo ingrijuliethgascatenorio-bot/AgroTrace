@@ -1,20 +1,14 @@
 /**
- * Consultas SQL optimizadas para el módulo productor-dashboard.
- * Se usan con DataSource.query() de TypeORM para máximo control y rendimiento.
+ * Consultas SQL para el módulo productor-dashboard.
+ * ACTUALIZADO: soporta modelo de precio dinámico por ruta.
  *
- * Tablas involucradas (nombres reales de la BD):
- *   productor  → id_productor, id_usuario, cedula, finca, ubicacion, telefono, codigo_qr, estado
- *   usuario    → id_usuario, nombre, apellido, email, tipo_usuario, activo
- *   compra     → id_compra, id_productor, fecha_compra, total, estado, numero_factura
- *   detalle_compra → id_compra, id_producto, cantidad, precio_unitario, subtotal
- *   producto   → id_producto, nombre
+ * estados_liquidacion:
+ *   PENDIENTE_LIQUIDACION → kilos registrados, sin precio aún
+ *   LIQUIDADO             → precio asignado al cerrar ruta
+ *   PAGADO                → comprobante subido
  */
 
 // ── PERFIL ─────────────────────────────────────────────────────────────────
-/**
- * Obtiene el perfil completo del productor uniendo productor + usuario.
- * $1 → id_usuario (extraído del token JWT)
- */
 export const QUERY_PERFIL = `
   SELECT
     p.id_productor,
@@ -35,10 +29,6 @@ export const QUERY_PERFIL = `
 `;
 
 // ── ACTUALIZAR PERFIL ──────────────────────────────────────────────────────
-/**
- * Actualiza solo los campos permitidos: telefono, ubicacion, finca.
- * $1 → telefono  $2 → ubicacion  $3 → finca  $4 → id_productor
- */
 export const QUERY_ACTUALIZAR_PERFIL = `
   UPDATE productor
   SET
@@ -47,75 +37,66 @@ export const QUERY_ACTUALIZAR_PERFIL = `
     finca     = COALESCE($3, finca)
   WHERE id_productor = $4
   RETURNING
-    id_productor,
-    id_usuario,
-    cedula,
-    finca,
-    ubicacion,
-    telefono,
-    codigo_qr,
-    estado
+    id_productor, id_usuario, cedula,
+    finca, ubicacion, telefono, codigo_qr, estado
 `;
 
 // ── HISTORIAL DE ENTREGAS ──────────────────────────────────────────────────
 /**
- * Devuelve las entregas del productor con detalle por producto.
+ * Incluye estado_liquidacion, ruta_id, comprobante_pago.
+ * precio_unitario y total pueden ser NULL (pendientes de liquidación).
  * $1 → id_productor
- * $2 → fecha inicio (opcional, puede ser NULL)
- * $3 → fecha fin    (opcional, puede ser NULL)
- *
- * Usa COALESCE para que los filtros sean opcionales:
- *   si $2 es NULL, no filtra por fecha inicio; ídem $3.
+ * $2 → fecha inicio (NULL = sin filtro)
+ * $3 → fecha fin    (NULL = sin filtro)
  */
 export const QUERY_HISTORIAL = `
   SELECT
-    c.id_compra,
-    c.fecha_compra                         AS fecha,
-    c.numero_factura,
-    pr.nombre                              AS producto,
-    dc.cantidad                            AS peso,
-    dc.precio_unitario,
-    dc.subtotal                            AS total,
-    c.estado
-  FROM compra c
-  INNER JOIN detalle_compra dc ON dc.id_compra = c.id_compra
-  INNER JOIN producto pr       ON pr.id_producto = dc.id_producto
-  WHERE c.id_productor = $1
-    AND ($2::date IS NULL OR c.fecha_compra >= $2::date)
-    AND ($3::date IS NULL OR c.fecha_compra <= $3::date)
-  ORDER BY c.fecha_compra DESC, c.id_compra DESC
+    e.id_entrega                                              AS id_compra,
+    e.fecha::date                                             AS fecha,
+    pr.nombre                                                 AS producto,
+    e.peso_kg                                                 AS peso,
+    e.precio_unitario,
+    e.total,
+    COALESCE(e.estado_liquidacion, 'PENDIENTE_LIQUIDACION')   AS estado_liquidacion,
+    COALESCE(e.estado_pago, 'PENDIENTE')                      AS estado_pago,
+    e.comprobante_pago,
+    e.ruta_id,
+    r.estado                                                  AS ruta_estado,
+    r.precio_final_kg                                         AS ruta_precio_final
+  FROM entrega e
+  INNER JOIN producto pr ON pr.id_producto = e.id_producto
+  LEFT  JOIN ruta r      ON r.id_ruta = e.ruta_id
+  WHERE e.id_productor = $1
+    AND ($2::date IS NULL OR e.fecha::date >= $2::date)
+    AND ($3::date IS NULL OR e.fecha::date <= $3::date)
+  ORDER BY e.fecha DESC, e.id_entrega DESC
 `;
 
 // ── RESUMEN DEL DASHBOARD ──────────────────────────────────────────────────
 /**
- * Calcula en una sola consulta:
- *   total_kg       → suma de kg entregados
- *   total_dinero   → suma de dinero recibido
- *   total_entregas → cantidad de compras
- *   ultima_entrega → fecha de la compra más reciente
+ * KPIs del productor.
+ * total_dinero solo suma entregas LIQUIDADAS/PAGADAS.
  * $1 → id_productor
  */
 export const QUERY_RESUMEN = `
   SELECT
-    COALESCE(SUM(dc.cantidad), 0)          AS total_kg,
-    COALESCE(SUM(c.total), 0)              AS total_dinero,
-    COUNT(DISTINCT c.id_compra)            AS total_entregas,
-    MAX(c.fecha_compra)                    AS ultima_entrega
-  FROM compra c
-  INNER JOIN detalle_compra dc ON dc.id_compra = c.id_compra
-  WHERE c.id_productor = $1
+    COALESCE(SUM(e.peso_kg), 0)                                        AS total_kg,
+    COALESCE(SUM(CASE
+      WHEN e.estado_liquidacion IN ('LIQUIDADO','PAGADO') THEN e.total
+      ELSE 0
+    END), 0)                                                           AS total_dinero,
+    COUNT(*)                                                           AS total_entregas,
+    COUNT(CASE WHEN e.estado_liquidacion = 'PENDIENTE_LIQUIDACION' THEN 1 END) AS pendientes_liquidacion,
+    COUNT(CASE WHEN e.estado_liquidacion = 'LIQUIDADO'             THEN 1 END) AS liquidadas,
+    COUNT(CASE WHEN e.estado_liquidacion = 'PAGADO'                THEN 1 END) AS pagadas,
+    MAX(e.fecha)                                                       AS ultima_entrega
+  FROM entrega e
+  WHERE e.id_productor = $1
 `;
 
 // ── QR ─────────────────────────────────────────────────────────────────────
-/**
- * Obtiene solo el QR y la cédula del productor.
- * $1 → id_productor
- */
 export const QUERY_QR = `
-  SELECT
-    p.id_productor,
-    p.cedula,
-    p.codigo_qr
+  SELECT p.id_productor, p.cedula, p.codigo_qr
   FROM productor p
   WHERE p.id_productor = $1
   LIMIT 1

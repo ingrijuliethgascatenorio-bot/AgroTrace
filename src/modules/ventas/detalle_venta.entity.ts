@@ -1,11 +1,7 @@
 import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
+  Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Venta } from './ventas.entity';
+import { Venta }    from './ventas.entity';
 import { Producto } from '../productos/producto.entity';
 
 @Entity('detalle_venta')
@@ -19,6 +15,7 @@ export class DetalleVenta {
   @Column({ name: 'id_producto' })
   id_producto: number;
 
+  // ✅ CORREGIDO: campo real es 'cantidad', no 'cantidad_kg'
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   cantidad: number;
 

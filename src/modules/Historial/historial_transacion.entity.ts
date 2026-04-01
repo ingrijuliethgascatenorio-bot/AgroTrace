@@ -1,7 +1,4 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-
-// Sin relaciones inversas para evitar dependencias circulares
-// Los IDs de compra/venta son suficientes para el historial
 @Entity('historial_transaccion')
 export class HistorialTransaccion {
   @PrimaryGeneratedColumn({ name: 'id_historial' })

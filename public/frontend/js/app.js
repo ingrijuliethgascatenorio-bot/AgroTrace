@@ -67,6 +67,7 @@ function mostrarSeccion(sectionId) {
     if (sectionId === 'comerciantes') com_cargar();
     if (sectionId === 'historial') his_cargar();
     if (sectionId === 'dashboard') cargarDashboard();
+    if (sectionId === 'stock') stk_cargar();
 }
 
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -325,7 +326,7 @@ async function cargarHistorial() {
     showLoading();
 
     try {
-        const response = await fetch(`${API_URL}/estadisticas/historial?id_productor=${productor}&inicio=${inicio}&fin=${fin}`);
+        const response = await fetch(`${API_URL}/estadisticas/historial?id_productor=${productor}&inicio=${inicio}&fin=${fin}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         const data = await response.json();
 
         // Actualizar contador
@@ -420,11 +421,11 @@ async function cargarProyeccion() {
 
     try {
         // Proyección
-        const proyeccionRes = await fetch(`${API_URL}/estadisticas/proyeccion?id_productor=${productor}`);
+        const proyeccionRes = await fetch(`${API_URL}/estadisticas/proyeccion?id_productor=${productor}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         const proyeccion = await proyeccionRes.json();
 
         // Tendencia
-        const tendenciaRes = await fetch(`${API_URL}/estadisticas/tendencia?id_productor=${productor}`);
+        const tendenciaRes = await fetch(`${API_URL}/estadisticas/tendencia?id_productor=${productor}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         const tendencia = await tendenciaRes.json();
 
         // Gráficos
@@ -530,16 +531,16 @@ async function cargarRanking() {
     showLoading();
 
     try {
-        const response = await fetch(`${API_URL}/estadisticas/ranking?tipo=${tipo}`);
+        const response = await fetch(`${API_URL}/estadisticas/ranking?tipo=${tipo}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         const data = await response.json();
 
         // Actualizar tabla
         const tbody = document.getElementById('tabla_ranking_body');
         tbody.innerHTML = data.map(item => {
             let medalla = '';
-            if (item.posicion === 1) medalla = '<span class="medal medal-gold">🥇</span>';
-            else if (item.posicion === 2) medalla = '<span class="medal medal-silver">🥈</span>';
-            else if (item.posicion === 3) medalla = '<span class="medal medal-bronze">🥉</span>';
+            if (item.posicion === 1) medalla = '<span class="medal medal-gold">#1</span>';
+            else if (item.posicion === 2) medalla = '<span class="medal medal-silver">#2</span>';
+            else if (item.posicion === 3) medalla = '<span class="medal medal-bronze">#3</span>';
 
             return `
                 <tr>
@@ -631,7 +632,7 @@ async function cargarPlanificacion() {
     showLoading();
 
     try {
-        const response = await fetch(`${API_URL}/estadisticas/planificacion?precio=${precio}&capacidad=${capacidad}`);
+        const response = await fetch(`${API_URL}/estadisticas/planificacion?precio=${precio}&capacidad=${capacidad}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         const data = await response.json();
 
         // Mostrar resultado
@@ -655,7 +656,7 @@ async function cargarPlanificacion() {
         // Alerta
         resultDiv.innerHTML += `
             <div class="alert-box ${data.supera_capacidad ? 'alert-danger' : 'alert-success'}">
-                <span class="alert-icon">${data.supera_capacidad ? '⚠️' : '✅'}</span>
+                <span class="alert-icon">${data.supera_capacidad ? '' : ''}</span>
                 <span>${data.alerta}</span>
             </div>
         `;
@@ -774,8 +775,8 @@ async function analisis_loadProyeccion() {
     const qId = id ? `?id_productor=${id}` : '';
     try {
         const [pRes, tRes] = await Promise.all([
-            fetch(`${API_URL}/estadisticas/proyeccion${qId}`),
-            fetch(`${API_URL}/estadisticas/tendencia${qId}`)
+            fetch(`${API_URL}/estadisticas/proyeccion${qId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
+            fetch(`${API_URL}/estadisticas/tendencia${qId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
         ]);
         const p = await pRes.json();
         const t = await tRes.json();
@@ -815,50 +816,66 @@ async function analisis_loadProyeccion() {
 
 // ── HISTORIAL ──
 async function analisis_loadHistorial() {
-    const id = document.getElementById('ah_productor').value;
+    const id  = document.getElementById('ah_productor').value;
     const ini = document.getElementById('ah_inicio').value;
     const fin = document.getElementById('ah_fin').value;
     showLoading();
     try {
-        // Construir query solo con params presentes
         const params = new URLSearchParams();
-        if (id) params.append('id_productor', id);
+        if (id)  params.append('id_productor', id);
         if (ini) params.append('inicio', ini);
         if (fin) params.append('fin', fin);
-        const res = await fetch(`${API_URL}/estadisticas/historial?${params.toString()}`);
-        const data = await res.json();
+
+        const token = localStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/estadisticas/historial?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${token}` } });
+        const data  = await res.json();
         document.getElementById('ah_count').textContent = `${data.length} registros`;
 
-        // Tabla
+        // ── Tabla ──
         const tbody = document.getElementById('ah_tbody');
-        tbody.innerHTML = data.length === 0
-            ? '<tr><td colspan="5" class="empty-state">Sin registros en ese período</td></tr>'
-            : data.map(r => `<tr>
-                <td>${r.fecha_produccion?.split('T')[0] || r.fecha_produccion}</td>
-                <td><strong>${r.cantidad}</strong></td>
-                <td>${r.unidad || 'kg'}</td>
-                <td>${r.lote || 'N/A'}</td>
-                <td><span class="badge badge-info">${r.estado || '–'}</span></td>
-              </tr>`).join('');
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Sin registros en ese período</td></tr>';
+        } else {
+            tbody.innerHTML = data.map(r => {
+                const fecha   = (r.fecha || r.fecha_produccion || '').toString().split('T')[0];
+                const cantKg  = parseFloat(r.cantidad || r.peso_kg || 0);
+                const precio  = parseFloat(r.precio_unitario || 0);
+                const total   = parseFloat(r.total || (cantKg * precio) || 0);
+                const nombre  = r.nombre_productor || `Productor #${r.id_productor}`;
+                const prod    = r.nombre_producto  || `Producto #${r.id_producto}`;
+                return `<tr>
+                    <td>${fecha}</td>
+                    <td>${nombre}</td>
+                    <td>${prod}</td>
+                    <td><strong>${formatNumber(cantKg)} kg</strong></td>
+                    <td>${formatCurrency(precio)}/kg</td>
+                    <td><strong style="color:#16a34a">${formatCurrency(total)}</strong></td>
+                    <td><span class="badge badge-success">Entregado</span></td>
+                  </tr>`;
+            }).join('');
+        }
 
-        // Gráfico
+        // ── Gráfico kg por fecha ──
         destroyAnalisisChart('historial');
         const ctx = document.getElementById('ah_chart').getContext('2d');
         analisisCharts.historial = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.map(d => d.fecha_produccion?.split('T')[0] || d.fecha_produccion),
+                labels:   data.map(d => (d.fecha || d.fecha_produccion || '').toString().split('T')[0]),
                 datasets: [{
-                    label: 'Cantidad (kg)', data: data.map(d => parseFloat(d.cantidad)),
+                    label: 'kg entregados',
+                    data: data.map(d => parseFloat(d.cantidad || d.peso_kg || 0)),
                     borderColor: 'rgb(10,174,10)', backgroundColor: 'rgba(10,174,10,0.1)',
                     borderWidth: 3, fill: true, tension: 0.4, pointRadius: 5,
                     pointBackgroundColor: 'rgb(10,174,10)', pointBorderColor: '#fff', pointBorderWidth: 2
                 }]
             },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
     } catch (e) {
-        document.getElementById('ah_tbody').innerHTML = `<tr><td colspan="5" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
+        document.getElementById('ah_tbody').innerHTML =
+            `<tr><td colspan="7" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
 
@@ -867,29 +884,33 @@ async function analisis_loadTendencia() {
     const id = document.getElementById('at_productor').value;
     showLoading();
     try {
-        const qId = id ? `?id_productor=${id}` : '';
-        const res = await fetch(`${API_URL}/estadisticas/tendencia${qId}`);
-        const d = await res.json();
-        const tClass = d.tendencia === 'Creciente' ? 'badge-success' : d.tendencia === 'Decreciente' ? 'badge-danger' : 'badge-warning';
+        const qId   = id ? `?id_productor=${id}` : '';
+        const token = localStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/estadisticas/tendencia${qId}`,
+            { headers: { Authorization: `Bearer ${token}` } });
+        const d     = await res.json();
+
+        const tClass = d.tendencia === 'Creciente' ? 'ok' : d.tendencia === 'Decreciente' ? 'danger' : 'warn';
+        const dif    = parseFloat(d.diferencia_porcentual || 0);
 
         document.getElementById('at_cards').innerHTML = `
         <div class="an-kpi">
             <div class="an-kpi-icon blue"><i class="fi fi-rr-stats"></i></div>
             <span class="an-kpi-label">Tendencia</span>
             <span class="an-kpi-value">${d.tendencia}</span>
-            <span class="an-kpi-tag ${d.tendencia === 'Creciente' ? 'ok' : d.tendencia === 'Decreciente' ? 'danger' : 'warn'}">${d.diferencia_porcentual}%</span>
+            <span class="an-kpi-tag ${tClass}">${dif > 0 ? '+' : ''}${dif}%</span>
         </div>
         <div class="an-kpi">
-            <div class="an-kpi-icon green"><i class="fi fi-rr-calendar"></i></div>
+            <div class="an-kpi-icon green"><i class="fi fi-rr-weight"></i></div>
             <span class="an-kpi-label">Promedio últimos 3 meses</span>
             <span class="an-kpi-value">${parseFloat(d.promedio_actual).toFixed(1)} <small style="font-size:.5em;color:#9ca3af">kg</small></span>
-            <span class="an-kpi-tag info">período actual</span>
+            <span class="an-kpi-tag info">${d.n_entregas_actual || 0} entregas</span>
         </div>
         <div class="an-kpi">
-            <div class="an-kpi-icon orange"><i class="fi fi-rr-calendar"></i></div>
-            <span class="an-kpi-label">Promedio 3 meses anteriores</span>
-            <span class="an-kpi-value">${parseFloat(d.promedio_anterior).toFixed(1)} <small style="font-size:.5em;color:#9ca3af">kg</small></span>
-            <span class="an-kpi-tag neutral">período anterior</span>
+            <div class="an-kpi-icon orange"><i class="fi fi-rr-coins"></i></div>
+            <span class="an-kpi-label">Total pagado (3 meses)</span>
+            <span class="an-kpi-value">${formatCurrency(d.total_dinero_actual || 0)}</span>
+            <span class="an-kpi-tag ok">precio_final_productor</span>
         </div>`;
 
         destroyAnalisisChart('tendencia');
@@ -899,55 +920,88 @@ async function analisis_loadTendencia() {
             data: {
                 labels: ['3 meses anteriores', 'Últimos 3 meses'],
                 datasets: [{
+                    label: 'Promedio kg/entrega',
                     data: [parseFloat(d.promedio_anterior), parseFloat(d.promedio_actual)],
-                    backgroundColor: ['rgba(156,163,175,0.7)', d.tendencia === 'Creciente' ? 'rgba(10,174,10,0.8)' : d.tendencia === 'Decreciente' ? 'rgba(239,68,68,0.8)' : 'rgba(245,158,11,0.8)'],
+                    backgroundColor: [
+                        'rgba(156,163,175,0.7)',
+                        d.tendencia === 'Creciente' ? 'rgba(10,174,10,0.8)'
+                            : d.tendencia === 'Decreciente' ? 'rgba(239,68,68,0.8)'
+                            : 'rgba(245,158,11,0.8)'
+                    ],
                     borderRadius: 8, borderWidth: 2
                 }]
             },
-            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales:  { y: { beginAtZero: true } }
+            }
         });
     } catch (e) {
-        document.getElementById('at_cards').innerHTML = `<div class="an-kpi" style="grid-column:1/-1"><span class="an-kpi-label" style="color:#dc2626">Error: ${e.message}</span></div>`;
+        document.getElementById('at_cards').innerHTML =
+            `<div class="an-kpi" style="grid-column:1/-1"><span class="an-kpi-label" style="color:#dc2626">Error: ${e.message}</span></div>`;
     } finally { hideLoading(); }
 }
 
 // ── RANKING ──
 async function analisis_loadRanking() {
-    const tipo = document.getElementById('ar_tipo').value;
-    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
-    document.getElementById('ar_tipo_label').textContent = labels[tipo];
+    const tipo     = document.getElementById('ar_tipo').value;
+    const inicio   = document.getElementById('ar_inicio')?.value || '';
+    const fin      = document.getElementById('ar_fin')?.value    || '';
+    const labels   = { total: 'Total kg entregados', promedio: 'Promedio kg/entrega', frecuencia: 'Nº de entregas' };
+    document.getElementById('ar_tipo_label').textContent = labels[tipo] || tipo;
     showLoading();
     try {
-        const res = await fetch(`${API_URL}/estadisticas/ranking?tipo=${tipo}`);
-        const data = await res.json();
+        const params = new URLSearchParams({ tipo });
+        if (inicio) params.append('inicio', inicio);
+        if (fin)    params.append('fin',    fin);
+
+        const token = localStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/estadisticas/ranking?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${token}` } });
+        const data  = await res.json();
+
+        // Guardar para exportación
+        _ranking_data = Array.isArray(data) ? data : [];
 
         const tbody = document.getElementById('ar_tbody');
-        tbody.innerHTML = data.map(r => {
-            const medalla = r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : '';
-            // Usar nombre real del backend, fallback a id si no viene
-            const nombreMostrar = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
+        tbody.innerHTML = _ranking_data.length ? _ranking_data.map(r => {
+            const medalla   = r.posicion === 1 ? '#1' : r.posicion === 2 ? '#2' : r.posicion === 3 ? '#3' : `#${r.posicion}`;
+            const nombre    = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
+            const valorFmt  = tipo === 'frecuencia'
+                ? `${r.valor} entregas`
+                : `${formatNumber(parseFloat(r.valor).toFixed(1))} kg`;
+            const pagadoFmt = r.total_pagado ? formatCurrency(r.total_pagado) : '—';
             return `<tr>
-                <td style="font-weight:800;color:#111827">${r.posicion}</td>
-                <td style="font-weight:600">${nombreMostrar}</td>
-                <td style="font-weight:700">${formatNumber(parseFloat(r.valor).toFixed(2))}</td>
-                <td style="font-size:1.2em">${medalla}</td>
+                <td style="font-weight:800;color:#111827;font-size:1.1em">${medalla}</td>
+                <td>
+                    <strong>${nombre}</strong>
+                    ${r.finca  ? `<br><small style="color:#9ca3af">${r.finca}</small>`       : ''}
+                    ${r.cedula ? `<br><small style="color:#9ca3af">CC ${r.cedula}</small>` : ''}
+                </td>
+                <td style="font-weight:700">${valorFmt}</td>
+                <td style="color:#16a34a;font-weight:600">${pagadoFmt}</td>
               </tr>`;
-        }).join('') || '<tr><td colspan="4" class="empty-state">Sin datos</td></tr>';
+        }).join('') : '<tr><td colspan="4" class="empty-state">Sin datos de entregas</td></tr>';
 
         destroyAnalisisChart('ranking');
-        const colors = data.map((_, i) => `hsla(${130 - (i * 12)},65%,45%,0.8)`);
-        const ctx = document.getElementById('ar_chart').getContext('2d');
+        const colors = _ranking_data.map((_, i) => `hsla(${130 - i * 12},65%,45%,0.85)`);
+        const ctx    = document.getElementById('ar_chart').getContext('2d');
         analisisCharts.ranking = new Chart(ctx, {
             type: 'bar',
             data: {
-                // Usar nombre real en el gráfico también
-                labels: data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `Productor ${d.id_productor}`),
-                datasets: [{ data: data.map(d => d.valor), backgroundColor: colors, borderRadius: 6 }]
+                labels:   _ranking_data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `#${d.id_productor}`),
+                datasets: [{ data: _ranking_data.map(d => d.valor), backgroundColor: colors, borderRadius: 6 }]
             },
-            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+            options: {
+                indexAxis: 'y', responsive: true,
+                plugins: { legend: { display: false } },
+                scales:  { x: { beginAtZero: true } }
+            }
         });
     } catch (e) {
-        document.getElementById('ar_tbody').innerHTML = `<tr><td colspan="4" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
+        document.getElementById('ar_tbody').innerHTML =
+            `<tr><td colspan="4" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
     } finally { hideLoading(); }
 }
 
@@ -959,7 +1013,7 @@ async function analisis_loadPlanificacion() {
     if (!capacidad || capacidad <= 0) { alert('Ingrese una capacidad válida'); return; }
     showLoading();
     try {
-        const res = await fetch(`${API_URL}/estadisticas/planificacion?precio=${precio}&capacidad=${capacidad}`);
+        const res = await fetch(`${API_URL}/estadisticas/planificacion?precio=${precio}&capacidad=${capacidad}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         const d = await res.json();
 
         document.getElementById('apl_alert').innerHTML = `
@@ -1513,7 +1567,7 @@ async function usr_guardarEdicion() {
 
     if (!nombre || !apellido || !email) {
         msg.className = 'hp-msg error';
-        msg.textContent = '⚠️ Nombre, apellido y correo son obligatorios.';
+        msg.textContent = ' Nombre, apellido y correo son obligatorios.';
         return;
     }
 
@@ -1540,12 +1594,12 @@ async function usr_guardarEdicion() {
 
         msg.className = 'hp-msg ok';
         msg.style.display = 'block';
-        msg.textContent = '✅ Usuario actualizado correctamente.';
+        msg.textContent = ' Usuario actualizado correctamente.';
         setTimeout(() => { usr_cerrarPanel(); usr_renderTabla(); }, 1200);
     } catch (e) {
         msg.className = 'hp-msg error';
         msg.style.display = 'block';
-        msg.textContent = `⚠️ ${e.message}`;
+        msg.textContent = ` ${e.message}`;
         btn.disabled = false;
         btn.innerHTML = '<i class="fi fi-rr-check"></i> Guardar cambios';
     }
@@ -1994,6 +2048,35 @@ async function prd_regenerarQR(id) {
         btn.disabled = false;
         btn.style.opacity = '1';
     }
+}
+
+async function prd_regenerarTodosQR() {
+    const total = _prd_todos.length;
+    if (!total) { alert('No hay productores cargados. Ve a la sección Productores primero.'); return; }
+    if (!confirm(`¿Regenerar el QR de los ${total} productores?\n\nEsto puede tardar unos segundos.`)) return;
+
+    const token = localStorage.getItem('token');
+    let ok = 0, errores = 0;
+
+    showLoading();
+    for (const p of _prd_todos) {
+        try {
+            const res = await fetch(`${API_URL}/productores/${p.id_productor}/qr`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            if (data.data?.codigo_qr) p.codigo_qr = data.data.codigo_qr;
+            ok++;
+        } catch (e) {
+            console.error(`QR error productor #${p.id_productor}:`, e.message);
+            errores++;
+        }
+    }
+    hideLoading();
+    prd_renderTabla();
+    alert(` QR regenerados: ${ok}${errores ? '\n Errores: ' + errores : ''}\n\nTodos los QR ahora contienen solo el número de cédula.`);
 }
 
 // ════════════════════════════════════════
@@ -2449,6 +2532,16 @@ let _cmp_estado = '';
 
 async function cmp_cargar() {
     const token = localStorage.getItem('token');
+
+    // Resetear filtros al entrar a la sección
+    _cmp_estado = '';
+    _cmp_buscar = '';
+    const buscarInput = document.getElementById('cmp_buscar');
+    if (buscarInput) buscarInput.value = '';
+    document.querySelectorAll('#compras .usr-ftab').forEach((b, i) => {
+        b.classList.toggle('active', i === 0);
+    });
+
     try {
         const res = await fetch(`${API_URL}/compras`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -2458,7 +2551,7 @@ async function cmp_cargar() {
         cmp_renderTabla();
     } catch (e) {
         document.getElementById('cmp_tbody').innerHTML =
-            `<tr><td colspan="7" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="10" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -2476,16 +2569,18 @@ function cmp_renderTabla() {
     if (!tbody) return;
 
     const lista = _cmp_todos.filter(c => {
-        const txt = `${c.numero_factura || ''} ${c.productor?.nombre || ''} ${c.productor?.usuario?.nombre || ''}`.toLowerCase();
+        const nombreBuscar = c.tipo_productor === 'EXTERNO' ? (c.nombre_productor_externo || '') : `${c.productor?.nombre || ''} ${c.productor?.usuario?.nombre || ''}`;
+        const txt = `${c.numero_factura || ''} ${nombreBuscar}`.toLowerCase();
         const okBuscar = !_cmp_buscar || txt.includes(_cmp_buscar);
-        const okEstado = !_cmp_estado || c.estado === _cmp_estado;
+        const estadoCompra = (c.estado || '').toUpperCase();
+        const okEstado = !_cmp_estado || estadoCompra === _cmp_estado.toUpperCase();
         return okBuscar && okEstado;
     });
 
     document.getElementById('cmp_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
         return;
     }
 
@@ -2493,17 +2588,58 @@ function cmp_renderTabla() {
     const fmtFecha = f => f ? new Date(f).toLocaleDateString('es-CO') : '—';
 
     tbody.innerHTML = lista.map(c => {
-        const productor = c.productor?.usuario?.nombre
-            ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
-            : (c.productor?.nombre || '—');
+        // Nombre del productor: externo muestra "(externo)", registrado muestra nombre completo
+        const esExterno = c.tipo_productor === 'EXTERNO' || (!c.id_productor && c.nombre_productor_externo);
+        const productor = esExterno
+            ? `${c.nombre_productor_externo || 'Externo'} <span class="badge-externo">(externo)</span>`
+            : c.productor?.usuario?.nombre
+                ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
+                : (c.productor?.nombre || '—');
+        
+        // Operario que registró la compra
+        const operario = c.nombre_operario || c.operario?.nombre || c.usuario?.nombre || '—';
+        
         const nDetalles = c.detalles?.length ?? '—';
+        // ── Comprobante ──
+        const idEntrega      = c.id_entrega || c.id_compra;
+        const estadoPago     = c.estado_pago || 'PENDIENTE';
+        const comprobante    = c.comprobante_pago || null;
+        const isPagado       = estadoPago === 'PAGADO';
+        const estadoBadge    = isPagado
+            ? `<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700"> Pagado</span>`
+            : `<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700">Pendiente</span>`;
+        const comprobanteCol = isPagado && comprobante
+            ? `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+                ${estadoBadge}
+                <a href="${comprobante.startsWith('http') ? comprobante : (STATIC_URL + comprobante)}"
+                   target="_blank"
+                   style="font-size:.72rem;color:#2563eb;text-decoration:none;display:flex;align-items:center;gap:3px">
+                   <i class="fi fi-rr-download"></i> Ver comprobante
+                </a>
+                <button class="usr-btn-action" title="Eliminar comprobante"
+                        style="font-size:.7rem;padding:2px 6px;color:#dc2626;background:#fee2e2;border:none;border-radius:6px;cursor:pointer"
+                        onclick="cmp_eliminarComprobante(${idEntrega})">
+                    <i class="fi fi-rr-trash"></i>
+                </button>
+               </div>`
+            : `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+                ${estadoBadge}
+                <label style="cursor:pointer;font-size:.72rem;color:#2563eb;display:flex;align-items:center;gap:3px">
+                    <i class="fi fi-rr-upload"></i> Subir
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"
+                           style="display:none"
+                           onchange="cmp_subirComprobante(${idEntrega}, this)">
+                </label>
+               </div>`;
         return `<tr>
             <td style="font-family:monospace;font-size:.82em;font-weight:700">${c.numero_factura || '—'}</td>
             <td>${productor}</td>
+            <td style="font-size:.85em;color:#059669;font-weight:600">${operario}</td>
             <td style="font-size:.85em;color:#6b7280">${fmtFecha(c.fecha_compra)}</td>
             <td style="text-align:center">${nDetalles}</td>
             <td style="font-weight:700;color:#111827">${fmt(c.total)}</td>
             <td><span class="badge-estado badge-${c.estado || 'pendiente'}">${c.estado || 'pendiente'}</span></td>
+            <td>${comprobanteCol}</td>
             <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                     <button class="usr-btn-action usr-btn-edit" title="Ver detalle"
@@ -2545,6 +2681,90 @@ function cmp_desactivar(id) {
         .catch(e => alert(`Error: ${e.message}`));
 }
 
+// ── SUBIR COMPROBANTE (admin) ─────────────────────────────
+async function cmp_subirComprobante(idEntrega, inputEl) {
+    const file = inputEl.files[0];
+    if (!file) return;
+
+    // ── Validación en el frontend antes de enviar ─────────────────
+    const maxMB = 10;
+    if (file.size > maxMB * 1024 * 1024) {
+        alert(`El archivo es demasiado grande. Máximo ${maxMB} MB.`);
+        inputEl.value = '';
+        return;
+    }
+    const ext = file.name.split('.').pop().toLowerCase();
+    const tiposOk = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+    if (!tiposOk.includes(ext)) {
+        alert(`Tipo de archivo no permitido: .${ext}\nSolo se aceptan: PDF, JPG, JPEG, PNG, WEBP`);
+        inputEl.value = '';
+        return;
+    }
+
+    const token = localStorage.getItem('token') || '';
+    const formData = new FormData();
+    // El campo DEBE llamarse 'comprobante' — es lo que espera el backend
+    formData.append('comprobante', file);
+
+    showLoading();
+    try {
+        const res = await fetch(`${API_URL}/entregas/${idEntrega}/comprobante`, {
+            method: 'POST',
+            //  NO incluir Content-Type — el navegador lo pone automáticamente
+            // con el boundary correcto para multipart/form-data
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+        });
+
+        // Parsear respuesta de forma segura (puede ser JSON o HTML de error)
+        let json = null;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            json = await res.json();
+        } else {
+            const texto = await res.text();
+            throw new Error(`Error del servidor (${res.status}): ${texto.substring(0, 120)}`);
+        }
+
+        if (!res.ok) throw new Error(json?.message || json?.error || `Error ${res.status}`);
+
+        await cmp_cargar();
+        const banner = document.createElement('div');
+        banner.textContent = 'Comprobante subido. Entrega marcada como PAGADA.';
+        banner.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:#d1fae5;color:#065f46;padding:12px 20px;border-radius:12px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.15)';
+        document.body.appendChild(banner);
+        setTimeout(() => banner.remove(), 4000);
+    } catch (e) {
+        alert('No se pudo subir el comprobante:\n' + e.message);
+    } finally {
+        hideLoading();
+        inputEl.value = '';
+    }
+}
+
+// ── ELIMINAR COMPROBANTE (admin) ──────────────────────────
+async function cmp_eliminarComprobante(idEntrega) {
+    if (!confirm('¿Eliminar el comprobante? La entrega volverá a estado PENDIENTE.')) return;
+
+    const token = localStorage.getItem('token') || '';
+    showLoading();
+    try {
+        const res = await fetch(`${API_URL}/entregas/${idEntrega}/comprobante`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+            const json = await res.json();
+            throw new Error(json.message || 'Error al eliminar comprobante');
+        }
+        await cmp_cargar();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
 // ════════════════════════════════════════════════════════
 //  MÓDULO VENTAS
 // ════════════════════════════════════════════════════════
@@ -2554,6 +2774,16 @@ let _vnt_estado = '';
 
 async function vnt_cargar() {
     const token = localStorage.getItem('token');
+
+    // Resetear filtros al entrar a la sección
+    _vnt_estado = '';
+    _vnt_buscar = '';
+    const buscarInput = document.getElementById('vnt_buscar');
+    if (buscarInput) buscarInput.value = '';
+    document.querySelectorAll('#ventas .usr-ftab').forEach((b, i) => {
+        b.classList.toggle('active', i === 0);
+    });
+
     try {
         const res = await fetch(`${API_URL}/ventas`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -2563,7 +2793,7 @@ async function vnt_cargar() {
         vnt_renderTabla();
     } catch (e) {
         document.getElementById('vnt_tbody').innerHTML =
-            `<tr><td colspan="7" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="9" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -2581,16 +2811,18 @@ function vnt_renderTabla() {
     if (!tbody) return;
 
     const lista = _vnt_todos.filter(v => {
-        const txt = `${v.numero_factura || ''} ${v.cliente || ''}`.toLowerCase();
+        const txt = `${v.numero_factura || ''} ${v.cliente || ''} ${v.comerciante?.nombre || ''}`.toLowerCase();
         const okBuscar = !_vnt_buscar || txt.includes(_vnt_buscar);
-        const okEstado = !_vnt_estado || v.estado === _vnt_estado;
+        // Normalizar: comparar en minúsculas para soportar 'pendiente' y 'PENDIENTE'
+        const estadoVenta = (v.estado || '').toLowerCase();
+        const okEstado = !_vnt_estado || estadoVenta === _vnt_estado.toLowerCase();
         return okBuscar && okEstado;
     });
 
     document.getElementById('vnt_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
         return;
     }
 
@@ -2599,15 +2831,37 @@ function vnt_renderTabla() {
 
     tbody.innerHTML = lista.map(v => {
         const nDetalles = v.detalles?.length ?? '—';
+        
+        // Operario que registró la venta
+        const operario = v.nombre_operario || v.operario?.nombre || v.usuario?.nombre || '—';
+        
+        const emailCom = v.comerciante?.email || '';
+        const facturaBtn = emailCom
+            ? `<button class="usr-btn-action" title="Enviar factura electrónica (simulación)"
+                       style="background:#eff6ff;color:#2563eb"
+                       onclick="vnt_simularFactura(${v.id_venta}, '${emailCom}')">
+                   <i class="fi fi-rr-envelope"></i>
+               </button>`
+            : `<span style="font-size:.72rem;color:#d1d5db" title="Sin correo registrado">
+                   <i class="fi fi-rr-envelope" style="opacity:.4"></i>
+               </span>`;
         return `<tr>
             <td style="font-family:monospace;font-size:.82em;font-weight:700">${v.numero_factura || '—'}</td>
-            <td>${v.comerciante?.nombre ?? '-'}</td>
+            <td>${v.comerciante?.nombre ?? (v.cliente || '—')}</td>
+            <td style="font-size:.85em;color:#059669;font-weight:600">${operario}</td>
             <td style="font-size:.85em;color:#6b7280">${fmtFecha(v.fecha_venta)}</td>
             <td style="text-align:center">${nDetalles}</td>
             <td style="font-weight:700;color:#111827">${fmt(v.total)}</td>
             <td><span class="badge-estado badge-${v.estado || 'pendiente'}">${v.estado || 'pendiente'}</span></td>
+            <td style="text-align:center">${facturaBtn}</td>
             <td>
-                <div style="display:flex;gap:6px;justify-content:flex-end margin-right:-18px">
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                    ${v.estado === 'pendiente' || v.estado === 'PENDIENTE'
+                      ? `<button class="usr-btn-action" title="Marcar como completada"
+                                 style="background:#d1fae5;color:#065f46"
+                                 onclick="vnt_marcarCompletada(${v.id_venta})">
+                             <i class="fi fi-rr-check"></i>
+                         </button>` : ''}
                     <button class="usr-btn-action usr-btn-edit" title="Ver detalle"
                             onclick="det_abrir('venta', ${v.id_venta})">
                         <i class="fi fi-rr-eye"></i>
@@ -2617,6 +2871,117 @@ function vnt_renderTabla() {
         </tr>`;
     }).join('');
 }
+
+// ════════════════════════════════════════════════════════
+//  SIMULACION FACTURA ELECTRONICA
+// ════════════════════════════════════════════════════════
+
+/**
+ * Simula el envío de una factura electrónica al correo del comerciante.
+ * Muestra una ventana emergente con los datos de la factura
+ * tal como aparecería en el correo — sin enviar nada real.
+ */
+async function vnt_simularFactura(id_venta, email) {
+    const token = localStorage.getItem('token') || '';
+    try {
+        const res  = await fetch(`${API_URL}/ventas/${id_venta}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json();
+        const v    = json.data || json;
+
+        const fmt     = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
+        const fmtDate = f => f ? new Date(f).toLocaleDateString('es-CO') : '—';
+
+        const detallesRows = (v.detalles || []).map(d => `
+            <tr style="border-bottom:1px solid #e5e7eb">
+                <td style="padding:8px;color:#374151">${d.producto?.nombre || d.id_producto}</td>
+                <td style="padding:8px;text-align:center">${d.cantidad ?? d.cantidad_kg ?? '—'}</td>
+                <td style="padding:8px;text-align:right">${fmt(d.precio_unitario)}</td>
+                <td style="padding:8px;text-align:right;font-weight:700">${fmt(d.subtotal)}</td>
+            </tr>`).join('');
+
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <title>Factura Electrónica — Simulación</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width:700px; margin:32px auto; color:#111; }
+            .header { background:#15803d; color:#fff; padding:24px; border-radius:8px 8px 0 0; }
+            .header h1 { margin:0; font-size:1.3rem; }
+            .header p  { margin:4px 0 0; opacity:.85; font-size:.85rem; }
+            .badge-sim { background:#fef3c7; color:#92400e; font-size:.75rem; font-weight:700;
+                         padding:2px 8px; border-radius:99px; margin-left:8px; }
+            .body { border:1px solid #e5e7eb; border-top:none; padding:24px; border-radius:0 0 8px 8px; }
+            .row { display:flex; justify-content:space-between; padding:6px 0;
+                   border-bottom:1px solid #f3f4f6; font-size:.88rem; }
+            .row span:first-child { color:#6b7280; }
+            table { width:100%; border-collapse:collapse; margin-top:16px; font-size:.85rem; }
+            th { background:#f0fdf4; color:#166534; padding:8px; text-align:left; }
+            .total { background:#f0fdf4; border-radius:8px; padding:12px 16px;
+                     margin-top:16px; display:flex; justify-content:space-between;
+                     font-size:1.1rem; font-weight:800; }
+            .footer { margin-top:20px; font-size:.75rem; color:#9ca3af; text-align:center;
+                      border-top:1px solid #e5e7eb; padding-top:12px; }
+            .email-to { background:#eff6ff; border-radius:8px; padding:10px 14px;
+                        font-size:.82rem; color:#1e40af; margin-bottom:16px; }
+        </style></head><body>
+        <div class="header">
+            <h1> Factura Electrónica de Venta <span class="badge-sim">SIMULACIÓN</span></h1>
+            <p>AgroTrace — Sistema de Trazabilidad Agrícola</p>
+        </div>
+        <div class="body">
+            <div class="email-to">
+                <strong>Para:</strong> ${email}<br>
+                <strong>Asunto:</strong> Factura de venta ${v.numero_factura || v.id_venta} — AgroTrace
+                <br><em style="opacity:.7">* Esta es una simulación. No se envió ningún correo real.</em>
+            </div>
+            <div class="row"><span>N° Factura</span><span><strong>${v.numero_factura || '—'}</strong></span></div>
+            <div class="row"><span>Fecha</span><span>${fmtDate(v.fecha_venta)}</span></div>
+            <div class="row"><span>Cliente</span><span>${v.cliente || v.comerciante?.nombre || '—'}</span></div>
+            <div class="row"><span>Estado</span><span>${v.estado || '—'}</span></div>
+            <table>
+                <thead><tr>
+                    <th>Producto</th><th style="text-align:center">Cantidad</th>
+                    <th style="text-align:right">Precio/kg</th><th style="text-align:right">Subtotal</th>
+                </tr></thead>
+                <tbody>${detallesRows}</tbody>
+            </table>
+            <div class="total">
+                <span>TOTAL</span><span style="color:#15803d">${fmt(v.total)}</span>
+            </div>
+            <div class="footer">
+                Documento generado por AgroTrace &nbsp;·&nbsp; ${new Date().toLocaleString('es-CO')}
+                <br>Simulación basada en la factura electrónica DIAN
+            </div>
+        </div>
+        <script>window.print()<\/script>
+        </body></html>`;
+
+        const win = window.open('', '_blank', 'width=760,height=700');
+        win.document.write(html);
+        win.document.close();
+
+    } catch (e) {
+        alert('Error al generar factura: ' + e.message);
+    }
+}
+
+async function vnt_marcarCompletada(id_venta) {
+    if (!confirm('¿Marcar esta venta como COMPLETADA?')) return;
+    const token = localStorage.getItem('token') || '';
+    showLoading();
+    try {
+        const res = await fetch(`${API_URL}/ventas/${id_venta}/estado`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ estado: 'completada' })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+        await vnt_cargar();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally { hideLoading(); }
+}
+
 
 // ════════════════════════════════════════════════════════
 //  MODAL DETALLE COMPRA / VENTA
@@ -2646,9 +3011,12 @@ async function det_abrir(tipo, id) {
         // Info cards
         let infoHTML = '';
         if (tipo === 'compra') {
-            const prod = d.productor?.usuario?.nombre
-                ? `${d.productor.usuario.nombre} ${d.productor.usuario.apellido || ''}`.trim()
-                : (d.productor?.nombre || '—');
+            const esExternoDet = d.tipo_productor === 'EXTERNO' || (!d.id_productor && d.nombre_productor_externo);
+            const prod = esExternoDet
+                ? `${d.nombre_productor_externo || 'Externo'} (externo)`
+                : d.productor?.usuario?.nombre
+                    ? `${d.productor.usuario.nombre} ${d.productor.usuario.apellido || ''}`.trim()
+                    : (d.productor?.nombre || '—');
             infoHTML = `
                 <div class="det-info-item"><span class="det-info-label">Productor</span><span class="det-info-value">${prod}</span></div>
                 <div class="det-info-item"><span class="det-info-label">Fecha compra</span><span class="det-info-value">${fmtFecha(d.fecha_compra)}</span></div>
@@ -2701,26 +3069,66 @@ let _his_buscar = '';
 async function his_cargar() {
     const token = localStorage.getItem('token');
 
-    // Fechas
     const inicio = document.getElementById('his_fecha_inicio')?.value || '';
-    const fin = document.getElementById('his_fecha_fin')?.value || '';
-    const params = new URLSearchParams();
-    if (inicio) params.append('inicio', inicio);
-    if (fin) params.append('fin', fin);
-    const qs = params.toString() ? '?' + params.toString() : '';
+    const fin    = document.getElementById('his_fecha_fin')?.value    || '';
 
     try {
         if (_his_tabActual === 'transacciones') {
-            const res = await fetch(`${API_URL}/historial/transacciones${qs}`, {
-                headers: { Authorization: `Bearer ${token}` }
+            // ── Cargar compras Y ventas en paralelo desde endpoints reales ──
+            const [resC, resV] = await Promise.all([
+                fetch(`${API_URL}/compras`, { headers: { Authorization: `Bearer ${token}` } }),
+                fetch(`${API_URL}/ventas`,  { headers: { Authorization: `Bearer ${token}` } }),
+            ]);
+            const jsonC = resC.ok ? await resC.json() : [];
+            const jsonV = resV.ok ? await resV.json() : [];
+
+            const compras = (Array.isArray(jsonC) ? jsonC : (jsonC.data || [])).map(c => ({
+                _tipo:       'compra',
+                id_ref:      c.id_compra,
+                numero:      c.numero_factura || `COMP-${String(c.id_compra).padStart(6,'0')}`,
+                fecha:       c.fecha_compra  || c.fecha,
+                contraparte: (c.tipo_productor === 'EXTERNO' || (!c.id_productor && c.nombre_productor_externo))
+                    ? `${c.nombre_productor_externo || 'Externo'} (externo)`
+                    : c.productor?.usuario
+                        ? `${c.productor.usuario.nombre || ''} ${c.productor.usuario.apellido || ''}`.trim()
+                        : (c.productor?.nombre || '—'),
+                producto:    c.detalles?.map(d => d.producto?.nombre || `#${d.id_producto}`).join(', ') || '—',
+                peso:        c.detalles?.reduce((s, d) => s + Number(d.peso_kg || d.cantidad || 0), 0) || null,
+                total:       c.total,
+                estado:      c.estado || 'pendiente',
+                estado_pago: c.estado_pago || 'PENDIENTE',
+            }));
+
+            const ventas = (Array.isArray(jsonV) ? jsonV : (jsonV.data || [])).map(v => ({
+                _tipo:       'venta',
+                id_ref:      v.id_venta,
+                numero:      v.numero_factura || `VENT-${String(v.id_venta).padStart(6,'0')}`,
+                fecha:       v.fecha_venta || v.fecha,
+                contraparte: v.comerciante?.nombre || v.cliente || '—',
+                producto:    v.detalles?.map(d => d.producto?.nombre || `#${d.id_producto}`).join(', ') || '—',
+                peso:        v.detalles?.reduce((s, d) => s + Number(d.cantidad || 0), 0) || null,
+                total:       v.total,
+                estado:      v.estado || 'pendiente',
+                estado_pago: null,
+            }));
+
+            // Combinar y ordenar por fecha descendente
+            let todas = [...compras, ...ventas].sort((a, b) => {
+                const da = a.fecha ? new Date(a.fecha) : 0;
+                const db = b.fecha ? new Date(b.fecha) : 0;
+                return db - da;
             });
-            const json = await res.json();
-            _his_transacciones = Array.isArray(json) ? json : (json.data || []);
+
+            // Aplicar filtro de fechas en cliente
+            if (inicio) todas = todas.filter(t => t.fecha && t.fecha >= inicio);
+            if (fin)    todas = todas.filter(t => t.fecha && t.fecha <= fin + 'T23:59:59');
+
+            _his_transacciones = todas;
             his_renderTransacciones();
         } else {
-            const res = await fetch(`${API_URL}/historial/precios${qs}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // ── Pestaña PRECIOS → carga desde /precios (módulo admin) ──
+            const res  = await fetch(`${API_URL}/precios`,
+                { headers: { Authorization: `Bearer ${token}` } });
             const json = await res.json();
             _his_precios = Array.isArray(json) ? json : (json.data || []);
             his_renderPrecios();
@@ -2755,7 +3163,7 @@ function his_renderTransacciones() {
     if (!tbody) return;
 
     const lista = _his_transacciones.filter(t => {
-        const txt = `${t.tipo_transaccion || ''} ${t.estado || ''}`.toLowerCase();
+        const txt = `${t._tipo || ''} ${t.contraparte || ''} ${t.producto || ''} ${t.numero || ''} ${t.estado || ''}`.toLowerCase();
         return !_his_buscar || txt.includes(_his_buscar);
     });
 
@@ -2767,43 +3175,73 @@ function his_renderTransacciones() {
     }
 
     const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
+    const fmtFecha = f => f ? new Date(f).toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—';
 
-    tbody.innerHTML = lista.map(t => `<tr>
-        <td style="font-weight:700;color:#111827">#${t.id_historial}</td>
-        <td><span class="badge-estado badge-${t.tipo_transaccion === 'compra' ? 'compra' : 'venta'}">${t.tipo_transaccion}</span></td>
-        <td style="font-size:.84em;color:#6b7280">${t.fecha_transaccion ? new Date(t.fecha_transaccion).toLocaleString('es-CO') : '—'}</td>
-        <td style="font-weight:700">${fmt(t.monto)}</td>
-        <td><span class="badge-estado badge-${t.estado || 'pendiente'}">${t.estado || '—'}</span></td>
-        <td style="font-size:.82em;color:#6b7280">${t.id_compra ? '#' + t.id_compra : '—'}</td>
-        <td style="font-size:.82em;color:#6b7280">${t.id_venta ? '#' + t.id_venta : '—'}</td>
-    </tr>`).join('');
+    tbody.innerHTML = lista.map(t => {
+        const esCompra = t._tipo === 'compra';
+        const tipoBadge = `<span class="badge-estado badge-${esCompra ? 'compra' : 'venta'}">${esCompra ? 'Compra' : 'Venta'}</span>`;
+
+        // Estado pago solo aplica a compras
+        let estadoExtra = '';
+        if (esCompra && t.estado_pago) {
+            const isPagado = t.estado_pago === 'PAGADO';
+            estadoExtra = isPagado
+                ? `<br><span style="font-size:.68rem;background:#d1fae5;color:#065f46;border-radius:99px;padding:1px 6px;font-weight:700"> Pago</span>`
+                : `<br><span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:99px;padding:1px 6px;font-weight:700">⏳ Pago pend.</span>`;
+        }
+
+        const pesoStr = t.peso ? `${Number(t.peso).toLocaleString('es-CO')} kg` : '—';
+
+        return `<tr>
+            <td style="font-family:monospace;font-size:.82em;font-weight:700">${t.numero}</td>
+            <td>${tipoBadge}</td>
+            <td style="font-size:.84em;color:#6b7280">${fmtFecha(t.fecha)}</td>
+            <td style="font-size:.84em">${t.contraparte}</td>
+            <td style="font-size:.82em;color:#6b7280">${t.producto}<br><small>${pesoStr}</small></td>
+            <td style="font-weight:700;color:#111827">${fmt(t.total)}${estadoExtra}</td>
+            <td><span class="badge-estado badge-${(t.estado || 'pendiente').toLowerCase()}">${t.estado || 'pendiente'}</span></td>
+        </tr>`;
+    }).join('');
 }
 
 function his_renderPrecios() {
     const tbody = document.getElementById('his_tbody_precios');
     if (!tbody) return;
 
+    const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
+
     const lista = _his_precios.filter(p => {
-        const txt = `${p.producto?.nombre || ''} ${p.motivo || ''}`.toLowerCase();
-        return !_his_buscar || txt.includes(_his_buscar);
+        const nombre = (p.producto?.nombre || '').toLowerCase();
+        return !_his_buscar || nombre.includes(_his_buscar);
     });
 
-    document.getElementById('his_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
+    document.getElementById('his_count').textContent =
+        `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">Sin registros de precios semanales</td></tr>`;
         return;
     }
 
-    const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
-
-    tbody.innerHTML = lista.map(p => `<tr>
-        <td style="font-weight:700;color:#111827">#${p.id_historial_precio}</td>
-        <td>${p.producto?.nombre || '—'}</td>
-        <td style="font-weight:700;color:#0aae0a">${fmt(p.precio)}</td>
-        <td style="font-size:.84em;color:#6b7280">${p.fecha_cambio ? new Date(p.fecha_cambio).toLocaleString('es-CO') : '—'}</td>
-        <td style="font-size:.84em;color:#6b7280">${p.motivo || '—'}</td>
-    </tr>`).join('');
+    tbody.innerHTML = lista.map(p => {
+        const nombreProd = p.producto?.nombre || `Producto #${p.id_producto}`;
+        const estado = p.activo
+            ? `<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 10px;font-size:.73rem;font-weight:700">Activo</span>`
+            : `<span style="background:#f3f4f6;color:#6b7280;border-radius:99px;padding:2px 10px;font-size:.73rem;font-weight:700">Inactivo</span>`;
+        const fecha = p.fecha
+            ? new Date(p.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+        return `<tr>
+            <td><strong>${nombreProd}</strong></td>
+            <td>${fmt(p.precio_base_kg)}</td>
+            <td>${fmt(p.precio_transporte)}</td>
+            <td>${fmt(p.costo_transporte_kg)}</td>
+            <td><strong style="color:#16a34a">${fmt(p.precio_final_kg)}</strong><br>
+                <small style="color:#9ca3af;font-size:.72rem">precio al productor</small></td>
+            <td style="font-size:.84em;color:#6b7280">${fecha}</td>
+            <td>${estado}</td>
+        </tr>`;
+    }).join('');
 }
 
 // ── Exportar Excel ──────────────────────────────────────
@@ -2825,24 +3263,26 @@ function his_exportarExcel() {
     let filas = [];
 
     if (_his_tabActual === 'transacciones') {
-        filas.push(['ID', 'Tipo', 'Fecha', 'Monto ($)', 'Estado', 'ID Compra', 'ID Venta']);
+        filas.push(['Número', 'Tipo', 'Fecha', 'Contraparte', 'Producto', 'Total ($)', 'Estado']);
         datos.forEach(t => filas.push([
-            t.id_historial,
-            t.tipo_transaccion || '',
-            fmtFecha(t.fecha_transaccion),
-            fmtMonto(t.monto),
-            t.estado || '',
-            t.id_compra || '',
-            t.id_venta || ''
+            t.numero       || '',
+            t._tipo        || '',
+            fmtFecha(t.fecha),
+            t.contraparte  || '',
+            t.producto     || '',
+            fmtMonto(t.total),
+            t.estado       || '',
         ]));
     } else {
-        filas.push(['ID', 'Producto', 'Precio ($)', 'Fecha Cambio', 'Motivo']);
+        filas.push(['Producto', 'Precio Base/kg', 'Transporte', 'Costo Transp/kg', 'Precio Productor/kg', 'Fecha', 'Estado']);
         datos.forEach(p => filas.push([
-            p.id_historial_precio,
-            p.producto?.nombre || '',
-            fmtMonto(p.precio),
-            fmtFecha(p.fecha_cambio),
-            p.motivo || ''
+            p.producto?.nombre || `Producto #${p.id_producto}`,
+            fmtMonto(p.precio_base_kg),
+            fmtMonto(p.precio_transporte),
+            fmtMonto(p.costo_transporte_kg),
+            fmtMonto(p.precio_final_kg),
+            fmtFecha(p.fecha),
+            p.activo ? 'Activo' : 'Inactivo'
         ]));
     }
 
@@ -2868,20 +3308,26 @@ function his_exportarPDF() {
     let filas = '';
     let cabecera = '';
     if (_his_tabActual === 'transacciones') {
-        cabecera = '<tr><th>ID</th><th>Tipo</th><th>Fecha</th><th>Monto</th><th>Estado</th><th>Compra</th><th>Venta</th></tr>';
+        cabecera = '<tr><th>Número</th><th>Tipo</th><th>Fecha</th><th>Contraparte</th><th>Producto</th><th>Total</th><th>Estado</th></tr>';
         filas = datos.map(t => `<tr>
-            <td>#${t.id_historial}</td><td>${t.tipo_transaccion}</td>
-            <td>${t.fecha_transaccion ? new Date(t.fecha_transaccion).toLocaleString('es-CO') : '—'}</td>
-            <td>${fmt(t.monto)}</td><td>${t.estado || '—'}</td>
-            <td>${t.id_compra ? '#' + t.id_compra : '—'}</td><td>${t.id_venta ? '#' + t.id_venta : '—'}</td>
+            <td>${t.numero || '—'}</td>
+            <td>${t._tipo === 'compra' ? 'Compra' : 'Venta'}</td>
+            <td>${t.fecha ? new Date(t.fecha).toLocaleDateString('es-CO') : '—'}</td>
+            <td>${t.contraparte || '—'}</td>
+            <td>${t.producto || '—'}</td>
+            <td>${fmt(t.total)}</td>
+            <td>${t.estado || '—'}</td>
         </tr>`).join('');
     } else {
-        cabecera = '<tr><th>ID</th><th>Producto</th><th>Precio</th><th>Fecha</th><th>Motivo</th></tr>';
+        cabecera = '<tr><th>Producto</th><th>Base/kg</th><th>Transporte</th><th>Costo/kg</th><th>Precio Productor/kg</th><th>Fecha</th><th>Estado</th></tr>';
         filas = datos.map(p => `<tr>
-            <td>#${p.id_historial_precio}</td><td>${p.producto?.nombre || '—'}</td>
-            <td>${fmt(p.precio)}</td>
-            <td>${p.fecha_cambio ? new Date(p.fecha_cambio).toLocaleString('es-CO') : '—'}</td>
-            <td>${p.motivo || '—'}</td>
+            <td>${p.producto?.nombre || '—'}</td>
+            <td>${fmt(p.precio_base_kg)}</td>
+            <td>${fmt(p.precio_transporte)}</td>
+            <td>${fmt(p.costo_transporte_kg)}</td>
+            <td><strong style="color:#16a34a">${fmt(p.precio_final_kg)}</strong></td>
+            <td>${p.fecha ? new Date(p.fecha).toLocaleDateString('es-CO') : '—'}</td>
+            <td>${p.activo ? 'Activo' : 'Inactivo'}</td>
         </tr>`).join('');
     }
 
@@ -2939,11 +3385,11 @@ function his_exportarPDF() {
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
         const [vR, cR, prR, plR] = await Promise.allSettled([
-            fetch(`${window.API_URL}/ventas`, { headers }),
-            fetch(`${window.API_URL}/compras`, { headers }),
-            fetch(`${window.API_URL}/productos`, { headers }),
-            fetch(`${window.API_URL}/productores?todos=true`, { headers }),
-            fetch(`${window.API_URL}/comerciantes?todos=true`, { headers }) // opcional, si quieres contar comerciantes también
+            fetch(`${API_URL}/ventas`, { headers }),
+            fetch(`${API_URL}/compras`, { headers }),
+            fetch(`${API_URL}/productos`, { headers }),
+            fetch(`${API_URL}/productores?todos=true`, { headers }),
+            fetch(`${API_URL}/comerciantes?todos=true`, { headers })
         ]);
 
         const vArr = vR.status === 'fulfilled' ? await vR.value.json() : [];
@@ -3095,7 +3541,7 @@ function _generarPDF(titulo, cabecera, filas, totalHTML) {
         .footer{margin-top:24px;font-size:.72em;color:#9ca3af;text-align:right}
         @media print{body{margin:20px}.footer{position:fixed;bottom:0;right:20px}}
     </style></head><body>
-    <h1>🌱 AgroTrace — ${titulo}</h1>
+    <h1> AgroTrace — ${titulo}</h1>
     <div class="sub">Generado el ${fecha} · ${filas.length} registros</div>
     <table><thead>${cabecera}</thead><tbody>${filas.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
     ${totalHTML ? `<div class="total">${totalHTML}</div>` : ''}
@@ -3145,11 +3591,27 @@ function his_exportarExcel() {
     const fmtM = n => n != null ? Number(n).toLocaleString('es-CO', { minimumFractionDigits: 2 }) : '';
     let encabezados, filas;
     if (_his_tabActual === 'transacciones') {
-        encabezados = ['ID', 'Tipo', 'Fecha', 'Monto ($)', 'Estado', 'ID Compra', 'ID Venta'];
-        filas = datos.map(t => [t.id_historial, t.tipo_transaccion || '', fmtF(t.fecha_transaccion), fmtM(t.monto), t.estado || '', t.id_compra || '', t.id_venta || '']);
+        encabezados = ['Número', 'Tipo', 'Fecha', 'Contraparte', 'Producto', 'Total ($)', 'Estado'];
+        filas = datos.map(t => [
+            t.numero      || '',
+            t._tipo       || '',
+            fmtF(t.fecha),
+            t.contraparte || '',
+            t.producto    || '',
+            fmtM(t.total),
+            t.estado      || '',
+        ]);
     } else {
-        encabezados = ['ID', 'Producto', 'Precio ($)', 'Fecha Cambio', 'Motivo'];
-        filas = datos.map(p => [p.id_historial_precio, p.producto?.nombre || '', fmtM(p.precio), fmtF(p.fecha_cambio), p.motivo || '']);
+        encabezados = ['Producto', 'Precio Base/kg', 'Transporte', 'Costo/kg', 'Precio Productor/kg', 'Fecha', 'Estado'];
+        filas = datos.map(p => [
+            p.producto?.nombre || `Producto #${p.id_producto}`,
+            fmtM(p.precio_base_kg),
+            fmtM(p.precio_transporte),
+            fmtM(p.costo_transporte_kg),
+            fmtM(p.precio_final_kg),
+            fmtF(p.fecha),
+            p.activo ? 'Activo' : 'Inactivo',
+        ]);
     }
     _generarExcel(`historial_${_his_tabActual}`, 'Historial', encabezados, filas);
 }
@@ -3533,7 +3995,7 @@ function det_descargarPDF() {
         .footer{margin-top:24px;font-size:.72em;color:#9ca3af;text-align:right}
         @media print{body{margin:20px}.footer{position:fixed;bottom:0;right:20px}}
     </style></head><body>
-    <h1>🌱 AgroTrace — ${titulo}</h1>
+    <h1> AgroTrace — ${titulo}</h1>
     <div class="sub">${subtitulo} · Generado el ${fecha}</div>
     ${infoHTML}
     <table><thead>${cabecera}</thead><tbody>
@@ -3550,85 +4012,44 @@ function det_descargarPDF() {
 }
 
 // ════════════════════════════════════════════════════════
-//  RANKING — Filtro por fechas + Exportar PDF y Excel
+//  RANKING — con nombres reales, total pagado, fechas
 // ════════════════════════════════════════════════════════
 let _ranking_data = [];
 
-// Reemplazar analisis_loadRanking para incluir fechas
-const _orig_loadRanking = analisis_loadRanking;
-window.analisis_loadRanking = async function () {
-    const tipo = document.getElementById('ar_tipo').value;
-    const inicio = document.getElementById('ar_inicio')?.value || '';
-    const fin = document.getElementById('ar_fin')?.value || '';
-    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
-    document.getElementById('ar_tipo_label').textContent = labels[tipo];
-    showLoading();
-    try {
-        let qs = [`tipo=${tipo}`];
-        if (inicio) qs.push(`inicio=${inicio}`);
-        if (fin) qs.push(`fin=${fin}`);
-        const res = await fetch(`${API_URL}/estadisticas/ranking?${qs.join('&')}`);
-        const data = await res.json();
-        _ranking_data = Array.isArray(data) ? data : [];
-
-        const tbody = document.getElementById('ar_tbody');
-        if (!_ranking_data.length) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No hay datos para el período seleccionado</td></tr>';
-            destroyAnalisisChart('ranking');
-        } else {
-            tbody.innerHTML = _ranking_data.map(r => {
-                const medalla = r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : '';
-                const nombre = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
-                return `<tr>
-                    <td style="font-weight:800;color:#111827">${r.posicion}</td>
-                    <td style="font-weight:600">${nombre}</td>
-                    <td style="font-weight:700">${formatNumber(parseFloat(r.valor).toFixed(2))}</td>
-                    <td style="font-size:1.2em">${medalla}</td>
-                </tr>`;
-            }).join('');
-            destroyAnalisisChart('ranking');
-            const colors = _ranking_data.map((_, i) => `hsla(${130 - (i * 12)},65%,45%,0.8)`);
-            const ctx = document.getElementById('ar_chart').getContext('2d');
-            analisisCharts.ranking = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: _ranking_data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `Productor ${d.id_productor}`),
-                    datasets: [{ data: _ranking_data.map(d => d.valor), backgroundColor: colors, borderRadius: 6 }]
-                },
-                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-            });
-        }
-    } catch (e) {
-        document.getElementById('ar_tbody').innerHTML = `<tr><td colspan="4" class="empty-state" style="color:red">Error: ${e.message}</td></tr>`;
-    } finally { hideLoading(); }
-};
+// analisis_loadRanking ya está definida arriba con la lógica correcta.
+// Este bloque solo agrega las funciones de exportación PDF/Excel.
 
 function ranking_exportarPDF() {
     if (!_ranking_data.length) { alert('Primero genera el ranking'); return; }
-    const tipo = document.getElementById('ar_tipo').value;
+    const tipo   = document.getElementById('ar_tipo').value;
     const inicio = document.getElementById('ar_inicio')?.value || '';
-    const fin = document.getElementById('ar_fin')?.value || '';
-    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
-    const titulo = `Ranking de Productores — ${labels[tipo]}`;
+    const fin    = document.getElementById('ar_fin')?.value    || '';
+    const labels = { total: 'Total kg entregados', promedio: 'Promedio kg/entrega', frecuencia: 'Nº entregas' };
+    const titulo = `Ranking de Productores — ${labels[tipo] || tipo}`;
     const periodo = (inicio || fin) ? ` · Período: ${inicio || 'inicio'} → ${fin || 'hoy'}` : '';
-    const cab = '<tr><th>#</th><th>Productor</th><th>Valor</th><th></th></tr>';
+    const cab  = '<tr><th>#</th><th>Productor</th><th>Cédula</th><th>Valor</th><th>Total pagado</th></tr>';
     const filas = _ranking_data.map(r => {
-        const medalla = r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : '';
         const nombre = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
-        return [r.posicion, nombre, formatNumber(parseFloat(r.valor).toFixed(2)), medalla];
+        const valFmt = tipo === 'frecuencia'
+            ? `${r.valor} entregas`
+            : `${parseFloat(r.valor).toFixed(1)} kg`;
+        return [r.posicion, nombre, r.cedula || '—', valFmt, r.total_pagado ? formatCurrency(r.total_pagado) : '—'];
     });
     _generarPDF(titulo + periodo, cab, filas, '');
 }
 
 function ranking_exportarExcel() {
     if (!_ranking_data.length) { alert('Primero genera el ranking'); return; }
-    const tipo = document.getElementById('ar_tipo').value;
-    const labels = { total: 'Total producido', promedio: 'Promedio por entrega', frecuencia: 'Frecuencia de entregas' };
-    const cols = ['Posición', 'Productor', labels[tipo]];
-    const filas = _ranking_data.map(r => [
+    const tipo   = document.getElementById('ar_tipo').value;
+    const labels = { total: 'Total kg', promedio: 'Promedio kg', frecuencia: 'Nº entregas' };
+    const cols   = ['Posición', 'Productor', 'Cédula', 'Finca', labels[tipo] || tipo, 'Total pagado ($)'];
+    const filas  = _ranking_data.map(r => [
         r.posicion,
         (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`,
-        parseFloat(r.valor)
+        r.cedula  || '',
+        r.finca   || '',
+        parseFloat(r.valor),
+        parseFloat(r.total_pagado || 0),
     ]);
     _generarExcel(`ranking_${tipo}`, 'Ranking', cols, filas);
 }
@@ -3662,9 +4083,13 @@ async function db_cargarActividades() {
         let actividades = [];
 
         cArr.forEach(c => {
-            const productor = c.productor?.usuario
-                ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
-                : (c.productor?.nombre || '—');
+            // Productor externo o afiliado
+            const esExterno = c.tipo_productor === 'EXTERNO' || (!c.id_productor && c.nombre_productor_externo);
+            const productor = esExterno
+                ? `${c.nombre_productor_externo || 'Externo'} <span style="background:#fef3c7;color:#b45309;padding:1px 6px;border-radius:20px;font-size:.75em;font-weight:700">(externo)</span>`
+                : c.productor?.usuario
+                    ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
+                    : (c.productor?.nombre || '—');
             actividades.push({
                 fecha: c.fecha_compra || c.createdAt,
                 tipo: 'Compra',
@@ -3805,7 +4230,13 @@ function com_render() {
 
         <td>${c.telefono}</td>
 
-        <td>${c.direccion || '-'}</td>
+        <td>${c.direccion || '—'}</td>
+
+        <td>
+            ${c.email
+              ? `<a href="mailto:${c.email}" style="color:#2563eb;font-size:.85em">${c.email}</a>`
+              : '<span style="color:#d1d5db;font-size:.82em">Sin correo</span>'}
+        </td>
 
         <td>
             ${c.activo
@@ -3868,6 +4299,7 @@ function com_abrirPanel() {
     document.getElementById("com_nombre").value = "";
     document.getElementById("com_telefono").value = "";
     document.getElementById("com_direccion").value = "";
+    document.getElementById("com_email").value = "";
 
     document.getElementById("com_panel").classList.add("open");
 
@@ -3887,6 +4319,7 @@ function com_editar(id) {
     document.getElementById("com_nombre").value = c.nombre;
     document.getElementById("com_telefono").value = c.telefono;
     document.getElementById("com_direccion").value = c.direccion || "";
+    document.getElementById("com_email").value    = c.email     || "";
 
     document.getElementById("com_panel").classList.add("open");
 
@@ -3910,10 +4343,12 @@ async function com_guardar() {
 
     const token = localStorage.getItem("token");
 
+    const email = document.getElementById("com_email")?.value.trim() || "";
     const data = {
         nombre,
         telefono,
-        direccion
+        direccion,
+        email,
     };
 
     try {
@@ -4037,3 +4472,419 @@ function com_cerrarPanel() {
         .classList.remove("show");
 
 }
+
+
+// ============================================================
+// MÓDULO PRECIOS — AgroTrace Admin
+// ============================================================
+
+// ── Estado del módulo ────────────────────────────────────────
+let _prc_lista    = [];   // historial completo
+let _prc_buscar   = '';   // texto búsqueda tabla
+
+// ── Alerta semanal (solo miércoles) ─────────────────────────
+async function prc_verificarAlertaSemanal() {
+    if (new Date().getDay() !== 4) return;    // 3 = miércoles
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const res = await fetch(`${API_URL}/precios/semana`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const { hay_precio } = await res.json();
+        if (!hay_precio) prc_mostrarAlerta();
+    } catch (e) {
+        console.warn('[PRECIOS] verificarAlertaSemanal:', e.message);
+    }
+}
+
+function prc_mostrarAlerta() {
+    const m = document.getElementById('prc_modal_alerta');
+    if (m) m.classList.add('show');
+}
+
+function prc_cerrarAlerta(irASeccion) {
+    const m = document.getElementById('prc_modal_alerta');
+    if (m) m.classList.remove('show');
+    if (irASeccion) mostrarSeccion('precios');
+}
+
+// ── Cargar sección ───────────────────────────────────────────
+async function prc_cargar() {
+    await Promise.all([prc_cargarSelectProductos(), prc_cargarHistorial()]);
+}
+
+async function prc_cargarSelectProductos() {
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/productos`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const lista = await res.json();
+        const sel   = document.getElementById('prc_sel_producto');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+        (Array.isArray(lista) ? lista : [])
+            .filter(p => p.disponible !== false)
+            .forEach(p => {
+                const opt = document.createElement('option');
+                opt.value       = p.id_producto;
+                opt.textContent = p.nombre;
+                sel.appendChild(opt);
+            });
+    } catch (e) { console.error('[PRECIOS] cargarSelectProductos:', e); }
+}
+
+async function prc_cargarHistorial() {
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/precios`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const datos = await res.json();
+        _prc_lista  = Array.isArray(datos) ? datos : [];
+        prc_renderTabla();
+    } catch (e) { console.error('[PRECIOS] cargarHistorial:', e); }
+}
+
+// ── Cuando cambia el producto en el select ──────────────────
+// Pre-rellena el input con el precio actual y muestra el preview
+function prc_alProductoCambia(id_producto) {
+    const wrap = document.getElementById('prc_precio_actual_wrap');
+    const val  = document.getElementById('prc_precio_actual_val');
+    const inp  = document.getElementById('prc_inp_precio_base');
+    const prev = document.getElementById('prc_preview_venta');
+
+    if (!id_producto) {
+        if (wrap) wrap.style.display = 'none';
+        if (prev) prev.style.display = 'none';
+        if (inp)  inp.value = '';
+        return;
+    }
+    const actual = _prc_lista.find(p => String(p.id_producto) === String(id_producto));
+    if (actual) {
+        const fmt = v => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(v);
+        if (val)  val.textContent   = fmt(actual.precio_base_kg);
+        if (wrap) wrap.style.display = 'block';
+        if (inp)  { inp.value = actual.precio_base_kg; prc_previewVenta(); }
+    } else {
+        if (wrap) wrap.style.display = 'none';
+        if (inp)  inp.value = '';
+        if (prev) prev.style.display = 'none';
+    }
+}
+
+// ── Preview de precios de venta en tiempo real ──────────────
+// Muestra cuanto cobraria el operario al comerciante segun la regla
+function prc_previewVenta() {
+    const base = parseFloat(document.getElementById('prc_inp_precio_base')?.value || '0');
+    const prev = document.getElementById('prc_preview_venta');
+    const elP  = document.getElementById('prc_prev_primo');
+    const elO  = document.getElementById('prc_prev_otro');
+    if (!prev) return;
+    if (!base || base <= 0) { prev.style.display = 'none'; return; }
+    const fmt = v => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(v);
+    if (elP) elP.textContent = fmt(base);        // EL PRIMO -> precio base
+    if (elO) elO.textContent = fmt(base + 100);  // otros    -> base + $100/kg
+    prev.style.display = 'block';
+}
+
+// ── Guardar precio base ──────────────────────────────────────
+// Solo guarda producto + precio_base_kg.
+// El descuento de transporte y asociacion se calcula al cerrar la ruta.
+async function prc_guardarPrecioBase() {
+    const id_producto    = parseInt(document.getElementById('prc_sel_producto')?.value || '0');
+    const precio_base_kg = parseFloat(document.getElementById('prc_inp_precio_base')?.value || '0');
+
+    const showMsg = (msg, ok) => {
+        const b = document.getElementById('prc_banner_form');
+        if (!b) return prc_banner(msg, ok ? 'ok' : 'err');
+        b.style.display = 'block';
+        b.style.background = ok ? '#d1fae5' : '#fee2e2';
+        b.style.color      = ok ? '#065f46' : '#991b1b';
+        b.textContent = msg;
+        if (ok) setTimeout(() => { b.style.display = 'none'; }, 3000);
+    };
+
+    if (!id_producto)                           return showMsg('Selecciona un producto.', false);
+    if (!precio_base_kg || precio_base_kg <= 0) return showMsg('Ingresa un precio base válido (mayor que 0).', false);
+
+    const dto = { id_producto, precio_base_kg, precio_transporte: 0, total_kilos: 1, comerciante: 'GENERAL' };
+
+    showLoading();
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/precios`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body:    JSON.stringify(dto)
+        });
+        if (!res.ok) { const err = await res.json(); throw new Error(err.message || err.error || 'Error al guardar'); }
+        showMsg(' Precio guardado correctamente.', true);
+        prc_limpiarFormulario();
+        await prc_cargarHistorial();
+    } catch (e) {
+        showMsg(e.message, false);
+    } finally { hideLoading(); }
+}
+
+// ── Tabla de precios vigentes ────────────────────────────────
+function prc_renderTabla() {
+    const tbody = document.getElementById('prc_tbody');
+    if (!tbody) return;
+    const fmt = v => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(v);
+
+    const lista = _prc_lista.filter(p => {
+        if (!_prc_buscar) return true;
+        return (p.producto?.nombre || '').toLowerCase().includes(_prc_buscar);
+    });
+
+    if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Sin precios registrados</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = lista.map(p => {
+        const base  = Number(p.precio_base_kg);
+        const primo = base;
+        const otros = base + 100;
+        const fecha = p.fecha ? new Date(p.fecha).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        const badge = p.activo
+            ? `<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">Activo</span>`
+            : `<span style="background:#f3f4f6;color:#6b7280;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">Inactivo</span>`;
+        return `<tr>
+            <td><strong>${p.producto?.nombre || '#' + p.id_producto}</strong></td>
+            <td style="text-align:right;font-weight:600">${fmt(base)}</td>
+            <td style="text-align:right;color:#16a34a;font-weight:700">${fmt(primo)}</td>
+            <td style="text-align:right;color:#2563eb;font-weight:700">${fmt(otros)}</td>
+            <td style="font-size:.82em;color:#6b7280">${fecha}</td>
+            <td>${badge}</td>
+            <td>
+                <button class="usr-btn-action usr-btn-edit" title="Editar"
+                        onclick="prc_editar(${p.id_precio}, ${p.id_producto}, ${base})">
+                    <i class="fi fi-rr-edit"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Editar precio desde la tabla ─────────────────────────────
+function prc_editar(id_precio, id_producto, precio_actual) {
+    const sel = document.getElementById('prc_sel_producto');
+    const inp = document.getElementById('prc_inp_precio_base');
+    if (sel) sel.value = String(id_producto);
+    if (inp) { inp.value = precio_actual; prc_previewVenta(); }
+    prc_alProductoCambia(id_producto);
+    sel?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function prc_filtrar(val) {
+    _prc_buscar = val.toLowerCase();
+    prc_renderTabla();
+}
+
+function prc_limpiarFormulario() {
+    const sel = document.getElementById('prc_sel_producto');
+    const inp = document.getElementById('prc_inp_precio_base');
+    const prev = document.getElementById('prc_preview_venta');
+    const wrap = document.getElementById('prc_precio_actual_wrap');
+    if (sel)  sel.value  = '';
+    if (inp)  inp.value  = '';
+    if (prev) prev.style.display = 'none';
+    if (wrap) wrap.style.display = 'none';
+}
+
+function prc_banner(msg, tipo) {
+    const el = document.getElementById('prc_banner');
+    if (!el) return;
+    el.style.display    = 'block';
+    el.style.background = tipo === 'ok' ? '#d1fae5' : '#fee2e2';
+    el.style.color      = tipo === 'ok' ? '#065f46' : '#991b1b';
+    el.textContent = msg;
+    setTimeout(() => { el.style.display = 'none'; }, 4500);
+}
+
+// ── Hook en mostrarSeccion ───────────────────────────────────
+(function () {
+    const _orig = window.mostrarSeccion;
+    window.mostrarSeccion = function (sectionId) {
+        _orig(sectionId);
+        if (sectionId === 'precios') prc_cargar();
+    };
+
+    // Verificar alerta al arrancar
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(prc_verificarAlertaSemanal, 2000);
+    });
+})();
+
+// ════════════════════════════════════════════════════════════════════════
+//  STOCK / INVENTARIO — Admin
+// ════════════════════════════════════════════════════════════════════════
+
+let _stk_todos  = [];
+let _stk_filtro = '';
+
+async function stk_cargar() {
+    try {
+        const token = localStorage.getItem('token') || '';
+        const res   = await fetch(`${API_URL}/stock`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Error al cargar stock');
+        _stk_todos = await res.json();
+        stk_renderKpis();
+        stk_renderTabla();
+        stk_cargarMovimientos();
+    } catch (e) {
+        console.error('[STOCK]', e.message);
+    }
+}
+
+function stk_filtrar(q) {
+    _stk_filtro = q.toLowerCase();
+    stk_renderTabla();
+}
+
+function stk_renderKpis() {
+    const container = document.getElementById('stk_kpis');
+    if (!container) return;
+    const fmt = n => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n ?? 0) + ' kg';
+    const totalDisp = _stk_todos.reduce((s, x) => s + Number(x.kilos_disponibles ?? 0), 0);
+    const totalAcum = _stk_todos.reduce((s, x) => s + Number(x.kilos_acumulados ?? 0), 0);
+    const sinStock  = _stk_todos.filter(x => Number(x.kilos_disponibles) <= 0).length;
+    const bajStock  = _stk_todos.filter(x => Number(x.kilos_disponibles) > 0 && Number(x.kilos_disponibles) < 50).length;
+
+    container.innerHTML = [
+        { label: 'Total disponible', value: fmt(totalDisp), color: '#16a34a', bg: '#f0fdf4', icon: '' },
+        { label: 'Total acumulado', value: fmt(totalAcum), color: '#1d4ed8', bg: '#eff6ff', icon: '' },
+        { label: 'Productos sin stock', value: sinStock, color: sinStock ? '#dc2626' : '#16a34a', bg: sinStock ? '#fef2f2' : '#f0fdf4', icon: '' },
+        { label: 'Stock bajo (< 50 kg)', value: bajStock, color: bajStock ? '#d97706' : '#16a34a', bg: bajStock ? '#fffbeb' : '#f0fdf4', icon: '' },
+    ].map(k => `
+        <div style="background:${k.bg};border-radius:14px;padding:16px 18px">
+            <div style="font-size:1.2rem;margin-bottom:4px">${k.icon}</div>
+            <div style="font-size:.75rem;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:4px">${k.label}</div>
+            <div style="font-size:1.5rem;font-weight:800;color:${k.color}">${k.value}</div>
+        </div>`).join('');
+}
+
+function stk_renderTabla() {
+    const tbody = document.getElementById('stk_tbody');
+    if (!tbody) return;
+    const fmt = n => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n ?? 0) + ' kg';
+
+    const lista = _stk_todos.filter(s =>
+        !_stk_filtro || (s.producto || '').toLowerCase().includes(_stk_filtro)
+    );
+
+    const count = document.getElementById('stk_count');
+    if (count) count.textContent = `${lista.length} producto${lista.length !== 1 ? 's' : ''}`;
+
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sin datos de stock. Las rutas cerradas generan entradas de stock automáticamente.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = lista.map(s => {
+        const disp = Number(s.kilos_disponibles ?? 0);
+        const acum = Number(s.kilos_acumulados  ?? 0);
+        const pct  = acum > 0 ? Math.min(100, Math.round((disp / acum) * 100)) : 0;
+        const barColor = pct > 50 ? '#16a34a' : pct > 20 ? '#f59e0b' : '#ef4444';
+
+        const badge = disp <= 0
+            ? '<span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">Sin stock</span>'
+            : disp < 50
+            ? '<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700"> Bajo</span>'
+            : '<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700"> Disponible</span>';
+
+        return `<tr>
+            <td style="font-weight:600">${s.producto}</td>
+            <td style="text-align:right;font-weight:700;color:#16a34a;font-size:1.05rem">${fmt(disp)}</td>
+            <td style="text-align:right;color:#6b7280">${fmt(acum)}</td>
+            <td>
+                <div style="background:#f3f4f6;border-radius:99px;height:8px;overflow:hidden;min-width:80px">
+                    <div style="background:${barColor};height:8px;width:${pct}%;border-radius:99px"></div>
+                </div>
+                <div style="font-size:.7rem;color:#9ca3af;margin-top:2px">${pct}% disponible</div>
+            </td>
+            <td>${badge}</td>
+            <td>
+                <button onclick="stk_filtrarMovPorProducto(${s.id_producto}, '${s.producto}')"
+                    style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;
+                           padding:3px 10px;font-size:.75rem;cursor:pointer;font-weight:600">
+                    Ver movimientos
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function stk_cargarMovimientos(id_producto) {
+    const tbody = document.getElementById('stk_movs_tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9ca3af">Cargando...</td></tr>';
+
+    try {
+        const token = localStorage.getItem('token') || '';
+        const tipo  = document.getElementById('stk_filtro_tipo')?.value || '';
+        let url = `${API_URL}/stock/movimientos`;
+        const params = [];
+        if (id_producto) params.push(`id_producto=${id_producto}`);
+        if (tipo)        params.push(`tipo=${tipo}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Error al cargar movimientos');
+        const movs = await res.json();
+
+        const fmt  = n  => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n) + ' kg';
+        const fmtF = f  => f ? new Date(f).toLocaleString('es-CO', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+
+        if (!movs.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sin movimientos registrados</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = movs.map(m => {
+            const entrada = m.tipo === 'ENTRADA';
+            return `<tr>
+                <td style="font-size:.83rem;color:#6b7280;white-space:nowrap">${fmtF(m.fecha)}</td>
+                <td>
+                    <span style="background:${entrada ? '#d1fae5' : '#fee2e2'};color:${entrada ? '#065f46' : '#dc2626'};
+                        border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">
+                        ${entrada ? '▲ Entrada' : '▼ Salida'}
+                    </span>
+                </td>
+                <td style="font-weight:600">${m.producto || '—'}</td>
+                <td style="text-align:right;font-weight:700;color:${entrada ? '#16a34a' : '#dc2626'}">
+                    ${entrada ? '+' : '-'}${fmt(m.kilos)}
+                </td>
+                <td>
+                    <span style="font-size:.78rem;background:#f3f4f6;border-radius:6px;padding:2px 8px">
+                        ${m.referencia_tipo || '—'} #${m.referencia_id || '—'}
+                    </span>
+                </td>
+                <td style="font-size:.78rem;color:#6b7280">${m.descripcion || '—'}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${e.message}</td></tr>`;
+    }
+}
+
+let _stk_filtro_prod = null;
+function stk_filtrarMovPorProducto(id_producto, nombre) {
+    _stk_filtro_prod = id_producto;
+    // Scroll to movimientos
+    document.getElementById('stk_movs_tbody')?.scrollIntoView({ behavior: 'smooth' });
+    stk_cargarMovimientos(id_producto);
+}
+
+// Polling: actualizar stock cada 30 seg cuando la sección está visible
+setInterval(() => {
+    const seccion = document.getElementById('stock');
+    if (seccion && seccion.classList.contains('active')) {
+        stk_cargar();
+    }
+}, 30000);

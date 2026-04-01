@@ -1,9 +1,20 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Module } from '@nestjs/common';
+// src/app.module.ts  — REEMPLAZA el existente
+import {
+  Module,
+  MiddlewareConsumer,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+
+// ── Módulo Tenant (nuevo) ──────────────────────────────────
+import { TenantModule } from './tenant/tenant.module';
+import { TenantMiddleware } from './tenant/tenant.middleware';
+
+// ── Módulos de negocio ─────────────────────────────────────
 import { AnalisisModule } from './analisis/analisis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProductorModule } from './modules/productor/productor.module';
@@ -13,12 +24,18 @@ import { ComprasModule } from './modules/compras/compras.module';
 import { ProductosModule } from './modules/productos/producto.modulo';
 import { ProductorDashboardModule } from './productores/productor-dashboard/productor-dashboard.module';
 import { ComerciantesModule } from './modules/comerciante/comerciante.module';
+import { OperarioModule } from './modules/operario/operario.module';
+import { UsersModule } from './modules/users/users.module';
+import { EntregasModule } from './modules/entregas/entregas.module';
+import { PreciosModule } from './modules/Precios/precio.module';
+import { RutasModule } from './modules/Ruta/rutas.module';
+import { StockModule } from './modules/stock/stock.module';
 
 @Module({
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
-      exclude: ['/api*'],
+      exclude: ['/api/{*path}'],
     }),
 
     ConfigModule.forRoot({
@@ -38,15 +55,35 @@ import { ComerciantesModule } from './modules/comerciante/comerciante.module';
       logging: process.env.NODE_ENV === 'development',
     }),
 
-    AnalisisModule,
+    // ── Registrar TenantModule PRIMERO ──────────────────────
+    TenantModule, // ← NUEVO: registra Asociacion entity y TenantMiddleware
+
+    // ── Módulos de negocio (sin cambios) ───────────────────
     AuthModule,
+    UsersModule,
     ProductorModule,
+    OperarioModule,
     ComprasModule,
     VentasModule,
     HistorialModule,
     ProductosModule,
     ProductorDashboardModule,
     ComerciantesModule,
+    AnalisisModule,
+    EntregasModule,
+    PreciosModule,
+    RutasModule,
+    StockModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Aplica TenantMiddleware a TODAS las rutas bajo /api/*
+   * Se ejecuta ANTES que cualquier guard o handler.
+   */
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantMiddleware)
+      .forRoutes({ path: '/*', method: RequestMethod.ALL });
+  }
+}

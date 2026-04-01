@@ -12,14 +12,19 @@ export interface PerfilProductor {
 }
 
 export interface EntregaHistorial {
-  id_compra: number;
-  fecha: string;
-  numero_factura: string | null;
-  producto: string;
-  peso: number;
-  precio_unitario: number;
-  total: number;
-  estado: string;
+  id_compra:          number;
+  fecha:              string;
+  numero_factura:     string | null;
+  producto:           string;
+  peso:               number;
+  precio_unitario:    number | null;
+  total:              number | null;
+  estado:             string;
+  estado_liquidacion: string;
+  estado_pago:        string;
+  comprobante_pago:   string | null;
+  ruta_id:            number | null;
+  ruta_precio_final:  number | null;
 }
 
 export interface ResumenProductor {

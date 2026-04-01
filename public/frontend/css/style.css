@@ -77,7 +77,7 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 10px 8px 20px;
+    padding: 0px 14px 20px;
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -626,6 +626,7 @@ body {
 .usr-btn-edit {
     color: #9ca3af;
 }
+
 .usr-btn-edit:hover {
     color: #2563eb;
     background: #eff6ff;
@@ -3016,4 +3017,135 @@ footer {
     opacity: 1;
     pointer-events: auto;
 
+}
+
+/* ═══════════════════════════════════════════
+   PRECIOS — header inline con indicadores
+═══════════════════════════════════════════ */
+.prc-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.prc-header-left {
+    flex: 1;
+}
+
+.prc-header-left h2 {
+    font-size: 1.5em;
+    font-weight: 800;
+    color: var(--dark);
+    margin-bottom: 4px;
+}
+
+.prc-header-left p {
+    font-size: .85em;
+    color: var(--gray);
+}
+
+.prc-header-indicators {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════
+   COMPRAS / VENTAS — mejor uso del espacio
+═══════════════════════════════════════════ */
+#compras .usr-table-wrap,
+#ventas .usr-table-wrap {
+    overflow-x: auto;
+}
+
+#compras .section-header,
+#ventas .section-header {
+    margin-bottom: 16px;
+}
+
+/* Reducir padding excesivo en las secciones de tabla */
+#compras,
+#ventas {
+    max-width: 100%;
+}
+
+/* Toolbar compacto */
+#compras .usr-toolbar,
+#ventas .usr-toolbar {
+    margin-bottom: 10px;
+}
+
+/* ═══════════════════════════════════════════
+   BADGE-ESTADO — sin emojis, solo texto
+═══════════════════════════════════════════ */
+.badge-estado {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.badge-PENDIENTE,
+.badge-pendiente {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-COMPLETADO,
+.badge-completado {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-ANULADO,
+.badge-anulado {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ═══════════════════════════════════════════
+   CONTENT — mejor aprovechamiento del ancho
+═══════════════════════════════════════════ */
+.content {
+    flex: 1;
+    padding: 24px 32px 60px;
+}
+
+/* Tabla ocupa todo el ancho sin truncar */
+.usr-table-wrap {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    width: 100%;
+}
+
+.usr-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+}
+
+/* ═══════════════════════════════════════════
+   BADGE PRODUCTOR EXTERNO
+═══════════════════════════════════════════ */
+.badge-externo {
+    display: inline-block;
+    font-size: .68rem;
+    font-weight: 700;
+    color: #92400e;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: 1px 6px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: .2px;
 }

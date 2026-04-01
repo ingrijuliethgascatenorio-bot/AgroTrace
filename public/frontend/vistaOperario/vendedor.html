@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Panel Operario - AgroTrace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="vendedor.css?v=2" />
+  <script src="./libs/html5-qrcode.min.js?v=2"></script>
+  <link rel="stylesheet"
+    href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="manifest" href="../manifest.json">
+  <meta name="theme-color" content="#ff6600">
+</head>
+
+<body>
+  <div class="layout">
+
+    <!-- ================================================
+       SIDEBAR
+       ================================================ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="../img/logo (1).png" alt="Logo AgroTrace" class="logo-image" />
+        <button class="menu-toggle" id="btn-toggle-sidebar" title="Menú">
+          <i class="fi fi-rr-menu-burger"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#section-dashboard" class="nav-item active nav-btn" data-tooltip="Inicio">
+          <span class="nav-icon"><i class="fi fi-rr-home"></i></span>
+          <span class="nav-label">Inicio</span>
+        </a>
+        <a href="#section-escanear" class="nav-item" data-tooltip="Registrar compra">
+          <span class="nav-icon"><i class="fi fi-rr-barcode"></i></span>
+          <span class="nav-label">Registrar compra</span>
+        </a>
+        <a href="#section-venta" class="nav-item" data-tooltip="Registrar venta">
+          <span class="nav-icon"><i class="fi fi-rr-stats"></i></span>
+          <span class="nav-label">Registrar venta</span>
+        </a>
+        <a href="#section-rutas" class="nav-item" data-tooltip="Mis rutas">
+          <span class="nav-icon"><i class="fi fi-rr-truck-side"></i></span>
+          <span class="nav-label">Rutas</span>
+        </a>
+        <a href="#section-stock" class="nav-item" data-tooltip="Stock">
+          <span class="nav-icon"><i class="fi fi-rr-boxes"></i></span>
+          <span class="nav-label">Stock</span>
+        </a>
+        <a href="#section-historial" class="nav-item" data-tooltip="Mis entregas">
+          <span class="nav-icon"><i class="fi fi-rr-list"></i></span>
+          <span class="nav-label">Mis entregas</span>
+        </a>
+      </nav>
+
+      <!-- Sección "Mi cuenta" -->
+      <div class="sidebar-section-label">
+        <p class="nav-label">Mi cuenta</p>
+      </div>
+      <nav class="sidebar-nav" style="flex:0;">
+        <a href="#" class="nav-item" id="sidebar-perfil-btn" data-tooltip="Mi perfil">
+          <span class="nav-icon"><i class="fi fi-rr-user"></i></span>
+          <span class="nav-label">Mi perfil</span>
+        </a>
+      </nav>
+
+      <button id="btn-logout" class="btn-logout">
+        <span class="nav-icon"><i class="fi fi-rr-sign-out-alt"></i></span>
+        <span class="nav-label">Cerrar sesión</span>
+      </button>
+    </aside>
+
+    <!-- ================================================
+       MAIN
+       ================================================ -->
+    <div class="main">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <h1 class="topbar-title" id="topbar-title">Inicio</h1>
+          </div>
+
+          <div class="topbar-user">
+            <div class="topbar-user-avatar" id="topbar-avatar">A</div>
+            <div>
+              <div class="topbar-user-name" id="topbar-user-name">Usuario</div>
+              <div class="topbar-user-role" id="topbar-user-role">Operario</div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <!-- CONTENIDO -->
+      <main class="content">
+
+        <!-- ===========================================
+           DASHBOARD
+           =========================================== -->
+        <section id="section-dashboard" class="content-section active">
+
+          <!-- Hero con saludo dinámico -->
+          <div class="hero-banner">
+            <div class="hero-overlay"></div>
+            <div class="hero-content">
+              <div class="hero-badge">
+                <span><i class="fa-solid fa-seedling"></i></span> AGROTRACE · OPERARIO
+              </div>
+              <p id="hero-saludo" class="hero-greeting-time">Bienvenido,</p>
+              <p class="hero-greeting-sub">Consulta el historial de tus operaciones e ingresos</p>
+            </div>
+          </div>
+
+          <!-- 4 tarjetas métricas con foto de fondo -->
+          <div class="dashboard-grid-new">
+
+            <div class="dash-card-hero dash-card-green">
+              <span class="dash-card-badge">COMPRAS</span>
+              <div class="dash-card-icon-wrap">
+                <i class="fi fi-rr-shopping-cart"></i>
+              </div>
+              <p class="dash-card-num" id="dash-entregas-hoy">—</p>
+              <p class="dash-card-desc">Operaciones de compra registradas</p>
+            </div>
+
+            <div class="dash-card-hero dash-card-blue">
+              <span class="dash-card-badge">VENTAS</span>
+              <div class="dash-card-icon-wrap">
+                <i class="fi fi-rr-box"></i>
+              </div>
+              <p class="dash-card-num" id="dash-kilos-hoy">—</p>
+              <p class="dash-card-desc">Operaciones de venta registradas</p>
+            </div>
+
+            <div class="dash-card-hero dash-card-orange">
+              <span class="dash-card-badge">PRODUCTORES</span>
+              <div class="dash-card-icon-wrap">
+                <i class="fi fi-rr-users"></i>
+              </div>
+              <p class="dash-card-num" id="dash-productores">—</p>
+              <p class="dash-card-desc">Productores únicos con compras registradas</p>
+            </div>
+
+            <div class="dash-card-hero dash-card-purple">
+              <span class="dash-card-badge">ÚLTIMA OP.</span>
+              <div class="dash-card-icon-wrap">
+                <i class="fi fi-rr-calendar"></i>
+              </div>
+              <p class="dash-card-num dash-card-num-sm" id="dash-ultima-op">Sin registros</p>
+              <p class="dash-card-desc">Fecha más reciente</p>
+            </div>
+
+          </div>
+
+          <!-- Tabla de últimas operaciones -->
+          <div class="card ultimas-ops-card">
+            <div class="ultimas-ops-header">
+              <div class="ultimas-ops-title">
+                <span class="ultimas-ops-icon"><i class="fi fi-ss-refresh"></i></span>
+                <h3>Últimas operaciones</h3>
+              </div>
+              <a href="#section-historial" class="ver-todas-link" id="btn-ver-todas">
+                Ver todas →
+              </a>
+            </div>
+            <div class="hist-table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Productor / Cliente</th>
+                    <th>Producto</th>
+                    <th>Peso / Cant.</th>
+                  </tr>
+                </thead>
+                <tbody id="ultimas-ops-body">
+                  <tr>
+                    <td colspan="6" class="table-empty">Cargando operaciones...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ===========================================
+           REGISTRAR COMPRA (multi-producto)
+           =========================================== -->
+        <section id="section-escanear" class="content-section">
+          <div class="grid">
+
+            <section class="card">
+              <h2 class="card-title">Identificar productor</h2>
+              <p class="card-subtitle">Selecciona si el productor está afiliado (con QR) o es externo.</p>
+
+              <!-- Toggle afiliado / externo -->
+              <div style="display:flex;gap:8px;margin-bottom:16px">
+                <button type="button" id="btn-tipo-afiliado"
+                  onclick="prod_setTipo('AFILIADO')"
+                  class="btn btn-primary" style="flex:1;font-size:.85rem">
+                  Afiliado (QR / cedula)
+                </button>
+                <button type="button" id="btn-tipo-externo"
+                  onclick="prod_setTipo('EXTERNO')"
+                  class="btn btn-outline" style="flex:1;font-size:.85rem">
+                  Externo (sin QR)
+                </button>
+              </div>
+
+              <!-- Panel afiliado -->
+              <div id="panel-afiliado">
+                <div class="camera-controls">
+                  <button type="button" id="btn-activar-camara" class="btn btn-primary">Activar cámara</button>
+                  <button type="button" id="btn-desactivar-camara" class="btn btn-secondary" disabled>Desactivar cámara</button>
+                </div>
+                <div id="qr-reader" class="qr-reader" style="width:100%;min-height:10px"></div>
+                <div class="divider"></div>
+                <div class="manual-input">
+                  <label for="input-cedula" class="label">Ingresar cédula manualmente</label>
+                  <div class="input-group">
+                    <input type="text" id="input-cedula" class="input" placeholder="Cedula del productor" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
+                    <button type="button" id="btn-buscar-productor" class="btn btn-outline">Buscar</button>
+                  </div>
+                  <p class="hint">Si no puedes usar la cámara, ingresa la cédula y presiona "Buscar".</p>
+                </div>
+              </div>
+
+              <!-- Panel externo -->
+              <div id="panel-externo" style="display:none">
+                <div style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;color:#92400e">
+                  Productor no afiliado. Recibirá <strong>$100/kg menos</strong> que un productor afiliado.<br>
+                  <span style="font-size:.78rem;opacity:.85">Cédula y ubicación son informativos — solo el nombre es requerido.</span>
+                </div>
+                <div class="form-field" style="margin-bottom:10px">
+                  <label class="label">Nombre del productor <span style="color:#ef4444">*</span></label>
+                  <input type="text" id="input-nombre-externo" class="input"
+                    placeholder="Nombre completo" oninput="prod_onExternoInput()" />
+                </div>
+                <div class="form-field" style="margin-bottom:10px">
+                  <label class="label">Cédula <span style="color:#9ca3af;font-size:.78rem">(informativo)</span></label>
+                  <input type="text" id="input-cedula-externo" class="input"
+                    placeholder="Número de cédula" inputmode="numeric" pattern="[0-9]*"
+                    oninput="prod_onExternoInput()" />
+                </div>
+                <div class="form-field" style="margin-bottom:10px">
+                  <label class="label">Ubicación <span style="color:#9ca3af;font-size:.78rem">(informativo)</span></label>
+                  <input type="text" id="input-ubicacion-externo" class="input"
+                    placeholder="Vereda o finca"
+                    oninput="prod_onExternoInput()" />
+                </div>
+                <div class="form-field">
+                  <label class="label">Teléfono (opcional)</label>
+                  <input type="tel" id="input-telefono-externo" class="input"
+                    placeholder="Ej: 3001234567" inputmode="numeric" pattern="[0-9]*"
+                    oninput="prod_onExternoInput()" />
+                </div>
+              </div>
+
+              <div id="alert-container" class="alert-container"></div>
+            </section>
+
+            <section class="card">
+              <h2 class="card-title">Datos del productor</h2>
+              <p class="card-subtitle">Se completará automáticamente al escanear o buscar por cédula.</p>
+
+              <div class="producer-info">
+                <div class="info-row"><span class="info-label">Nombre:</span><span id="prod-nombre"
+                    class="info-value vacio">—</span></div>
+                <div class="info-row"><span class="info-label">Cédula:</span><span id="prod-cedula"
+                    class="info-value vacio">—</span></div>
+                <div class="info-row"><span class="info-label">Ubicación:</span><span id="prod-ubicacion"
+                    class="info-value vacio">—</span></div>
+                <div class="info-row" id="row-tipo-productor" style="display:none">
+                  <span class="info-label">Tipo:</span>
+                  <span id="prod-tipo" class="info-value" style="color:#d97706;font-weight:700">EXTERNO</span>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <h2 class="card-title">Productos a comprar</h2>
+              <p class="card-subtitle">Agrega uno o más productos. Cada fila es un producto distinto.</p>
+
+              <form id="form-entrega" class="form">
+                <div id="lista-productos-compra" class="lista-productos">
+                  <p class="no-filas-msg">Usa el botón de abajo para agregar productos.</p>
+                </div>
+                <button type="button" id="btn-agregar-compra" class="btn btn-outline btn-agregar-producto">
+                  + Agregar producto
+                </button>
+                <div class="total-operacion">
+                  <span class="total-label">Total de la operación</span>
+                  <span class="total-valor" id="total-compra">$0</span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="btn-registrar-entrega">
+                  Registrar compra
+                </button>
+              </form>
+            </section>
+
+          </div>
+        </section>
+
+        <!-- ===========================================
+           REGISTRAR VENTA (multi-producto)
+           =========================================== -->
+        <section id="section-venta" class="content-section">
+          <div class="grid">
+
+            <section class="card">
+              <h2 class="card-title">Comerciante</h2>
+              <p class="card-subtitle">Busca o escribe el nombre del comerciante. Los datos se rellenan solos.</p>
+
+              <!-- Datalist con comerciantes de la BD -->
+              <datalist id="dl-comerciantes"></datalist>
+
+              <div class="form">
+
+                <!-- Buscador con autocompletado -->
+                <div class="form-row">
+                  <div class="form-field" style="position:relative">
+                    <label class="label">
+                      Comerciante
+                      <span id="badge-el-primo" style="display:none;margin-left:8px;background:#fef3c7;color:#92400e;
+                                 border-radius:99px;padding:1px 8px;font-size:.7rem;font-weight:700">
+                        EL PRIMO — precio base
+                      </span>
+                    </label>
+                    <div style="position:relative">
+                      <input type="text" id="input-nombre-venta" class="input" list="dl-comerciantes"
+                        placeholder="Escribe o selecciona..." autocomplete="off" style="padding-right:36px"
+                        oninput="com_onInput(this.value)" onchange="com_onSelect(this.value)" />
+                      <button type="button" title="Limpiar" onclick="limpiarFormCliente()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
+                                   background:none;border:none;cursor:pointer;color:#9ca3af;
+                                   font-size:1rem;line-height:1;padding:2px 4px">x</button>
+                    </div>
+                    <span style="font-size:.72rem;color:#9ca3af;margin-top:3px;display:block">
+                      EL PRIMO = precio base exacto &nbsp;·&nbsp; Otros = precio base + $100/kg
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Campos que se rellenan automáticamente al seleccionar -->
+                <div class="form-row">
+                  <div class="form-field">
+                    <label class="label">Teléfono</label>
+                    <input type="text" id="input-telefono-venta" class="input" readonly placeholder="—"
+                      style="background:#f9fafb;cursor:default" />
+                  </div>
+                  <div class="form-field">
+                    <label class="label">Dirección</label>
+                    <input type="text" id="input-direccion-venta" class="input" readonly placeholder="—"
+                      style="background:#f9fafb;cursor:default" />
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Preview -->
+              <div class="cliente-preview">
+                <h4>Cliente seleccionado</h4>
+                <div class="info-row">
+                  <span class="info-label">Nombre:</span>
+                  <span id="cliente-nombre" class="info-value vacio">Sin identificar</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Teléfono:</span>
+                  <span id="cliente-telefono" class="info-value vacio">—</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Precio:</span>
+                  <span id="cliente-precio-tipo" class="info-value vacio">—</span>
+                </div>
+              </div>
+
+              <div id="alert-venta" class="alert-container" style="margin-top:12px;"></div>
+            </section>
+
+            <section class="card">
+              <h2 class="card-title">Productos a vender</h2>
+              <p class="card-subtitle">Agrega uno o más productos para la venta.</p>
+
+              <form id="form-venta" class="form">
+                <div id="lista-productos-venta" class="lista-productos">
+                  <p class="no-filas-msg">Usa el botón de abajo para agregar productos.</p>
+                </div>
+                <button type="button" id="btn-agregar-venta" class="btn btn-outline btn-agregar-producto">
+                  + Agregar producto
+                </button>
+                <div class="total-operacion">
+                  <span class="total-label">Total de la operación</span>
+                  <span class="total-valor" id="total-venta">$0</span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="btn-registrar-venta">
+                  Registrar venta
+                </button>
+              </form>
+            </section>
+
+          </div>
+        </section>
+
+        <!-- ===========================================
+           HISTORIAL
+           =========================================== -->
+        <!-- ═══════════════════════════════════════════
+           RUTAS DE RECOLECCIÓN
+           ═══════════════════════════════════════════ -->
+        <section id="section-rutas" class="content-section">
+          <div class="grid">
+
+            <!-- Panel izquierdo: gestión de ruta activa — oculto si no hay ruta -->
+            <section class="card" id="rut-card-activa" style="display:none">
+              <h2 class="card-title">Mi ruta activa</h2>
+
+              <div id="rut-estado-panel">
+                <!-- Se llena con JS -->
+                <p style="color:#9ca3af;font-size:.88rem">Cargando...</p>
+              </div>
+
+              <!-- Botones de acción -->
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+                <button id="btn-cerrar-ruta" class="btn btn-full" onclick="rut_abrirModalCierre()"
+                  style="display:none;background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-weight:700">
+                  Cerrar ruta y calcular precios
+                </button>
+              </div>
+
+
+            </section>
+
+            <!-- Panel derecho: entregas de la ruta actual — oculto si no hay ruta -->
+            <section class="card" id="rut-card-entregas" style="display:none">
+              <h2 class="card-title">Entregas de esta ruta</h2>
+              <p class="card-subtitle" id="rut-entregas-subtitle">—</p>
+
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+                  <thead>
+                    <tr style="background:#f0fdf4">
+                      <th style="padding:8px;text-align:left;color:#166534">Productor</th>
+                      <th style="padding:8px;text-align:left;color:#166534">Producto</th>
+                      <th style="padding:8px;text-align:center;color:#166534">Kg</th>
+                      <th style="padding:8px;text-align:right;color:#166534">Precio/kg</th>
+                      <th style="padding:8px;text-align:right;color:#166534">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rut-entregas-tbody">
+                    <tr>
+                      <td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Sin entregas</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- Botón iniciar ruta (visible cuando no hay ruta activa) -->
+          <div id="rut-sin-ruta" style="text-align:center;padding:24px 0 8px">
+            <button id="btn-nueva-ruta" class="btn btn-primary" onclick="rut_crearRuta()"
+              style="padding:12px 28px;font-size:1rem;font-weight:700;border-radius:10px">
+              Iniciar nueva ruta
+            </button>
+            <p style="margin:8px 0 0;font-size:.82rem;color:#9ca3af">
+              Inicia una ruta para vincular las entregas automáticamente
+            </p>
+          </div>
+
+          <!-- Historial de rutas anteriores -->
+          <section class="card" style="margin-top:16px">
+            <h2 class="card-title">Historial de rutas</h2>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+                <thead>
+                  <tr style="background:#f9fafb">
+                    <th style="padding:8px;text-align:left">Fecha</th>
+                    <th style="padding:8px;text-align:center">Entregas</th>
+                    <th style="padding:8px;text-align:right">Kg totales</th>
+                    <th style="padding:8px;text-align:right">Precio/kg</th>
+                    <th style="padding:8px;text-align:center">Estado</th>
+                    <th style="padding:8px;text-align:center">Ver</th>
+                  </tr>
+                </thead>
+                <tbody id="rut-historial-tbody">
+                  <tr>
+                    <td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">Sin rutas</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Modal cierre de ruta -->
+          <div id="rut-modal-cierre" style="display:none;position:fixed;inset:0;z-index:9999;
+             background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"
+            onclick="if(event.target===this)rut_cerrarModal()">
+            <div
+              style="background:#fff;border-radius:16px;padding:28px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+              <h3 style="margin:0 0 8px;font-size:1.1rem">Cerrar ruta</h3>
+              <p style="color:#6b7280;font-size:.85rem;margin:0 0 20px">
+                Ingresa el valor total del flete del camión. Se calculará el precio para cada productor.
+              </p>
+              <label style="font-size:.85rem;font-weight:600;color:#374151">Valor del flete ($)</label>
+              <input type="number" id="rut-input-flete" inputmode="numeric" pattern="[0-9]*" placeholder="Ej: 150000" min="1"
+                oninput="rut_previsualizarPrecio()"
+                style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
+                            font-size:1rem;margin:8px 0 10px;box-sizing:border-box">
+              <div
+                style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:.8rem;color:#92400e">
+                Fórmula: (Base − Flete÷Kg) × (1 − 3.5%)
+              </div>
+              <div id="rut-preview-precio" style="display:none;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.85rem;font-weight:600;text-align:center"></div>
+              <div style="display:flex;gap:10px">
+                <button onclick="rut_cerrarModal()" class="btn btn-outline" style="flex:1">Cancelar</button>
+                <button onclick="rut_confirmarCierre()" class="btn btn-primary" style="flex:2">Calcular y cerrar</button>
+              </div>
+              <div id="rut-modal-resultado" style="display:none;margin-top:16px;background:#d1fae5;
+                 border-radius:8px;padding:12px;font-size:.85rem;color:#065f46"></div>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- ═══════════════ STOCK (OPERARIO — solo lectura) ═══════════════ -->
+        <section id="section-stock" class="content-section">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <div>
+                <h2 class="card-title" style="margin:0"><span><i class="fi fi-rr-boxes"></i></span> Stock disponible
+                </h2>
+                <p class="card-subtitle" style="margin:4px 0 0">Kilos disponibles para venta en este momento</p>
+              </div>
+              <button onclick="stk_op_cargar()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;
+                       padding:8px 14px;font-size:.82rem;cursor:pointer;font-weight:600">
+                <span><i class="fa-solid fa-rotate"></i></span> Actualizar
+              </button>
+            </div>
+
+            <!-- Tarjetas por producto -->
+            <div id="stk_op_cards"
+              style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:20px">
+              <p style="color:#9ca3af;font-size:.85rem">Cargando...</p>
+            </div>
+
+            <!-- Últimos movimientos -->
+            <h3 style="font-size:.88rem;font-weight:700;color:#374151;margin:16px 0 10px">
+              Últimos movimientos
+            </h3>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:.83rem">
+                <thead>
+                  <tr style="background:#f0fdf4">
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Fecha</th>
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Tipo</th>
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Producto</th>
+                    <th
+                      style="padding:8px 10px;text-align:right;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Kilos</th>
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Origen</th>
+                  </tr>
+                </thead>
+                <tbody id="stk_op_tbody">
+                  <tr>
+                    <td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Cargando...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-historial" class="content-section">
+          <div class="card">
+            <h2 class="card-title">Historial de operaciones</h2>
+            <p class="card-subtitle">Todas las compras y ventas registradas. Filtra o edita cualquier operación.</p>
+
+            <div class="hist-filters">
+              <input type="date" id="hist-fecha" class="input" />
+              <input type="text" id="hist-cedula" class="input" placeholder="Buscar por cédula o nombre..." />
+              <select id="hist-tipo" class="input">
+                <option value="">Todos</option>
+                <option value="COMPRA">Solo compras</option>
+                <option value="VENTA">Solo ventas</option>
+              </select>
+              <button type="button" id="btn-filtrar-historial" class="btn btn-outline">Filtrar</button>
+              <button type="button" id="btn-limpiar-historial" class="btn btn-secondary">Limpiar</button>
+            </div>
+
+            <div class="hist-table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Productor / Cliente</th>
+                    <th>Producto</th>
+                    <th>Peso / Cant.</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="historial-body">
+                  <tr>
+                    <td colspan="8" class="table-empty">Cargando historial...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ═══════════════════════════════ STOCK ═══════════════════════════════ -->
+        <section id="section-stock" class="content-section">
+          <div style="padding:20px 0 8px">
+            <h2 style="font-size:1.1rem;font-weight:800;color:#111827;margin:0 0 4px">Stock disponible</h2>
+            <p style="font-size:.83rem;color:#6b7280;margin:0">Kilos disponibles por producto en tiempo real.</p>
+          </div>
+
+          <!-- KPI cards -->
+          <div id="stk_op_kpis"
+            style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+          </div>
+
+          <!-- Tabla por producto -->
+          <div
+            style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <h3 style="font-size:.9rem;font-weight:700;margin:0;color:#166534">Disponibilidad por producto</h3>
+              <button onclick="stk_op_cargar()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;
+                               border-radius:8px;padding:6px 12px;font-size:.78rem;cursor:pointer;font-weight:600">
+                ↺ Actualizar
+              </button>
+            </div>
+            <div id="stk_op_cards" style="display:flex;flex-direction:column;gap:10px">
+              <p style="color:#9ca3af;font-size:.85rem;text-align:center;padding:20px 0">Cargando...</p>
+            </div>
+          </div>
+
+          <!-- Últimos movimientos (solo lectura) -->
+          <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+            <h3 style="font-size:.9rem;font-weight:700;margin:0 0 12px;color:#166534">Últimos movimientos</h3>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+                <thead>
+                  <tr style="background:#f0fdf4">
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Fecha</th>
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Tipo</th>
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Producto</th>
+                    <th
+                      style="padding:8px 10px;text-align:right;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Kilos</th>
+                    <th
+                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
+                      Referencia</th>
+                  </tr>
+                </thead>
+                <tbody id="stk_op_movs_tbody">
+                  <tr>
+                    <td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Cargando...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div><!-- /.main -->
+  </div><!-- /.layout -->
+
+
+  <!-- ================================================
+     NAVEGACIÓN INFERIOR — MOBILE
+     Solo visible en pantallas ≤ 768px (CSS lo controla)
+     ================================================ -->
+  <nav class="mobile-nav" role="navigation" aria-label="Navegación principal">
+    <div class="mobile-nav-inner">
+
+      <button class="mobile-nav-item active" id="mnav-dashboard">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-home"></i></div>
+        <span class="mobile-nav-label">Inicio</span>
+      </button>
+
+      <button class="mobile-nav-item" id="mnav-compra">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-barcode"></i></div>
+        <span class="mobile-nav-label">Compra</span>
+      </button>
+
+      <button class="mobile-nav-item" id="mnav-venta">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-stats"></i></div>
+        <span class="mobile-nav-label">Venta</span>
+      </button>
+
+      <button class="mobile-nav-item" id="mnav-rutas">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-truck-side"></i></div>
+        <span class="mobile-nav-label">Rutas</span>
+      </button>
+
+      <button class="mobile-nav-item" id="mnav-stock">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-boxes"></i></div>
+        <span class="mobile-nav-label">Stock</span>
+      </button>
+      <button class="mobile-nav-item" id="mnav-historial">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-list"></i></div>
+        <span class="mobile-nav-label">Historial</span>
+      </button>
+
+      <button class="mobile-nav-item" id="mnav-perfil">
+        <div class="mobile-nav-pill"><i class="fi fi-rr-user"></i></div>
+        <span class="mobile-nav-label">Perfil</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================================================
+     DRAWER OVERLAY
+     ================================================ -->
+  <div id="drawer-overlay" class="drawer-overlay"></div>
+
+  <!-- ================================================
+     DRAWER DE PERFIL
+     ================================================ -->
+  <div id="drawer" class="drawer">
+
+    <div class="drawer-header">
+      <h2 class="drawer-title">Mi perfil</h2>
+      <button type="button" id="drawer-close" class="drawer-close"><i class="fi fi-rr-cross-small"></i></button>
+    </div>
+
+    <div class="drawer-content">
+
+      <div class="drawer-user-header">
+        <div class="drawer-user-photo-wrapper">
+          <img id="drawer-photo" class="drawer-user-photo"
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23e5e7eb'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%239ca3af'/%3E%3Cellipse cx='50' cy='80' rx='26' ry='18' fill='%239ca3af'/%3E%3C/svg%3E"
+            alt="Foto de perfil" />
+          <button type="button" id="drawer-photo-btn" class="drawer-photo-change-btn" title="Cambiar foto"><i
+              class="fi fi-rr-camera"></i></button>
+        </div>
+        <div class="drawer-user-info">
+          <h3 class="drawer-user-name" id="drawer-nombre">—</h3>
+          <p class="drawer-user-cedula">CC: <span id="drawer-cedula-badge">—</span></p>
+          <span class="drawer-user-role" id="drawer-rol-badge">—</span>
+          <p class="drawer-user-email" id="drawer-email-badge">—</p>
+        </div>
+      </div>
+
+      <div class="drawer-permissions-section">
+        <p class="drawer-permissions-label">PERMISOS</p>
+        <span class="drawer-permission-badge">ALL</span>
+      </div>
+
+      <div class="drawer-tabs">
+        <button type="button" class="drawer-tab active" data-tab="info"><i class="fi fi-rr-user"></i>
+          Información</button>
+        <button type="button" class="drawer-tab" data-tab="security"><i class="fi fi-rr-lock"></i> Seguridad</button>
+      </div>
+
+      <!-- TAB: INFORMACIÓN -->
+      <div id="tab-info" class="tab-pane drawer-fields-container">
+
+        <span id="perfil-nombre" style="display:none;">—</span>
+        <span id="perfil-apellido" style="display:none;">—</span>
+        <span id="perfil-email" style="display:none;">—</span>
+        <span id="perfil-telefono" style="display:none;">—</span>
+        <span id="perfil-cedula" style="display:none;">—</span>
+        <span id="perfil-rol" style="display:none;">—</span>
+
+        <div id="perfil-vista-readonly">
+          <div class="drawer-field-group">
+            <label class="drawer-field-label">NOMBRE COMPLETO</label>
+            <input type="text" class="drawer-field-display" id="drawer-field-nombre" readonly value="—" />
+          </div>
+          <div class="drawer-field-group">
+            <label class="drawer-field-label">CÉDULA</label>
+            <div class="drawer-field-display-with-hint">
+              <input type="text" class="drawer-field-display" id="drawer-field-cedula" readonly value="—" />
+              <span class="drawer-field-hint">Solo lectura</span>
+            </div>
+          </div>
+          <div class="drawer-field-group">
+            <label class="drawer-field-label">CORREO ELECTRÓNICO</label>
+            <input type="text" class="drawer-field-display" id="drawer-field-email" readonly value="—" />
+          </div>
+          <div class="drawer-field-group">
+            <label class="drawer-field-label">TELÉFONO</label>
+            <input type="text" class="drawer-field-display" id="drawer-field-telefono" readonly value="—" />
+          </div>
+          <div class="drawer-field-group">
+            <label class="drawer-field-label">ROL</label>
+            <div class="drawer-field-display-with-hint">
+              <input type="text" class="drawer-field-display" id="drawer-field-rol" readonly value="—" />
+              <span class="drawer-field-hint">Solo lectura</span>
+            </div>
+          </div>
+          <button type="button" id="btn-editar-perfil" class="btn btn-outline btn-full" style="margin-top:16px;">
+            <i class="fi fi-rr-pencil"></i> Editar perfil
+          </button>
+        </div>
+
+        <div id="perfil-vista-edicion" style="display:none;">
+          <div class="drawer-alert" id="drawer-alert-perfil"></div>
+          <form id="form-editar-perfil" class="drawer-form">
+            <div class="drawer-form-field">
+              <label class="drawer-form-label">NOMBRE</label>
+              <input type="text" id="edit-nombre" class="drawer-form-input" placeholder="Tu nombre" />
+            </div>
+            <div class="drawer-form-field">
+              <label class="drawer-form-label">APELLIDO</label>
+              <input type="text" id="edit-apellido" class="drawer-form-input" placeholder="Tu apellido" />
+            </div>
+            <div class="drawer-form-field">
+              <label class="drawer-form-label">CORREO ELECTRÓNICO</label>
+              <input type="email" id="edit-email" class="drawer-form-input" placeholder="tu@correo.com" />
+            </div>
+            <div class="drawer-form-field">
+              <label class="drawer-form-label">TELÉFONO</label>
+              <input type="text" id="edit-telefono" class="drawer-form-input" placeholder="Número de teléfono" />
+            </div>
+            <div class="drawer-form-field">
+              <label class="drawer-form-label">CÉDULA</label>
+              <div class="drawer-field-display-with-hint">
+                <input type="text" id="edit-cedula" class="drawer-form-input" readonly />
+                <span class="drawer-field-hint">No editable</span>
+              </div>
+            </div>
+            <div class="drawer-form-field">
+              <label class="drawer-form-label">ROL</label>
+              <div class="drawer-field-display-with-hint">
+                <input type="text" id="edit-rol" class="drawer-form-input" readonly />
+                <span class="drawer-field-hint">No editable</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:8px;">
+              <button type="button" id="btn-cancelar-edicion" class="btn btn-secondary"
+                style="flex:1;">Cancelar</button>
+              <button type="submit" class="btn btn-primary" style="flex:2;">Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- TAB: SEGURIDAD -->
+      <div id="tab-security" class="tab-pane drawer-fields-container" style="display:none;">
+
+        <div class="drawer-alert" id="drawer-alert-password"></div>
+
+        <div style="margin-bottom:20px;">
+          <h4 style="font-size:0.9rem; font-weight:700; color:var(--gray-700); margin-bottom:6px;">Cambiar contraseña
+          </h4>
+          <p style="font-size:0.82rem; color:var(--gray-500); line-height:1.5;">
+            Por seguridad, ingresa tu contraseña actual antes de establecer una nueva.
+          </p>
+        </div>
+
+        <form id="form-cambiar-password" class="drawer-form">
+          <div class="drawer-form-field">
+            <label class="drawer-form-label">CONTRASEÑA ACTUAL</label>
+            <input type="password" id="edit-password-actual" class="drawer-form-input" placeholder="••••••••"
+              autocomplete="current-password" />
+          </div>
+          <div class="drawer-form-field">
+            <label class="drawer-form-label">NUEVA CONTRASEÑA</label>
+            <input type="password" id="edit-nueva-password" class="drawer-form-input" placeholder="••••••••"
+              autocomplete="new-password" />
+            <span class="drawer-form-hint">Mínimo 8 caracteres.</span>
+          </div>
+          <div class="password-strength-bar" id="password-strength-bar" style="display:none;">
+            <div class="strength-track">
+              <div class="strength-fill" id="strength-fill"></div>
+            </div>
+            <span class="strength-label" id="strength-label">Débil</span>
+          </div>
+          <div class="drawer-form-field">
+            <label class="drawer-form-label">CONFIRMAR NUEVA CONTRASEÑA</label>
+            <input type="password" id="edit-confirmar-password" class="drawer-form-input" placeholder="••••••••"
+              autocomplete="new-password" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="btn-cambiar-password">
+            <i class="fi fi-rr-lock"></i> Cambiar contraseña
+          </button>
+        </form>
+
+      </div>
+
+    </div>
+
+    <!-- Cerrar sesión dentro del drawer -->
+    <div class="drawer-logout-section">
+      <button type="button" id="drawer-btn-logout" class="drawer-logout-btn" onclick="logout()">
+        <i class="fi fi-rr-sign-out-alt"></i>
+        <span>Cerrar sesión</span>
+      </button>
+    </div>
+
+    <input type="file" id="input-foto-perfil" accept="image/*" style="display:none;" />
+
+  </div>
+
+
+  <!-- ================================================
+     MODAL DE EDICIÓN DE OPERACIÓN
+     ================================================ -->
+  <!-- Overlay del drawer de edición -->
+  <div id="modal-overlay" class="drawer-overlay"></div>
+
+  <!-- Drawer lateral de edición (reemplaza el modal) -->
+  <div id="modal-edicion" class="drawer" style="width:420px;max-width:95vw;">
+
+    <div class="drawer-header">
+      <h2 class="drawer-title" id="modal-titulo">Editar entrega</h2>
+      <button type="button" id="modal-close" class="drawer-close">x</button>
+    </div>
+
+    <div class="drawer-content" style="padding:20px;overflow-y:auto;flex:1;">
+
+      <div class="drawer-alert" id="modal-alert"></div>
+
+      <!-- Tipo y fecha -->
+      <div class="modal-section" style="margin-bottom:16px;">
+        <div class="form-row">
+          <div class="form-field">
+            <label class="label">Tipo de operación</label>
+            <input type="text" id="modal-tipo" class="input" readonly />
+          </div>
+          <div class="form-field">
+            <label class="label">Fecha</label>
+            <input type="date" id="modal-fecha" class="input" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Datos del productor -->
+      <div id="modal-grupo-productor" class="modal-section" style="display:none;margin-bottom:16px;">
+        <h4 class="modal-section-title"
+          style="margin-bottom:10px;font-size:.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">
+          Datos del productor</h4>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="label">Nombre</label>
+            <input type="text" id="modal-productor-nombre" class="input" readonly />
+          </div>
+          <div class="form-field">
+            <label class="label">Cédula</label>
+            <input type="text" id="modal-productor-cedula" class="input" readonly />
+          </div>
+        </div>
+      </div>
+
+      <!-- Datos del cliente -->
+      <div id="modal-grupo-cliente" class="modal-section" style="display:none;margin-bottom:16px;">
+        <h4 class="modal-section-title"
+          style="margin-bottom:10px;font-size:.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">
+          Datos del cliente</h4>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="label">Nombre del cliente</label>
+            <input type="text" id="modal-cliente-nombre" class="input" />
+          </div>
+          <div class="form-field">
+            <label class="label">Cédula (opcional)</label>
+            <input type="text" id="modal-cliente-cedula" class="input" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Productos -->
+      <div class="modal-section" style="margin-bottom:16px;">
+        <h4 class="modal-section-title"
+          style="margin-bottom:10px;font-size:.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">
+          Productos</h4>
+        <div id="lista-productos-edicion" class="lista-productos">
+          <p class="no-filas-msg">Cargando productos...</p>
+        </div>
+        <button type="button" id="btn-agregar-edicion" class="btn btn-outline btn-agregar-producto"
+          style="margin-top:10px;width:100%;">
+          + Agregar producto
+        </button>
+      </div>
+
+      <!-- Total -->
+      <div class="total-operacion"
+        style="margin:16px 0;padding:12px 16px;background:#f0fdf4;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span class="total-label" style="font-weight:600;color:#374151;">Total de la operación</span>
+        <span class="total-valor" id="total-edicion" style="font-size:1.2rem;font-weight:700;color:#16a34a;">$0</span>
+      </div>
+
+    </div>
+
+    <!-- Footer con botones -->
+    <div style="padding:16px 20px;border-top:1px solid #e5e7eb;display:flex;gap:10px;background:#fff;">
+      <button type="button" id="btn-cancelar-modal" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+      <button type="button" id="btn-guardar-edicion" class="btn btn-primary" style="flex:2;">Guardar cambios</button>
+    </div>
+
+  </div>
+
+
+  <!-- Módulos offline globales -->
+  <script src="../js/agro-db.js?v=2"></script>
+  <script src="../js/agro-sync.js?v=2"></script>
+  <script src="vendedor.js?v=2"></script>
+
+  <script>
+    /* ── Sidebar — Mi perfil ───────────────────── */
+    document.getElementById("sidebar-perfil-btn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (typeof openDrawer === "function") openDrawer();
+    });
+
+    /* ── Navegación móvil inferior ─────────────── */
+    (function initMobileNav() {
+      const mobileItems = document.querySelectorAll(".mobile-nav-item");
+
+      // Mapa: id del botón → sección + título
+      const navMap = {
+        "mnav-dashboard": { section: "section-dashboard", title: "Inicio" },
+        "mnav-compra": { section: "section-escanear", title: "Registrar compra" },
+        "mnav-venta": { section: "section-venta", title: "Registrar venta" },
+        "mnav-rutas": { section: "section-rutas", title: "Rutas" },
+        "mnav-stock": { section: "section-stock", title: "Stock" },
+        "mnav-historial": { section: "section-historial", title: "Mis entregas" },
+        "mnav-perfil": { section: null, title: "Mi perfil" },
+      };
+
+      mobileItems.forEach(item => {
+        item.addEventListener("click", () => {
+          const config = navMap[item.id];
+          if (!config) return;
+
+          // Perfil → abrir drawer
+          if (!config.section) {
+            if (typeof openDrawer === "function") openDrawer();
+            return;
+          }
+
+          // Marcar activo en la barra móvil
+          mobileItems.forEach(i => i.classList.remove("active"));
+          item.classList.add("active");
+
+          // Marcar activo en el sidebar (mantiene sincronía con vendedor.js)
+          document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+          const sidebarLink = document.querySelector(`.nav-item[href="#${config.section}"]`);
+          if (sidebarLink) sidebarLink.classList.add("active");
+
+          // Cambiar sección visible
+          document.querySelectorAll(".content-section").forEach(s => s.classList.remove("active"));
+          const target = document.getElementById(config.section);
+          if (target) target.classList.add("active");
+
+          // Actualizar título del topbar
+          const topbarTitle = document.getElementById("topbar-title");
+          if (topbarTitle) topbarTitle.textContent = config.title;
+
+          // Cargar datos si hace falta
+          if (config.section === "section-historial" && typeof cargarHistorial === "function") {
+            cargarHistorial();
+          }
+          if (config.section === "section-dashboard" && typeof cargarDashboard === "function") {
+            cargarDashboard();
+          }
+        });
+      });
+
+      // Sincronizar estado inicial: si ya hay una sección activa, reflejarla en la barra
+      function syncInitialState() {
+        const activeSection = document.querySelector(".content-section.active");
+        if (!activeSection) return;
+        const id = activeSection.id;
+        mobileItems.forEach(item => {
+          const config = navMap[item.id];
+          if (config && config.section === id) {
+            item.classList.add("active");
+          }
+        });
+      }
+      // Esperar a que el DOM esté completamente listo
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", syncInitialState);
+      } else {
+        syncInitialState();
+      }
+    })();
+  </script>
+</body>
+
+</html>

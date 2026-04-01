@@ -1,4 +1,12 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+// src/modules/productos/producto.entity.ts  — REEMPLAZA el existente
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  JoinColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Asociacion } from '../../tenant/asociacion.entity';
 
 @Entity('producto')
 export class Producto {
@@ -25,4 +33,12 @@ export class Producto {
 
   @Column({ default: true })
   disponible: boolean;
+
+  // ── MULTI-TENANT ──────────────────────────────────────────
+  @Column({ name: 'asociacion_id' })
+  asociacion_id: number;
+
+  @ManyToOne(() => Asociacion, { eager: false, nullable: false })
+  @JoinColumn({ name: 'asociacion_id' })
+  asociacion: Asociacion;
 }
