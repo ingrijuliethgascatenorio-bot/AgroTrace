@@ -1,8 +1,115 @@
+// ── Helpers globales de fecha — AgroTrace ──────────────────────────────────
+//
+// PROBLEMA: Colombia es UTC-5. Registros a las 9pm llegan del backend como
+// "2026-04-11T02:00:00.000Z" (UTC). Sin corrección, el frontend muestra el
+// día siguiente.
+//
+// REGLA:
+//   · String 'YYYY-MM-DD' solo  → construir con partes locales (sin desfase)
+//   · String con 'T' / ISO UTC  → extraer fecha en zona Bogotá con Intl
+//   · Date object               → ídem
+
+/**
+ * Convierte cualquier valor de fecha a milisegundos en hora Colombia.
+ * Seguro para comparar y ordenar fechas de diferentes fuentes del backend.
+ */
+function parseFechaLocal(f) {
+    if (!f) return 0;
+    const s = String(f).trim();
+    if (!s) return 0;
+
+    // Caso A: solo fecha 'YYYY-MM-DD' — construir como fecha local
+    // (new Date('2026-04-10') es UTC midnight = 7pm del 9 en Colombia → INCORRECTO)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d).getTime();
+    }
+
+    // Caso B: timestamp con hora (ISO UTC, con offset, o Date.toString)
+    // Convertir a Bogotá y extraer la fecha correcta
+    const ts = new Date(s);
+    if (isNaN(ts.getTime())) return 0;
+    const colStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(ts); // → 'YYYY-MM-DD' en hora Bogotá
+    const [y, m, d] = colStr.split('-').map(Number);
+    return new Date(y, m - 1, d).getTime();
+}
+
+/**
+ * Formatea cualquier valor de fecha como string legible en Colombia.
+ * Maneja tanto 'YYYY-MM-DD' como timestamps ISO UTC correctamente.
+ */
+function fmtFechaLocal(f) {
+    if (!f) return '—';
+    const t = parseFechaLocal(f);
+    if (!t) return '—';
+    return new Date(t).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+}
+
+// ── Helper: fecha actual en hora Colombia ─────────────────────────────────────
+function fechaHoyColombia() {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+}
+
 // app.js - AgroTrace
 const API_URL = 'http://localhost:3000/api';
 const STATIC_URL = 'http://localhost:3000';
 
-// ── Guard: solo ADMIN y VENDEDOR entran aquí ───────────
+// ── Obtener usuario autenticado desde JWT / localStorage ───
+function obtenerUsuarioDesdeToken() {
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        if (token) {
+            // Decodificar payload del JWT (base64url)
+            const payload = token.split('.')[1];
+            if (payload) {
+                const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+                if (decoded && (decoded.nombre || decoded.email)) return decoded;
+            }
+        }
+    } catch (_) { }
+    // Fallback: localStorage
+    try {
+        const u = JSON.parse(localStorage.getItem('usuario') || 'null');
+        if (u) return u;
+    } catch (_) { }
+    return null;
+}
+
+// ── Nombre completo del operario autenticado ───────────────
+function getNombreOperarioActual() {
+    const u = obtenerUsuarioDesdeToken();
+    if (!u) return '—';
+    const nombre = (u.nombre || '').trim();
+    const apellido = (u.apellido || '').trim();
+    return [nombre, apellido].filter(Boolean).join(' ') || u.email || '—';
+}
+
+// ── Resolver nombre de operario desde registro de BD ───────
+function resolverNombreOperario(registro) {
+    // Prioridad: campo nombre_operario del backend → relación operario/usuario
+    const candidatos = [
+        registro.nombre_operario,
+        registro.operario?.nombre_completo,
+        registro.operario
+            ? `${registro.operario.nombre || ''} ${registro.operario.apellido || ''}`.trim()
+            : null,
+        registro.usuario
+            ? `${registro.usuario.nombre || ''} ${registro.usuario.apellido || ''}`.trim()
+            : null,
+    ];
+    for (const c of candidatos) {
+        if (c && c.trim() && c.toLowerCase() !== 'usuario prueba') return c.trim();
+    }
+    return '—';
+}
+
+// ── Guard: solo ADMIN y OPERARIO entran aquí ───────────
 (function () {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
@@ -11,17 +118,17 @@ const STATIC_URL = 'http://localhost:3000';
         throw new Error('GUARD: sin sesión');
     }
     const rol = usuario.tipo_usuario;
-    if (rol === 'PRODUCTOR' || rol === 'OPERARIO') {
+    if (rol === 'PRODUCTOR') {
         window.location.replace('./vista_productor/productor.html');
         throw new Error('GUARD: rol incorrecto');
     }
-    if (rol !== 'ADMIN' && rol !== 'VENDEDOR') {
+    if (rol !== 'ADMIN' && rol !== 'OPERARIO') {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         window.location.replace('./login.html');
         throw new Error('GUARD: rol desconocido');
     }
-})();
+})()
 
 // ── Sidebar toggle ──────────────────────────────────────
 const toggle = document.querySelector(".menu-toggle");
@@ -311,9 +418,6 @@ function crearGraficoTendenciaDashboard(data) {
         }
     });
 }
-
-// Continúa en la parte 2...
-// ... Continuación de app.js
 
 // ==========================================
 // 2️⃣ HISTORIAL
@@ -816,20 +920,20 @@ async function analisis_loadProyeccion() {
 
 // ── HISTORIAL ──
 async function analisis_loadHistorial() {
-    const id  = document.getElementById('ah_productor').value;
+    const id = document.getElementById('ah_productor').value;
     const ini = document.getElementById('ah_inicio').value;
     const fin = document.getElementById('ah_fin').value;
     showLoading();
     try {
         const params = new URLSearchParams();
-        if (id)  params.append('id_productor', id);
+        if (id) params.append('id_productor', id);
         if (ini) params.append('inicio', ini);
         if (fin) params.append('fin', fin);
 
         const token = localStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/estadisticas/historial?${params.toString()}`,
+        const res = await fetch(`${API_URL}/estadisticas/historial?${params.toString()}`,
             { headers: { Authorization: `Bearer ${token}` } });
-        const data  = await res.json();
+        const data = await res.json();
         document.getElementById('ah_count').textContent = `${data.length} registros`;
 
         // ── Tabla ──
@@ -838,12 +942,12 @@ async function analisis_loadHistorial() {
             tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Sin registros en ese período</td></tr>';
         } else {
             tbody.innerHTML = data.map(r => {
-                const fecha   = (r.fecha || r.fecha_produccion || '').toString().split('T')[0];
-                const cantKg  = parseFloat(r.cantidad || r.peso_kg || 0);
-                const precio  = parseFloat(r.precio_unitario || 0);
-                const total   = parseFloat(r.total || (cantKg * precio) || 0);
-                const nombre  = r.nombre_productor || `Productor #${r.id_productor}`;
-                const prod    = r.nombre_producto  || `Producto #${r.id_producto}`;
+                const fecha = fmtFechaLocal(r.fecha || r.fecha_produccion || '');
+                const cantKg = parseFloat(r.cantidad || r.peso_kg || 0);
+                const precio = parseFloat(r.precio_unitario || 0);
+                const total = parseFloat(r.total || (cantKg * precio) || 0);
+                const nombre = r.nombre_productor || `Productor #${r.id_productor}`;
+                const prod = r.nombre_producto || `Producto #${r.id_producto}`;
                 return `<tr>
                     <td>${fecha}</td>
                     <td>${nombre}</td>
@@ -862,7 +966,7 @@ async function analisis_loadHistorial() {
         analisisCharts.historial = new Chart(ctx, {
             type: 'line',
             data: {
-                labels:   data.map(d => (d.fecha || d.fecha_produccion || '').toString().split('T')[0]),
+                labels: data.map(d => fmtFechaLocal(d.fecha || d.fecha_produccion || '')),
                 datasets: [{
                     label: 'kg entregados',
                     data: data.map(d => parseFloat(d.cantidad || d.peso_kg || 0)),
@@ -884,14 +988,14 @@ async function analisis_loadTendencia() {
     const id = document.getElementById('at_productor').value;
     showLoading();
     try {
-        const qId   = id ? `?id_productor=${id}` : '';
+        const qId = id ? `?id_productor=${id}` : '';
         const token = localStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/estadisticas/tendencia${qId}`,
+        const res = await fetch(`${API_URL}/estadisticas/tendencia${qId}`,
             { headers: { Authorization: `Bearer ${token}` } });
-        const d     = await res.json();
+        const d = await res.json();
 
         const tClass = d.tendencia === 'Creciente' ? 'ok' : d.tendencia === 'Decreciente' ? 'danger' : 'warn';
-        const dif    = parseFloat(d.diferencia_porcentual || 0);
+        const dif = parseFloat(d.diferencia_porcentual || 0);
 
         document.getElementById('at_cards').innerHTML = `
         <div class="an-kpi">
@@ -926,7 +1030,7 @@ async function analisis_loadTendencia() {
                         'rgba(156,163,175,0.7)',
                         d.tendencia === 'Creciente' ? 'rgba(10,174,10,0.8)'
                             : d.tendencia === 'Decreciente' ? 'rgba(239,68,68,0.8)'
-                            : 'rgba(245,158,11,0.8)'
+                                : 'rgba(245,158,11,0.8)'
                     ],
                     borderRadius: 8, borderWidth: 2
                 }]
@@ -934,7 +1038,7 @@ async function analisis_loadTendencia() {
             options: {
                 responsive: true,
                 plugins: { legend: { display: false } },
-                scales:  { y: { beginAtZero: true } }
+                scales: { y: { beginAtZero: true } }
             }
         });
     } catch (e) {
@@ -945,30 +1049,30 @@ async function analisis_loadTendencia() {
 
 // ── RANKING ──
 async function analisis_loadRanking() {
-    const tipo     = document.getElementById('ar_tipo').value;
-    const inicio   = document.getElementById('ar_inicio')?.value || '';
-    const fin      = document.getElementById('ar_fin')?.value    || '';
-    const labels   = { total: 'Total kg entregados', promedio: 'Promedio kg/entrega', frecuencia: 'Nº de entregas' };
+    const tipo = document.getElementById('ar_tipo').value;
+    const inicio = document.getElementById('ar_inicio')?.value || '';
+    const fin = document.getElementById('ar_fin')?.value || '';
+    const labels = { total: 'Total kg entregados', promedio: 'Promedio kg/entrega', frecuencia: 'Nº de entregas' };
     document.getElementById('ar_tipo_label').textContent = labels[tipo] || tipo;
     showLoading();
     try {
         const params = new URLSearchParams({ tipo });
         if (inicio) params.append('inicio', inicio);
-        if (fin)    params.append('fin',    fin);
+        if (fin) params.append('fin', fin);
 
         const token = localStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/estadisticas/ranking?${params.toString()}`,
+        const res = await fetch(`${API_URL}/estadisticas/ranking?${params.toString()}`,
             { headers: { Authorization: `Bearer ${token}` } });
-        const data  = await res.json();
+        const data = await res.json();
 
         // Guardar para exportación
         _ranking_data = Array.isArray(data) ? data : [];
 
         const tbody = document.getElementById('ar_tbody');
         tbody.innerHTML = _ranking_data.length ? _ranking_data.map(r => {
-            const medalla   = r.posicion === 1 ? '#1' : r.posicion === 2 ? '#2' : r.posicion === 3 ? '#3' : `#${r.posicion}`;
-            const nombre    = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
-            const valorFmt  = tipo === 'frecuencia'
+            const medalla = r.posicion === 1 ? '#1' : r.posicion === 2 ? '#2' : r.posicion === 3 ? '#3' : `#${r.posicion}`;
+            const nombre = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
+            const valorFmt = tipo === 'frecuencia'
                 ? `${r.valor} entregas`
                 : `${formatNumber(parseFloat(r.valor).toFixed(1))} kg`;
             const pagadoFmt = r.total_pagado ? formatCurrency(r.total_pagado) : '—';
@@ -976,7 +1080,7 @@ async function analisis_loadRanking() {
                 <td style="font-weight:800;color:#111827;font-size:1.1em">${medalla}</td>
                 <td>
                     <strong>${nombre}</strong>
-                    ${r.finca  ? `<br><small style="color:#9ca3af">${r.finca}</small>`       : ''}
+                    ${r.finca ? `<br><small style="color:#9ca3af">${r.finca}</small>` : ''}
                     ${r.cedula ? `<br><small style="color:#9ca3af">CC ${r.cedula}</small>` : ''}
                 </td>
                 <td style="font-weight:700">${valorFmt}</td>
@@ -986,17 +1090,17 @@ async function analisis_loadRanking() {
 
         destroyAnalisisChart('ranking');
         const colors = _ranking_data.map((_, i) => `hsla(${130 - i * 12},65%,45%,0.85)`);
-        const ctx    = document.getElementById('ar_chart').getContext('2d');
+        const ctx = document.getElementById('ar_chart').getContext('2d');
         analisisCharts.ranking = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels:   _ranking_data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `#${d.id_productor}`),
+                labels: _ranking_data.map(d => (d.nombre && d.nombre.trim()) ? d.nombre.trim() : `#${d.id_productor}`),
                 datasets: [{ data: _ranking_data.map(d => d.valor), backgroundColor: colors, borderRadius: 6 }]
             },
             options: {
                 indexAxis: 'y', responsive: true,
                 plugins: { legend: { display: false } },
-                scales:  { x: { beginAtZero: true } }
+                scales: { x: { beginAtZero: true } }
             }
         });
     } catch (e) {
@@ -1064,31 +1168,25 @@ async function analisis_loadPlanificacion() {
     } finally { hideLoading(); }
 }
 
-// ==========================================
 // ════════════════════════════════════════════════════════
 //  PERFIL DE USUARIO
-//  Endpoints reales del backend:
-//    GET  /me                    → usuario autenticado (JWT)
-//    PUT  /usuarios/:id_usuario  → editar email, telefono, tipo_usuario
-// ════════════════════════════════════════════════════════
-
 const ROL_GRADIENTS = {
     ADMIN: 'linear-gradient(135deg,#fbbf24,#d97706)',
-    VENDEDOR: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
+    OPERARIO: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
     PRODUCTOR: 'linear-gradient(135deg,#0aae0a,#1b5e20)',
 };
 const ROL_HERO_BG = {
     ADMIN: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
-    VENDEDOR: 'linear-gradient(135deg,#f5f3ff,#ede9fe)',
+    OPERARIO: 'linear-gradient(135deg,#f5f3ff,#ede9fe)',
     PRODUCTOR: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
 };
 const ROL_BADGE_CLASS = {
     ADMIN: 'hp-rol-ADMIN',
-    VENDEDOR: 'hp-rol-VENDEDOR',
+    OPERARIO: 'hp-rol-OPERARIO',
     PRODUCTOR: 'hp-rol-PRODUCTOR',
 };
 const ROL_LABEL = {
-    ADMIN: 'Administrador', VENDEDOR: 'Vendedor', PRODUCTOR: 'Productor',
+    ADMIN: 'Administrador', OPERARIO: 'Operario', PRODUCTOR: 'Productor',
 };
 const PERMISO_LABEL = {
     dashboard: 'Dashboard', compras: 'Compras', ventas: 'Ventas',
@@ -1384,7 +1482,7 @@ let _usr_buscar = '';   // texto búsqueda
 
 const USR_GRADIENTS = {
     ADMIN: 'linear-gradient(135deg,#fbbf24,#d97706)',
-    VENDEDOR: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
+    OPERARIO: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
     PRODUCTOR: 'linear-gradient(135deg,#0aae0a,#1b5e20)',
 };
 
@@ -1501,7 +1599,7 @@ function usr_abrirPanel() {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
-    document.getElementById('usr_f_rol').value = 'VENDEDOR';
+    document.getElementById('usr_f_rol').value = 'OPERARIO';
     document.getElementById('usr_msg').textContent = '';
     document.getElementById('usr_msg').className = 'hp-msg';
 
@@ -1531,7 +1629,7 @@ function usr_abrirEditar(id) {
     document.getElementById('usr_f_apellido').value = u.apellido || '';
     document.getElementById('usr_f_email').value = u.email || '';
     document.getElementById('usr_f_telefono').value = u.telefono || '';
-    document.getElementById('usr_f_rol').value = u.tipo_usuario || 'VENDEDOR';
+    document.getElementById('usr_f_rol').value = u.tipo_usuario || 'OPERARIO';
     document.getElementById('usr_f_rol').disabled = false;
 
     document.getElementById('usr_msg').textContent = '';
@@ -1762,7 +1860,7 @@ function prd_renderTabla() {
 
     let lista = _prd_todos.filter(p => {
         const matchEstado = !_prd_estado || p.estado === _prd_estado;
-        const texto = `${p.nombre || ''} ${p.cedula || ''} ${p.finca || ''}`.toLowerCase();
+        const texto = `${p.nombre || ''} ${p.usuario?.cedula || ''} ${p.finca || ''}`.toLowerCase();
         const matchBuscar = !_prd_buscar || texto.includes(_prd_buscar);
         return matchEstado && matchBuscar;
     });
@@ -1777,7 +1875,7 @@ function prd_renderTabla() {
     tbody.innerHTML = lista.map(p => {
         const nombre = p.nombre || p.usuario?.nombre || '—';
         const apellido = p.usuario?.apellido || '';
-        const cedula = p.cedula || p.usuario?.cedula || '—';
+        const cedula = p.usuario?.cedula || '—';
         const iniciales = nombre[0]?.toUpperCase() || '?';
         const activo = p.estado === 'ACTIVO';
         const qrValido = p.codigo_qr && p.codigo_qr.startsWith('data:image');
@@ -1809,7 +1907,7 @@ function prd_renderTabla() {
             <td style="font-family:monospace;font-size:.82em">${cedula}</td>
             <td>${p.finca || '—'}</td>
             <td style="font-size:.82em;color:#6b7280">${p.ubicacion || '—'}</td>
-            <td>${p.telefono || p.usuario?.telefono || '—'}</td>
+            <td>${p.usuario?.telefono || '—'}</td>
             <td class="prd-qr-cell">${qrCell}</td>
             <td>
                 <span class="usr-estado ${activo ? 'activo' : 'inactivo'}">
@@ -1867,7 +1965,7 @@ function prd_abrirEditar(id) {
 
     document.getElementById('prd_f_cedula').style.display = 'none';
     document.getElementById('prd_cedula_readonly').style.display = '';
-    document.getElementById('prd_cedula_val').textContent = p.cedula || p.usuario?.cedula || '—';
+    document.getElementById('prd_cedula_val').textContent = p.usuario?.cedula || '—';
 
     document.getElementById('prd_campos_usuario').style.display = 'none';
 
@@ -1876,7 +1974,7 @@ function prd_abrirEditar(id) {
 
     document.getElementById('prd_f_nombre').value = nombre;
     document.getElementById('prd_f_apellido').value = apellido;
-    document.getElementById('prd_f_telefono').value = p.telefono || p.usuario?.telefono || '';
+    document.getElementById('prd_f_telefono').value = p.usuario?.telefono || '';
     document.getElementById('prd_f_finca').value = p.finca || '';
     document.getElementById('prd_f_ubicacion').value = p.ubicacion || '';
 
@@ -2095,7 +2193,7 @@ function qr_ver(id_productor) {
 
     const nombre = p.usuario?.nombre || p.nombre || 'Productor';
     const apellido = p.usuario?.apellido || '';
-    const cedula = p.usuario?.cedula || p.cedula || '—';
+    const cedula = p.usuario?.cedula || '—';
     const finca = p.finca || 'Sin finca';
     const inicial = (nombre[0] || 'P').toUpperCase();
     const nombreCompleto = `${nombre} ${apellido}`.trim();
@@ -2529,15 +2627,25 @@ async function pro_toggleDisponible(id, nombre, actual) {
 let _cmp_todos = [];
 let _cmp_buscar = '';
 let _cmp_estado = '';
+let _cmp_pago = '';       // '' | 'PENDIENTE' | 'PAGADO'
+let _cmp_fechaDesde = '';
+let _cmp_fechaHasta = '';
 
 async function cmp_cargar() {
     const token = localStorage.getItem('token');
 
     // Resetear filtros al entrar a la sección
     _cmp_estado = '';
+    _cmp_pago = '';
     _cmp_buscar = '';
+    _cmp_fechaDesde = '';
+    _cmp_fechaHasta = '';
     const buscarInput = document.getElementById('cmp_buscar');
     if (buscarInput) buscarInput.value = '';
+    const desdeinput = document.getElementById('cmp_fecha_desde');
+    if (desdeinput) desdeinput.value = '';
+    const hastaInput = document.getElementById('cmp_fecha_hasta');
+    if (hastaInput) hastaInput.value = '';
     document.querySelectorAll('#compras .usr-ftab').forEach((b, i) => {
         b.classList.toggle('active', i === 0);
     });
@@ -2551,15 +2659,24 @@ async function cmp_cargar() {
         cmp_renderTabla();
     } catch (e) {
         document.getElementById('cmp_tbody').innerHTML =
-            `<tr><td colspan="10" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="8" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
     }
 }
 
 function cmp_filtrar(val) { _cmp_buscar = val.toLowerCase(); cmp_renderTabla(); }
+function cmp_setFechaDesde(val) { _cmp_fechaDesde = val; cmp_renderTabla(); }
+function cmp_setFechaHasta(val) { _cmp_fechaHasta = val; cmp_renderTabla(); }
 
 function cmp_setEstado(val, btn) {
     _cmp_estado = val;
     document.querySelectorAll('#compras .usr-ftab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    cmp_renderTabla();
+}
+
+function cmp_setPago(val, btn) {
+    _cmp_pago = val;
+    document.querySelectorAll('#compras .cmp-pago-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     cmp_renderTabla();
 }
@@ -2569,43 +2686,72 @@ function cmp_renderTabla() {
     if (!tbody) return;
 
     const lista = _cmp_todos.filter(c => {
-        const nombreBuscar = c.tipo_productor === 'EXTERNO' ? (c.nombre_productor_externo || '') : `${c.productor?.nombre || ''} ${c.productor?.usuario?.nombre || ''}`;
-        const txt = `${c.numero_factura || ''} ${nombreBuscar}`.toLowerCase();
+        // Buscar en factura, productor Y operario
+        const nombreProductor = c.tipo_productor === 'EXTERNO'
+            ? (c.nombre_productor_externo || '')
+            : [c.productor?.usuario?.nombre, c.productor?.usuario?.apellido, c.productor?.nombre]
+                .filter(Boolean).join(' ');
+        const txt = `${c.numero_factura || ''} ${nombreProductor}`.toLowerCase();
         const okBuscar = !_cmp_buscar || txt.includes(_cmp_buscar);
-        const estadoCompra = (c.estado || '').toUpperCase();
-        const okEstado = !_cmp_estado || estadoCompra === _cmp_estado.toUpperCase();
-        return okBuscar && okEstado;
+        // Normalizar estado: COMPLETADA y COMPLETADO se tratan igual
+        const estadoRaw = (c.estado || '').toUpperCase().trim();
+        const estadoCompra = estadoRaw === 'COMPLETADA' ? 'COMPLETADO' : estadoRaw;
+        const filtroEstado = (_cmp_estado || '').toUpperCase().trim();
+        const okEstado = !filtroEstado || estadoCompra === filtroEstado;
+
+        // Filtros de fecha
+        let okFecha = true;
+        if (_cmp_fechaDesde || _cmp_fechaHasta) {
+            const fechaRaw = c.fecha_compra || c.fecha || '';
+            if (!fechaRaw) {
+                okFecha = false;
+            } else {
+                const fechaCompra = new Date(parseFechaLocal(fechaRaw));
+                fechaCompra.setHours(0, 0, 0, 0);
+                if (_cmp_fechaDesde) {
+                    const desde = new Date(parseFechaLocal(_cmp_fechaDesde));
+                    desde.setHours(0, 0, 0, 0);
+                    if (fechaCompra < desde) okFecha = false;
+                }
+                if (_cmp_fechaHasta) {
+                    const hasta = new Date(parseFechaLocal(_cmp_fechaHasta));
+                    hasta.setHours(23, 59, 59, 999);
+                    if (fechaCompra > hasta) okFecha = false;
+                }
+            }
+        }
+
+        // Filtro por comprobante de pago
+        const okPago = !_cmp_pago || (c.estado_pago || 'PENDIENTE').toUpperCase() === _cmp_pago;
+
+        return okBuscar && okEstado && okFecha && okPago;
     });
 
     document.getElementById('cmp_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
         return;
     }
 
     const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
-    const fmtFecha = f => f ? new Date(f).toLocaleDateString('es-CO') : '—';
+    const fmtFecha = f => fmtFechaLocal(f);
 
     tbody.innerHTML = lista.map(c => {
-        // Nombre del productor: externo muestra "(externo)", registrado muestra nombre completo
+        // Nombre del productor
         const esExterno = c.tipo_productor === 'EXTERNO' || (!c.id_productor && c.nombre_productor_externo);
         const productor = esExterno
             ? `${c.nombre_productor_externo || 'Externo'} <span class="badge-externo">(externo)</span>`
             : c.productor?.usuario?.nombre
                 ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
                 : (c.productor?.nombre || '—');
-        
-        // Operario que registró la compra
-        const operario = c.nombre_operario || c.operario?.nombre || c.usuario?.nombre || '—';
-        
+
         const nDetalles = c.detalles?.length ?? '—';
-        // ── Comprobante ──
-        const idEntrega      = c.id_entrega || c.id_compra;
-        const estadoPago     = c.estado_pago || 'PENDIENTE';
-        const comprobante    = c.comprobante_pago || null;
-        const isPagado       = estadoPago === 'PAGADO';
-        const estadoBadge    = isPagado
+        const idEntrega = c.id_entrega || c.id_compra;
+        const estadoPago = c.estado_pago || 'PENDIENTE';
+        const comprobante = c.comprobante_pago || null;
+        const isPagado = estadoPago === 'PAGADO';
+        const estadoBadge = isPagado
             ? `<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700"> Pagado</span>`
             : `<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700">Pendiente</span>`;
         const comprobanteCol = isPagado && comprobante
@@ -2634,7 +2780,6 @@ function cmp_renderTabla() {
         return `<tr>
             <td style="font-family:monospace;font-size:.82em;font-weight:700">${c.numero_factura || '—'}</td>
             <td>${productor}</td>
-            <td style="font-size:.85em;color:#059669;font-weight:600">${operario}</td>
             <td style="font-size:.85em;color:#6b7280">${fmtFecha(c.fecha_compra)}</td>
             <td style="text-align:center">${nDetalles}</td>
             <td style="font-weight:700;color:#111827">${fmt(c.total)}</td>
@@ -2771,6 +2916,8 @@ async function cmp_eliminarComprobante(idEntrega) {
 let _vnt_todos = [];
 let _vnt_buscar = '';
 let _vnt_estado = '';
+let _vnt_fechaDesde = '';
+let _vnt_fechaHasta = '';
 
 async function vnt_cargar() {
     const token = localStorage.getItem('token');
@@ -2778,8 +2925,14 @@ async function vnt_cargar() {
     // Resetear filtros al entrar a la sección
     _vnt_estado = '';
     _vnt_buscar = '';
+    _vnt_fechaDesde = '';
+    _vnt_fechaHasta = '';
     const buscarInput = document.getElementById('vnt_buscar');
     if (buscarInput) buscarInput.value = '';
+    const desdeInput = document.getElementById('vnt_fecha_desde');
+    if (desdeInput) desdeInput.value = '';
+    const hastaInput = document.getElementById('vnt_fecha_hasta');
+    if (hastaInput) hastaInput.value = '';
     document.querySelectorAll('#ventas .usr-ftab').forEach((b, i) => {
         b.classList.toggle('active', i === 0);
     });
@@ -2793,11 +2946,13 @@ async function vnt_cargar() {
         vnt_renderTabla();
     } catch (e) {
         document.getElementById('vnt_tbody').innerHTML =
-            `<tr><td colspan="9" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="8" style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}</td></tr>`;
     }
 }
 
 function vnt_filtrar(val) { _vnt_buscar = val.toLowerCase(); vnt_renderTabla(); }
+function vnt_setFechaDesde(val) { _vnt_fechaDesde = val; vnt_renderTabla(); }
+function vnt_setFechaHasta(val) { _vnt_fechaHasta = val; vnt_renderTabla(); }
 
 function vnt_setEstado(val, btn) {
     _vnt_estado = val;
@@ -2811,44 +2966,63 @@ function vnt_renderTabla() {
     if (!tbody) return;
 
     const lista = _vnt_todos.filter(v => {
+        // Buscar en factura, cliente, comerciante Y operario
         const txt = `${v.numero_factura || ''} ${v.cliente || ''} ${v.comerciante?.nombre || ''}`.toLowerCase();
         const okBuscar = !_vnt_buscar || txt.includes(_vnt_buscar);
-        // Normalizar: comparar en minúsculas para soportar 'pendiente' y 'PENDIENTE'
-        const estadoVenta = (v.estado || '').toLowerCase();
-        const okEstado = !_vnt_estado || estadoVenta === _vnt_estado.toLowerCase();
-        return okBuscar && okEstado;
+        // Normalizar estado: COMPLETADA y COMPLETADO se tratan igual
+        const estadoRawV = (v.estado || '').toUpperCase().trim();
+        const estadoVenta = estadoRawV === 'COMPLETADA' ? 'COMPLETADO' : estadoRawV;
+        const filtroEstado = (_vnt_estado || '').toUpperCase().trim();
+        const okEstado = !filtroEstado || estadoVenta === filtroEstado;
+
+        // Filtros de fecha
+        let okFecha = true;
+        if (_vnt_fechaDesde || _vnt_fechaHasta) {
+            const fechaRaw = v.fecha_venta || v.fecha || '';
+            if (!fechaRaw) {
+                okFecha = false;
+            } else {
+                const fechaVenta = new Date(parseFechaLocal(fechaRaw));
+                fechaVenta.setHours(0, 0, 0, 0);
+                if (_vnt_fechaDesde) {
+                    const desde = new Date(parseFechaLocal(_vnt_fechaDesde));
+                    desde.setHours(0, 0, 0, 0);
+                    if (fechaVenta < desde) okFecha = false;
+                }
+                if (_vnt_fechaHasta) {
+                    const hasta = new Date(parseFechaLocal(_vnt_fechaHasta));
+                    hasta.setHours(23, 59, 59, 999);
+                    if (fechaVenta > hasta) okFecha = false;
+                }
+            }
+        }
+
+        return okBuscar && okEstado && okFecha;
     });
 
     document.getElementById('vnt_count').textContent = `${lista.length} registro${lista.length !== 1 ? 's' : ''}`;
 
     if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#9ca3af">Sin registros</td></tr>`;
         return;
     }
 
     const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
-    const fmtFecha = f => f ? new Date(f).toLocaleDateString('es-CO') : '—';
+    const fmtFecha = f => fmtFechaLocal(f);
 
     tbody.innerHTML = lista.map(v => {
         const nDetalles = v.detalles?.length ?? '—';
-        
-        // Operario que registró la venta
-        const operario = v.nombre_operario || v.operario?.nombre || v.usuario?.nombre || '—';
-        
-        const emailCom = v.comerciante?.email || '';
-        const facturaBtn = emailCom
-            ? `<button class="usr-btn-action" title="Enviar factura electrónica (simulación)"
-                       style="background:#eff6ff;color:#2563eb"
-                       onclick="vnt_simularFactura(${v.id_venta}, '${emailCom}')">
+
+        // Columna de factura — el admin puede reenviar el correo si quiere
+        const emailCom = v.comerciante?.email || v.comerciante?.correo || '';
+        const facturaBtn = `<button class="usr-btn-action" title="${emailCom ? 'Reenviar factura por correo' : 'Sin correo — asignar y enviar'}"
+                       style="background:${emailCom ? '#eff6ff' : '#f9fafb'};color:${emailCom ? '#2563eb' : '#9ca3af'}"
+                       onclick="vnt_abrirModalReenvio(${v.id_venta}, '${(emailCom).replace(/'/g, "\\'")}', '${(v.numero_factura || '').replace(/'/g, "\\'")}', '${(v.comerciante?.nombre || v.cliente || '').replace(/'/g, "\\'")}')">
                    <i class="fi fi-rr-envelope"></i>
-               </button>`
-            : `<span style="font-size:.72rem;color:#d1d5db" title="Sin correo registrado">
-                   <i class="fi fi-rr-envelope" style="opacity:.4"></i>
-               </span>`;
+               </button>`;
         return `<tr>
             <td style="font-family:monospace;font-size:.82em;font-weight:700">${v.numero_factura || '—'}</td>
             <td>${v.comerciante?.nombre ?? (v.cliente || '—')}</td>
-            <td style="font-size:.85em;color:#059669;font-weight:600">${operario}</td>
             <td style="font-size:.85em;color:#6b7280">${fmtFecha(v.fecha_venta)}</td>
             <td style="text-align:center">${nDetalles}</td>
             <td style="font-weight:700;color:#111827">${fmt(v.total)}</td>
@@ -2856,8 +3030,8 @@ function vnt_renderTabla() {
             <td style="text-align:center">${facturaBtn}</td>
             <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
-                    ${v.estado === 'pendiente' || v.estado === 'PENDIENTE'
-                      ? `<button class="usr-btn-action" title="Marcar como completada"
+                    ${(v.estado || '').toUpperCase().trim() !== 'COMPLETADO' && (v.estado || '').toUpperCase().trim() !== 'COMPLETADA'
+                ? `<button class="usr-btn-action" title="Marcar como COMPLETADO"
                                  style="background:#d1fae5;color:#065f46"
                                  onclick="vnt_marcarCompletada(${v.id_venta})">
                              <i class="fi fi-rr-check"></i>
@@ -2881,99 +3055,145 @@ function vnt_renderTabla() {
  * Muestra una ventana emergente con los datos de la factura
  * tal como aparecería en el correo — sin enviar nada real.
  */
-async function vnt_simularFactura(id_venta, email) {
+// ════════════════════════════════════════════════════════
+//  REENVÍO DE FACTURA — Panel Admin
+//  El admin puede reenviar la factura de cualquier venta
+//  a cualquier correo desde la tabla de ventas.
+// ════════════════════════════════════════════════════════
+
+/**
+ * Abre un pequeño modal inline para reenviar la factura desde el panel admin.
+ * Más simple que el modal del operario — solo pide confirmar/cambiar el email.
+ */
+function vnt_abrirModalReenvio(id_venta, emailActual, numeroFactura, nombreCliente) {
+    // Remover modal anterior si existe
+    const anterior = document.getElementById('modal-reenvio-factura');
+    if (anterior) anterior.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-reenvio-factura';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:420px;
+                    box-shadow:0 24px 64px rgba(0,0,0,.2);overflow:hidden;
+                    animation:slideUp .25s ease">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:18px 20px;
+                        display:flex;align-items:center;gap:10px">
+                <div style="width:36px;height:36px;background:rgba(255,255,255,.18);border-radius:50%;
+                            display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <i class="fi fi-rr-envelope" style="color:#fff;display:flex;font-size:.95rem"></i>
+                </div>
+                <div>
+                    <div style="color:#fff;font-weight:800;font-size:.95rem">Enviar Factura</div>
+                    <div style="color:rgba(255,255,255,.75);font-size:.75rem">${numeroFactura || 'Sin número'} · ${nombreCliente || 'Sin cliente'}</div>
+                </div>
+                <button onclick="document.getElementById('modal-reenvio-factura').remove()"
+                    style="margin-left:auto;background:rgba(255,255,255,.15);border:none;cursor:pointer;
+                           color:#fff;width:28px;height:28px;border-radius:50%;font-size:.9rem;
+                           display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:20px">
+                <label style="font-size:.8rem;font-weight:700;color:#374151;display:block;margin-bottom:6px">
+                    Correo del comerciante
+                </label>
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <input type="email" id="reenvio-email-input"
+                        value="${emailActual}"
+                        placeholder="correo@comerciante.com"
+                        style="flex:1;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 12px;
+                               font-size:.87rem;outline:none;transition:border-color .2s"
+                        onfocus="this.style.borderColor='#2563eb'"
+                        onblur="this.style.borderColor='#d1d5db'"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();vnt_confirmarReenvio(${id_venta})}" />
+                </div>
+                <div id="reenvio-estado" style="font-size:.8rem;font-weight:600;min-height:18px;margin-bottom:12px"></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button onclick="document.getElementById('modal-reenvio-factura').remove()"
+                        style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;
+                               padding:9px 16px;font-size:.85rem;font-weight:600;cursor:pointer">
+                        Cancelar
+                    </button>
+                    <button id="reenvio-btn-enviar" onclick="vnt_confirmarReenvio(${id_venta})"
+                        style="background:#2563eb;color:#fff;border:none;border-radius:8px;
+                               padding:9px 18px;font-size:.85rem;font-weight:700;cursor:pointer;
+                               display:flex;align-items:center;gap:6px">
+                        <i class="fi fi-rr-paper-plane" style="display:flex"></i> Enviar factura
+                    </button>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes slideUp {
+                from { transform:translateY(16px);opacity:0 }
+                to   { transform:translateY(0);opacity:1 }
+            }
+        </style>`;
+
+    document.body.appendChild(overlay);
+    setTimeout(() => document.getElementById('reenvio-email-input')?.focus(), 100);
+}
+
+async function vnt_confirmarReenvio(id_venta) {
+    const email = (document.getElementById('reenvio-email-input')?.value || '').trim();
+    const estadoEl = document.getElementById('reenvio-estado');
+    const btn = document.getElementById('reenvio-btn-enviar');
+
+    if (!email) {
+        estadoEl.textContent = 'Ingresa un correo válido.';
+        estadoEl.style.color = '#dc2626';
+        return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        estadoEl.textContent = 'El formato del correo no es válido.';
+        estadoEl.style.color = '#dc2626';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fi fi-rr-spinner" style="display:flex"></i> Enviando...';
+    estadoEl.textContent = '';
+
     const token = localStorage.getItem('token') || '';
     try {
-        const res  = await fetch(`${API_URL}/ventas/${id_venta}`, {
-            headers: { Authorization: `Bearer ${token}` }
+        const res = await fetch(`${API_URL}/ventas/${id_venta}/estado`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ estado: 'COMPLETADA', email_factura: email })
         });
-        const json = await res.json();
-        const v    = json.data || json;
-
-        const fmt     = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
-        const fmtDate = f => f ? new Date(f).toLocaleDateString('es-CO') : '—';
-
-        const detallesRows = (v.detalles || []).map(d => `
-            <tr style="border-bottom:1px solid #e5e7eb">
-                <td style="padding:8px;color:#374151">${d.producto?.nombre || d.id_producto}</td>
-                <td style="padding:8px;text-align:center">${d.cantidad ?? d.cantidad_kg ?? '—'}</td>
-                <td style="padding:8px;text-align:right">${fmt(d.precio_unitario)}</td>
-                <td style="padding:8px;text-align:right;font-weight:700">${fmt(d.subtotal)}</td>
-            </tr>`).join('');
-
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-        <title>Factura Electrónica — Simulación</title>
-        <style>
-            body { font-family: Arial, sans-serif; max-width:700px; margin:32px auto; color:#111; }
-            .header { background:#15803d; color:#fff; padding:24px; border-radius:8px 8px 0 0; }
-            .header h1 { margin:0; font-size:1.3rem; }
-            .header p  { margin:4px 0 0; opacity:.85; font-size:.85rem; }
-            .badge-sim { background:#fef3c7; color:#92400e; font-size:.75rem; font-weight:700;
-                         padding:2px 8px; border-radius:99px; margin-left:8px; }
-            .body { border:1px solid #e5e7eb; border-top:none; padding:24px; border-radius:0 0 8px 8px; }
-            .row { display:flex; justify-content:space-between; padding:6px 0;
-                   border-bottom:1px solid #f3f4f6; font-size:.88rem; }
-            .row span:first-child { color:#6b7280; }
-            table { width:100%; border-collapse:collapse; margin-top:16px; font-size:.85rem; }
-            th { background:#f0fdf4; color:#166534; padding:8px; text-align:left; }
-            .total { background:#f0fdf4; border-radius:8px; padding:12px 16px;
-                     margin-top:16px; display:flex; justify-content:space-between;
-                     font-size:1.1rem; font-weight:800; }
-            .footer { margin-top:20px; font-size:.75rem; color:#9ca3af; text-align:center;
-                      border-top:1px solid #e5e7eb; padding-top:12px; }
-            .email-to { background:#eff6ff; border-radius:8px; padding:10px 14px;
-                        font-size:.82rem; color:#1e40af; margin-bottom:16px; }
-        </style></head><body>
-        <div class="header">
-            <h1> Factura Electrónica de Venta <span class="badge-sim">SIMULACIÓN</span></h1>
-            <p>AgroTrace — Sistema de Trazabilidad Agrícola</p>
-        </div>
-        <div class="body">
-            <div class="email-to">
-                <strong>Para:</strong> ${email}<br>
-                <strong>Asunto:</strong> Factura de venta ${v.numero_factura || v.id_venta} — AgroTrace
-                <br><em style="opacity:.7">* Esta es una simulación. No se envió ningún correo real.</em>
-            </div>
-            <div class="row"><span>N° Factura</span><span><strong>${v.numero_factura || '—'}</strong></span></div>
-            <div class="row"><span>Fecha</span><span>${fmtDate(v.fecha_venta)}</span></div>
-            <div class="row"><span>Cliente</span><span>${v.cliente || v.comerciante?.nombre || '—'}</span></div>
-            <div class="row"><span>Estado</span><span>${v.estado || '—'}</span></div>
-            <table>
-                <thead><tr>
-                    <th>Producto</th><th style="text-align:center">Cantidad</th>
-                    <th style="text-align:right">Precio/kg</th><th style="text-align:right">Subtotal</th>
-                </tr></thead>
-                <tbody>${detallesRows}</tbody>
-            </table>
-            <div class="total">
-                <span>TOTAL</span><span style="color:#15803d">${fmt(v.total)}</span>
-            </div>
-            <div class="footer">
-                Documento generado por AgroTrace &nbsp;·&nbsp; ${new Date().toLocaleString('es-CO')}
-                <br>Simulación basada en la factura electrónica DIAN
-            </div>
-        </div>
-        <script>window.print()<\/script>
-        </body></html>`;
-
-        const win = window.open('', '_blank', 'width=760,height=700');
-        win.document.write(html);
-        win.document.close();
-
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Error ${res.status}`);
+        }
+        estadoEl.textContent = `✓ Factura enviada a ${email}`;
+        estadoEl.style.color = '#16a34a';
+        btn.innerHTML = '<i class="fi fi-rr-check" style="display:flex"></i> Enviado';
+        // Recargar tabla después de 1.5s y cerrar modal
+        setTimeout(() => {
+            document.getElementById('modal-reenvio-factura')?.remove();
+            vnt_cargar();
+        }, 1500);
     } catch (e) {
-        alert('Error al generar factura: ' + e.message);
+        estadoEl.textContent = `Error: ${e.message}`;
+        estadoEl.style.color = '#dc2626';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fi fi-rr-paper-plane" style="display:flex"></i> Reintentar';
     }
 }
 
 async function vnt_marcarCompletada(id_venta) {
-    if (!confirm('¿Marcar esta venta como COMPLETADA?')) return;
+    if (!confirm('¿Marcar esta venta como completada?')) return;
     const token = localStorage.getItem('token') || '';
     showLoading();
     try {
         const res = await fetch(`${API_URL}/ventas/${id_venta}/estado`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ estado: 'completada' })
+            body: JSON.stringify({ estado: 'COMPLETADA' })
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
         await vnt_cargar();
@@ -3004,7 +3224,7 @@ async function det_abrir(tipo, id) {
         const d = json.data || json;
 
         const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
-        const fmtFecha = f => f ? new Date(f).toLocaleDateString('es-CO') : '—';
+        const fmtFecha = f => fmtFechaLocal(f);
 
         document.getElementById('det_subtitulo').textContent = `Factura: ${d.numero_factura || '—'}`;
 
@@ -3070,64 +3290,80 @@ async function his_cargar() {
     const token = localStorage.getItem('token');
 
     const inicio = document.getElementById('his_fecha_inicio')?.value || '';
-    const fin    = document.getElementById('his_fecha_fin')?.value    || '';
+    const fin = document.getElementById('his_fecha_fin')?.value || '';
 
     try {
         if (_his_tabActual === 'transacciones') {
             // ── Cargar compras Y ventas en paralelo desde endpoints reales ──
             const [resC, resV] = await Promise.all([
                 fetch(`${API_URL}/compras`, { headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${API_URL}/ventas`,  { headers: { Authorization: `Bearer ${token}` } }),
+                fetch(`${API_URL}/ventas`, { headers: { Authorization: `Bearer ${token}` } }),
             ]);
             const jsonC = resC.ok ? await resC.json() : [];
             const jsonV = resV.ok ? await resV.json() : [];
 
             const compras = (Array.isArray(jsonC) ? jsonC : (jsonC.data || [])).map(c => ({
-                _tipo:       'compra',
-                id_ref:      c.id_compra,
-                numero:      c.numero_factura || `COMP-${String(c.id_compra).padStart(6,'0')}`,
-                fecha:       c.fecha_compra  || c.fecha,
+                _tipo: 'compra',
+                id_ref: c.id_compra,
+                numero: c.numero_factura || `COMP-${String(c.id_compra).padStart(6, '0')}`,
+                fecha: c.fecha_compra || c.fecha,
                 contraparte: (c.tipo_productor === 'EXTERNO' || (!c.id_productor && c.nombre_productor_externo))
                     ? `${c.nombre_productor_externo || 'Externo'} (externo)`
                     : c.productor?.usuario
                         ? `${c.productor.usuario.nombre || ''} ${c.productor.usuario.apellido || ''}`.trim()
                         : (c.productor?.nombre || '—'),
-                producto:    c.detalles?.map(d => d.producto?.nombre || `#${d.id_producto}`).join(', ') || '—',
-                peso:        c.detalles?.reduce((s, d) => s + Number(d.peso_kg || d.cantidad || 0), 0) || null,
-                total:       c.total,
-                estado:      c.estado || 'pendiente',
+                producto: c.detalles?.map(d => d.producto?.nombre || `#${d.id_producto}`).join(', ') || '—',
+                peso: c.detalles?.reduce((s, d) => s + Number(d.peso_kg || d.cantidad || 0), 0) || null,
+                total: c.total,
+                estado: c.estado || 'pendiente',
                 estado_pago: c.estado_pago || 'PENDIENTE',
             }));
 
             const ventas = (Array.isArray(jsonV) ? jsonV : (jsonV.data || [])).map(v => ({
-                _tipo:       'venta',
-                id_ref:      v.id_venta,
-                numero:      v.numero_factura || `VENT-${String(v.id_venta).padStart(6,'0')}`,
-                fecha:       v.fecha_venta || v.fecha,
+                _tipo: 'venta',
+                id_ref: v.id_venta,
+                numero: v.numero_factura || `VENT-${String(v.id_venta).padStart(6, '0')}`,
+                fecha: v.fecha_venta || v.fecha,
                 contraparte: v.comerciante?.nombre || v.cliente || '—',
-                producto:    v.detalles?.map(d => d.producto?.nombre || `#${d.id_producto}`).join(', ') || '—',
-                peso:        v.detalles?.reduce((s, d) => s + Number(d.cantidad || 0), 0) || null,
-                total:       v.total,
-                estado:      v.estado || 'pendiente',
+                producto: v.detalles?.map(d => d.producto?.nombre || `#${d.id_producto}`).join(', ') || '—',
+                peso: v.detalles?.reduce((s, d) => s + Number(d.cantidad || 0), 0) || null,
+                total: v.total,
+                estado: v.estado || 'pendiente',
                 estado_pago: null,
             }));
 
             // Combinar y ordenar por fecha descendente
             let todas = [...compras, ...ventas].sort((a, b) => {
-                const da = a.fecha ? new Date(a.fecha) : 0;
-                const db = b.fecha ? new Date(b.fecha) : 0;
+                const da = a.fecha ? new Date(parseFechaLocal(a.fecha)) : 0;
+                const db = b.fecha ? new Date(parseFechaLocal(b.fecha)) : 0;
                 return db - da;
             });
 
             // Aplicar filtro de fechas en cliente
-            if (inicio) todas = todas.filter(t => t.fecha && t.fecha >= inicio);
-            if (fin)    todas = todas.filter(t => t.fecha && t.fecha <= fin + 'T23:59:59');
+            if (inicio) {
+                const desdeDate = new Date(inicio);
+                desdeDate.setHours(0, 0, 0, 0);
+                todas = todas.filter(t => {
+                    if (!t.fecha) return false;
+                    const fd = new Date(parseFechaLocal(t.fecha));
+                    fd.setHours(0, 0, 0, 0);
+                    return fd >= desdeDate;
+                });
+            }
+            if (fin) {
+                const hastaDate = new Date(fin);
+                hastaDate.setHours(23, 59, 59, 999);
+                todas = todas.filter(t => {
+                    if (!t.fecha) return false;
+                    return new Date(parseFechaLocal(t.fecha)) <= hastaDate;
+                });
+            }
 
             _his_transacciones = todas;
             his_renderTransacciones();
         } else {
             // ── Pestaña PRECIOS → carga desde /precios (módulo admin) ──
-            const res  = await fetch(`${API_URL}/precios`,
+            const res = await fetch(`${API_URL}/precios`,
                 { headers: { Authorization: `Bearer ${token}` } });
             const json = await res.json();
             _his_precios = Array.isArray(json) ? json : (json.data || []);
@@ -3175,7 +3411,7 @@ function his_renderTransacciones() {
     }
 
     const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
-    const fmtFecha = f => f ? new Date(f).toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—';
+    const fmtFecha = f => fmtFechaLocal(f);
 
     tbody.innerHTML = lista.map(t => {
         const esCompra = t._tipo === 'compra';
@@ -3210,9 +3446,36 @@ function his_renderPrecios() {
 
     const fmt = n => n != null ? `$${Number(n).toLocaleString('es-CO')}` : '—';
 
+    // Leer filtros de fecha del toolbar (compartidos con transacciones)
+    const inicio = document.getElementById('his_fecha_inicio')?.value || '';
+    const fin    = document.getElementById('his_fecha_fin')?.value    || '';
+
     const lista = _his_precios.filter(p => {
         const nombre = (p.producto?.nombre || '').toLowerCase();
-        return !_his_buscar || nombre.includes(_his_buscar);
+        const okBuscar = !_his_buscar || nombre.includes(_his_buscar);
+
+        let okFecha = true;
+        if (inicio || fin) {
+            const fechaRaw = p.fecha || '';
+            if (!fechaRaw) {
+                okFecha = false;
+            } else {
+                const fd = new Date(parseFechaLocal(fechaRaw));
+                fd.setHours(0, 0, 0, 0);
+                if (inicio) {
+                    const d = new Date(parseFechaLocal(inicio));
+                    d.setHours(0, 0, 0, 0);
+                    if (fd < d) okFecha = false;
+                }
+                if (fin) {
+                    const h = new Date(parseFechaLocal(fin));
+                    h.setHours(23, 59, 59, 999);
+                    if (fd > h) okFecha = false;
+                }
+            }
+        }
+
+        return okBuscar && okFecha;
     });
 
     document.getElementById('his_count').textContent =
@@ -3229,15 +3492,15 @@ function his_renderPrecios() {
             ? `<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 10px;font-size:.73rem;font-weight:700">Activo</span>`
             : `<span style="background:#f3f4f6;color:#6b7280;border-radius:99px;padding:2px 10px;font-size:.73rem;font-weight:700">Inactivo</span>`;
         const fecha = p.fecha
-            ? new Date(p.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+            ? fmtFechaLocal(p.fecha)
             : '—';
+        const primo = Number(p.precio_base_kg);
+        const otros = primo + 100;
         return `<tr>
             <td><strong>${nombreProd}</strong></td>
-            <td>${fmt(p.precio_base_kg)}</td>
-            <td>${fmt(p.precio_transporte)}</td>
-            <td>${fmt(p.costo_transporte_kg)}</td>
-            <td><strong style="color:#16a34a">${fmt(p.precio_final_kg)}</strong><br>
-                <small style="color:#9ca3af;font-size:.72rem">precio al productor</small></td>
+            <td style="text-align:right;font-weight:600">${fmt(p.precio_base_kg)}</td>
+            <td style="text-align:right;color:#16a34a;font-weight:700">${fmt(primo)}</td>
+            <td style="text-align:right;color:#2563eb;font-weight:700">${fmt(otros)}</td>
             <td style="font-size:.84em;color:#6b7280">${fecha}</td>
             <td>${estado}</td>
         </tr>`;
@@ -3257,7 +3520,7 @@ function his_exportarExcel() {
         // Si contiene tab o salto de línea, encerramos en comillas
         return s.includes('\t') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const fmtFecha = d => d ? new Date(d).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const fmtFecha = d => d ? fmtFechaLocal(d) : '';
     const fmtMonto = n => n != null ? Number(n).toLocaleString('es-CO', { minimumFractionDigits: 2 }) : '';
 
     let filas = [];
@@ -3265,13 +3528,13 @@ function his_exportarExcel() {
     if (_his_tabActual === 'transacciones') {
         filas.push(['Número', 'Tipo', 'Fecha', 'Contraparte', 'Producto', 'Total ($)', 'Estado']);
         datos.forEach(t => filas.push([
-            t.numero       || '',
-            t._tipo        || '',
+            t.numero || '',
+            t._tipo || '',
             fmtFecha(t.fecha),
-            t.contraparte  || '',
-            t.producto     || '',
+            t.contraparte || '',
+            t.producto || '',
             fmtMonto(t.total),
-            t.estado       || '',
+            t.estado || '',
         ]));
     } else {
         filas.push(['Producto', 'Precio Base/kg', 'Transporte', 'Costo Transp/kg', 'Precio Productor/kg', 'Fecha', 'Estado']);
@@ -3291,7 +3554,7 @@ function his_exportarExcel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `historial_${_his_tabActual}_${new Date().toISOString().slice(0, 10)}.xls`;
+    a.download = `historial_${_his_tabActual}_${fechaHoyColombia()}.xls`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
@@ -3312,7 +3575,7 @@ function his_exportarPDF() {
         filas = datos.map(t => `<tr>
             <td>${t.numero || '—'}</td>
             <td>${t._tipo === 'compra' ? 'Compra' : 'Venta'}</td>
-            <td>${t.fecha ? new Date(t.fecha).toLocaleDateString('es-CO') : '—'}</td>
+            <td>${t.fecha ? fmtFechaLocal(t.fecha) : '—'}</td>
             <td>${t.contraparte || '—'}</td>
             <td>${t.producto || '—'}</td>
             <td>${fmt(t.total)}</td>
@@ -3326,7 +3589,7 @@ function his_exportarPDF() {
             <td>${fmt(p.precio_transporte)}</td>
             <td>${fmt(p.costo_transporte_kg)}</td>
             <td><strong style="color:#16a34a">${fmt(p.precio_final_kg)}</strong></td>
-            <td>${p.fecha ? new Date(p.fecha).toLocaleDateString('es-CO') : '—'}</td>
+            <td>${p.fecha ? fmtFechaLocal(p.fecha) : '—'}</td>
             <td>${p.activo ? 'Activo' : 'Inactivo'}</td>
         </tr>`).join('');
     }
@@ -3569,7 +3832,7 @@ function _generarExcel(nombreArchivo, nombreHoja, encabezados, filas) {
         }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, nombreHoja);
-        XLSX.writeFile(wb, `${nombreArchivo}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        XLSX.writeFile(wb, `${nombreArchivo}_${fechaHoyColombia()}.xlsx`);
     }
     if (window.XLSX) {
         _doExport();
@@ -3587,19 +3850,19 @@ function _generarExcel(nombreArchivo, nombreHoja, encabezados, filas) {
 function his_exportarExcel() {
     const datos = _his_tabActual === 'transacciones' ? _his_transacciones : _his_precios;
     if (!datos.length) { alert('No hay datos para exportar'); return; }
-    const fmtF = d => d ? new Date(d).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const fmtF = d => d ? fmtFechaLocal(d) : '';
     const fmtM = n => n != null ? Number(n).toLocaleString('es-CO', { minimumFractionDigits: 2 }) : '';
     let encabezados, filas;
     if (_his_tabActual === 'transacciones') {
         encabezados = ['Número', 'Tipo', 'Fecha', 'Contraparte', 'Producto', 'Total ($)', 'Estado'];
         filas = datos.map(t => [
-            t.numero      || '',
-            t._tipo       || '',
+            t.numero || '',
+            t._tipo || '',
             fmtF(t.fecha),
             t.contraparte || '',
-            t.producto    || '',
+            t.producto || '',
             fmtM(t.total),
-            t.estado      || '',
+            t.estado || '',
         ]);
     } else {
         encabezados = ['Producto', 'Precio Base/kg', 'Transporte', 'Costo/kg', 'Precio Productor/kg', 'Fecha', 'Estado'];
@@ -3630,11 +3893,15 @@ function rep_setTab(tab, btn) {
         const p = document.getElementById(`rep_panel_${t}`);
         if (p) p.classList.toggle('active', t === tab);
     });
-    // Cargar productores/productos en filtros si es primera vez
-    if (tab === 'entregas') rep_cargarFiltros();
+    // Siempre cargar filtros al cambiar a entregas (en caso de primera vez)
+    rep_cargarFiltros();
 }
 
+let _rep_filtros_cargados = false;
+
 async function rep_cargarFiltros() {
+    // Solo cargar una vez para no duplicar opciones
+    if (_rep_filtros_cargados) return;
     const token = localStorage.getItem('token') || '';
     const h = token ? { Authorization: `Bearer ${token}` } : {};
     try {
@@ -3647,15 +3914,25 @@ async function rep_cargarFiltros() {
         const prdArr = Array.isArray(productores) ? productores : (productores.data || []);
         const proArr = Array.isArray(productos) ? productos : (productos.data || []);
 
+        // Resetear antes de poblar para evitar duplicados
         const selPrd = document.getElementById('rep_ent_productor');
-        prdArr.forEach(p => {
-            const nombre = p.usuario ? `${p.usuario.nombre} ${p.usuario.apellido || ''}`.trim() : (p.nombre || `#${p.id_productor}`);
-            selPrd.innerHTML += `<option value="${p.id_productor}">${nombre}</option>`;
-        });
+        if (selPrd) {
+            selPrd.innerHTML = '<option value="">Todos los productores</option>';
+            prdArr.forEach(p => {
+                const nombre = p.usuario
+                    ? `${p.usuario.nombre} ${p.usuario.apellido || ''}`.trim()
+                    : (p.nombre || `#${p.id_productor}`);
+                selPrd.innerHTML += `<option value="${p.id_productor}">${nombre}</option>`;
+            });
+        }
         const selPro = document.getElementById('rep_ent_producto');
-        proArr.forEach(p => {
-            selPro.innerHTML += `<option value="${p.id_producto}">${p.nombre}</option>`;
-        });
+        if (selPro) {
+            selPro.innerHTML = '<option value="">Todos los productos</option>';
+            proArr.forEach(p => {
+                selPro.innerHTML += `<option value="${p.id_producto}">${p.nombre}</option>`;
+            });
+        }
+        _rep_filtros_cargados = true;
     } catch (e) { console.warn('rep_cargarFiltros:', e.message); }
 }
 
@@ -3679,25 +3956,50 @@ async function rep_cargarEntregas() {
         const json = await res.json();
         let compras = Array.isArray(json) ? json : (json.data || []);
 
+        // Filtrar por fecha en cliente (por si el backend no lo soporta)
+        if (inicio || fin) {
+            compras = compras.filter(c => {
+                const f = c.fecha_compra || c.fecha;
+                if (!f) return false;
+                const fd = new Date(parseFechaLocal(f)); fd.setHours(0, 0, 0, 0);
+                if (inicio) { const d = new Date(parseFechaLocal(inicio)); d.setHours(0, 0, 0, 0); if (fd < d) return false; }
+                if (fin) { const h = new Date(parseFechaLocal(fin)); h.setHours(23, 59, 59, 999); if (fd > h) return false; }
+                return true;
+            });
+        }
+
+        // Filtrar por productor en cliente (doble seguridad si el backend no filtra)
+        if (idPrd) {
+            compras = compras.filter(c => {
+                if (String(c.id_productor) === String(idPrd)) return true;
+                if (String(c.productor?.id_productor) === String(idPrd)) return true;
+                return false;
+            });
+        }
+
         // Desplegar por detalle (cada línea = 1 producto de la compra)
         let rows = [];
         compras.forEach(c => {
             const productor = c.productor?.usuario
                 ? `${c.productor.usuario.nombre} ${c.productor.usuario.apellido || ''}`.trim()
-                : (c.productor?.nombre || '—');
-            const fecha = c.fecha_compra ? new Date(c.fecha_compra).toLocaleDateString('es-CO') : '—';
+                : (c.productor?.nombre || c.nombre_productor_externo || '—');
+            const fecha = c.fecha_compra ? fmtFechaLocal(c.fecha_compra) : '—';
             const detalles = c.detalles || [];
             if (!detalles.length) {
-                rows.push({ productor, producto: '—', peso: '—', precio: '—', total: c.total || 0, fecha });
+                if (!idPro) rows.push({ productor, producto: '—', peso: '—', precio: '—', total: c.total || 0, fecha });
             } else {
                 detalles.forEach(det => {
-                    if (idPro && String(det.producto?.id_producto) !== String(idPro)) return;
+                    // Filtrar por producto: comparar id Y nombre (case-insensitive)
+                    if (idPro) {
+                        const idOk = String(det.producto?.id_producto) === String(idPro);
+                        if (!idOk) return;
+                    }
                     rows.push({
                         productor,
                         producto: det.producto?.nombre || '—',
-                        peso: det.cantidad,
-                        precio: det.precio_unitario,
-                        total: det.subtotal || (det.cantidad * det.precio_unitario),
+                        peso: parseFloat(det.cantidad || det.peso_kg || 0),
+                        precio: parseFloat(det.precio_unitario || 0),
+                        total: parseFloat(det.subtotal || (det.cantidad * det.precio_unitario) || 0),
                         fecha
                     });
                 });
@@ -3738,7 +4040,19 @@ async function rep_cargarCompras() {
     try {
         const res = await fetch(`${API_URL}/compras${qs.length ? '?' + qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
-        const compras = Array.isArray(json) ? json : (json.data || []);
+        let compras = Array.isArray(json) ? json : (json.data || []);
+
+        // Filtrar por fecha en cliente
+        if (inicio || fin) {
+            compras = compras.filter(c => {
+                const f = c.fecha_compra || c.fecha;
+                if (!f) return false;
+                const fd = new Date(parseFechaLocal(f)); fd.setHours(0, 0, 0, 0);
+                if (inicio) { const d = new Date(parseFechaLocal(inicio)); d.setHours(0, 0, 0, 0); if (fd < d) return false; }
+                if (fin) { const h = new Date(parseFechaLocal(fin)); h.setHours(23, 59, 59, 999); if (fd > h) return false; }
+                return true;
+            });
+        }
 
         // Agrupar por producto
         const mapa = {};
@@ -3784,12 +4098,24 @@ async function rep_cargarVentas() {
     try {
         const res = await fetch(`${API_URL}/ventas${qs.length ? '?' + qs.join('&') : ''}`, { headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
-        const ventas = Array.isArray(json) ? json : (json.data || []);
+        let ventas = Array.isArray(json) ? json : (json.data || []);
+
+        // Filtrar por fecha en cliente
+        if (inicio || fin) {
+            ventas = ventas.filter(v => {
+                const f = v.fecha_venta || v.fecha;
+                if (!f) return false;
+                const fd = new Date(parseFechaLocal(f)); fd.setHours(0, 0, 0, 0);
+                if (inicio) { const d = new Date(parseFechaLocal(inicio)); d.setHours(0, 0, 0, 0); if (fd < d) return false; }
+                if (fin) { const h = new Date(parseFechaLocal(fin)); h.setHours(23, 59, 59, 999); if (fd > h) return false; }
+                return true;
+            });
+        }
 
         let rows = [];
         ventas.forEach(v => {
-            const comerciante = v.cliente || '—';
-            const fecha = v.fecha_venta ? new Date(v.fecha_venta).toLocaleDateString('es-CO') : '—';
+            const comerciante = v.comerciante?.nombre || v.cliente || '—';
+            const fecha = v.fecha_venta ? fmtFechaLocal(v.fecha_venta) : '—';
             (v.detalles || []).forEach(det => {
                 rows.push({
                     comerciante,
@@ -3840,8 +4166,23 @@ async function rep_cargarDesfase() {
         ]);
         const compras = await cRes.json();
         const ventas = await vRes.json();
-        const cArr = Array.isArray(compras) ? compras : (compras.data || []);
-        const vArr = Array.isArray(ventas) ? ventas : (ventas.data || []);
+        let cArr = Array.isArray(compras) ? compras : (compras.data || []);
+        let vArr = Array.isArray(ventas) ? ventas : (ventas.data || []);
+
+        // Filtrar por fecha en cliente
+        const filtrarPorFecha = (arr, campo) => {
+            if (!inicio && !fin) return arr;
+            return arr.filter(x => {
+                const f = x[campo] || x.fecha;
+                if (!f) return false;
+                const fd = new Date(parseFechaLocal(f)); fd.setHours(0, 0, 0, 0);
+                if (inicio) { const d = new Date(parseFechaLocal(inicio)); d.setHours(0, 0, 0, 0); if (fd < d) return false; }
+                if (fin) { const h = new Date(parseFechaLocal(fin)); h.setHours(23, 59, 59, 999); if (fd > h) return false; }
+                return true;
+            });
+        };
+        cArr = filtrarPorFecha(cArr, 'fecha_compra');
+        vArr = filtrarPorFecha(vArr, 'fecha_venta');
 
         const mapaC = {}, mapaV = {};
         cArr.forEach(c => (c.detalles || []).forEach(det => {
@@ -4021,13 +4362,13 @@ let _ranking_data = [];
 
 function ranking_exportarPDF() {
     if (!_ranking_data.length) { alert('Primero genera el ranking'); return; }
-    const tipo   = document.getElementById('ar_tipo').value;
+    const tipo = document.getElementById('ar_tipo').value;
     const inicio = document.getElementById('ar_inicio')?.value || '';
-    const fin    = document.getElementById('ar_fin')?.value    || '';
+    const fin = document.getElementById('ar_fin')?.value || '';
     const labels = { total: 'Total kg entregados', promedio: 'Promedio kg/entrega', frecuencia: 'Nº entregas' };
     const titulo = `Ranking de Productores — ${labels[tipo] || tipo}`;
     const periodo = (inicio || fin) ? ` · Período: ${inicio || 'inicio'} → ${fin || 'hoy'}` : '';
-    const cab  = '<tr><th>#</th><th>Productor</th><th>Cédula</th><th>Valor</th><th>Total pagado</th></tr>';
+    const cab = '<tr><th>#</th><th>Productor</th><th>Cédula</th><th>Valor</th><th>Total pagado</th></tr>';
     const filas = _ranking_data.map(r => {
         const nombre = (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`;
         const valFmt = tipo === 'frecuencia'
@@ -4040,14 +4381,14 @@ function ranking_exportarPDF() {
 
 function ranking_exportarExcel() {
     if (!_ranking_data.length) { alert('Primero genera el ranking'); return; }
-    const tipo   = document.getElementById('ar_tipo').value;
+    const tipo = document.getElementById('ar_tipo').value;
     const labels = { total: 'Total kg', promedio: 'Promedio kg', frecuencia: 'Nº entregas' };
-    const cols   = ['Posición', 'Productor', 'Cédula', 'Finca', labels[tipo] || tipo, 'Total pagado ($)'];
-    const filas  = _ranking_data.map(r => [
+    const cols = ['Posición', 'Productor', 'Cédula', 'Finca', labels[tipo] || tipo, 'Total pagado ($)'];
+    const filas = _ranking_data.map(r => [
         r.posicion,
         (r.nombre && r.nombre.trim()) ? r.nombre.trim() : `Productor ${r.id_productor}`,
-        r.cedula  || '',
-        r.finca   || '',
+        r.cedula || '',
+        r.finca || '',
         parseFloat(r.valor),
         parseFloat(r.total_pagado || 0),
     ]);
@@ -4134,7 +4475,7 @@ async function db_cargarActividades() {
             return;
         }
         tbody.innerHTML = actividades.map(a => {
-            const fechaStr = new Date(a.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+            const fechaStr = fmtFechaLocal(a.fecha);
             return `<tr>
                 <td style="white-space:nowrap;font-size:.82em;color:#6b7280">${fechaStr}</td>
                 <td><span style="background:${a.color}18;color:${a.color};padding:2px 8px;border-radius:20px;font-size:.78em;font-weight:700">${a.tipo}</span></td>
@@ -4234,8 +4575,8 @@ function com_render() {
 
         <td>
             ${c.email
-              ? `<a href="mailto:${c.email}" style="color:#2563eb;font-size:.85em">${c.email}</a>`
-              : '<span style="color:#d1d5db;font-size:.82em">Sin correo</span>'}
+            ? `<a href="mailto:${c.email}" style="color:#2563eb;font-size:.85em">${c.email}</a>`
+            : '<span style="color:#d1d5db;font-size:.82em">Sin correo</span>'}
         </td>
 
         <td>
@@ -4319,7 +4660,7 @@ function com_editar(id) {
     document.getElementById("com_nombre").value = c.nombre;
     document.getElementById("com_telefono").value = c.telefono;
     document.getElementById("com_direccion").value = c.direccion || "";
-    document.getElementById("com_email").value    = c.email     || "";
+    document.getElementById("com_email").value = c.email || "";
 
     document.getElementById("com_panel").classList.add("open");
 
@@ -4479,8 +4820,8 @@ function com_cerrarPanel() {
 // ============================================================
 
 // ── Estado del módulo ────────────────────────────────────────
-let _prc_lista    = [];   // historial completo
-let _prc_buscar   = '';   // texto búsqueda tabla
+let _prc_lista = [];   // historial completo
+let _prc_buscar = '';   // texto búsqueda tabla
 
 // ── Alerta semanal (solo miércoles) ─────────────────────────
 async function prc_verificarAlertaSemanal() {
@@ -4517,18 +4858,18 @@ async function prc_cargar() {
 async function prc_cargarSelectProductos() {
     try {
         const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/productos`, {
+        const res = await fetch(`${API_URL}/productos`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const lista = await res.json();
-        const sel   = document.getElementById('prc_sel_producto');
+        const sel = document.getElementById('prc_sel_producto');
         if (!sel) return;
         sel.innerHTML = '<option value="">-- Seleccionar --</option>';
         (Array.isArray(lista) ? lista : [])
             .filter(p => p.disponible !== false)
             .forEach(p => {
                 const opt = document.createElement('option');
-                opt.value       = p.id_producto;
+                opt.value = p.id_producto;
                 opt.textContent = p.nombre;
                 sel.appendChild(opt);
             });
@@ -4538,11 +4879,11 @@ async function prc_cargarSelectProductos() {
 async function prc_cargarHistorial() {
     try {
         const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/precios`, {
+        const res = await fetch(`${API_URL}/precios`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const datos = await res.json();
-        _prc_lista  = Array.isArray(datos) ? datos : [];
+        _prc_lista = Array.isArray(datos) ? datos : [];
         prc_renderTabla();
     } catch (e) { console.error('[PRECIOS] cargarHistorial:', e); }
 }
@@ -4551,25 +4892,25 @@ async function prc_cargarHistorial() {
 // Pre-rellena el input con el precio actual y muestra el preview
 function prc_alProductoCambia(id_producto) {
     const wrap = document.getElementById('prc_precio_actual_wrap');
-    const val  = document.getElementById('prc_precio_actual_val');
-    const inp  = document.getElementById('prc_inp_precio_base');
+    const val = document.getElementById('prc_precio_actual_val');
+    const inp = document.getElementById('prc_inp_precio_base');
     const prev = document.getElementById('prc_preview_venta');
 
     if (!id_producto) {
         if (wrap) wrap.style.display = 'none';
         if (prev) prev.style.display = 'none';
-        if (inp)  inp.value = '';
+        if (inp) inp.value = '';
         return;
     }
     const actual = _prc_lista.find(p => String(p.id_producto) === String(id_producto));
     if (actual) {
-        const fmt = v => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(v);
-        if (val)  val.textContent   = fmt(actual.precio_base_kg);
+        const fmt = v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v);
+        if (val) val.textContent = fmt(actual.precio_base_kg);
         if (wrap) wrap.style.display = 'block';
-        if (inp)  { inp.value = actual.precio_base_kg; prc_previewVenta(); }
+        if (inp) { inp.value = actual.precio_base_kg; prc_previewVenta(); }
     } else {
         if (wrap) wrap.style.display = 'none';
-        if (inp)  inp.value = '';
+        if (inp) inp.value = '';
         if (prev) prev.style.display = 'none';
     }
 }
@@ -4579,11 +4920,11 @@ function prc_alProductoCambia(id_producto) {
 function prc_previewVenta() {
     const base = parseFloat(document.getElementById('prc_inp_precio_base')?.value || '0');
     const prev = document.getElementById('prc_preview_venta');
-    const elP  = document.getElementById('prc_prev_primo');
-    const elO  = document.getElementById('prc_prev_otro');
+    const elP = document.getElementById('prc_prev_primo');
+    const elO = document.getElementById('prc_prev_otro');
     if (!prev) return;
     if (!base || base <= 0) { prev.style.display = 'none'; return; }
-    const fmt = v => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(v);
+    const fmt = v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v);
     if (elP) elP.textContent = fmt(base);        // EL PRIMO -> precio base
     if (elO) elO.textContent = fmt(base + 100);  // otros    -> base + $100/kg
     prev.style.display = 'block';
@@ -4593,7 +4934,7 @@ function prc_previewVenta() {
 // Solo guarda producto + precio_base_kg.
 // El descuento de transporte y asociacion se calcula al cerrar la ruta.
 async function prc_guardarPrecioBase() {
-    const id_producto    = parseInt(document.getElementById('prc_sel_producto')?.value || '0');
+    const id_producto = parseInt(document.getElementById('prc_sel_producto')?.value || '0');
     const precio_base_kg = parseFloat(document.getElementById('prc_inp_precio_base')?.value || '0');
 
     const showMsg = (msg, ok) => {
@@ -4601,12 +4942,12 @@ async function prc_guardarPrecioBase() {
         if (!b) return prc_banner(msg, ok ? 'ok' : 'err');
         b.style.display = 'block';
         b.style.background = ok ? '#d1fae5' : '#fee2e2';
-        b.style.color      = ok ? '#065f46' : '#991b1b';
+        b.style.color = ok ? '#065f46' : '#991b1b';
         b.textContent = msg;
         if (ok) setTimeout(() => { b.style.display = 'none'; }, 3000);
     };
 
-    if (!id_producto)                           return showMsg('Selecciona un producto.', false);
+    if (!id_producto) return showMsg('Selecciona un producto.', false);
     if (!precio_base_kg || precio_base_kg <= 0) return showMsg('Ingresa un precio base válido (mayor que 0).', false);
 
     const dto = { id_producto, precio_base_kg, precio_transporte: 0, total_kilos: 1, comerciante: 'GENERAL' };
@@ -4614,10 +4955,10 @@ async function prc_guardarPrecioBase() {
     showLoading();
     try {
         const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/precios`, {
-            method:  'POST',
+        const res = await fetch(`${API_URL}/precios`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body:    JSON.stringify(dto)
+            body: JSON.stringify(dto)
         });
         if (!res.ok) { const err = await res.json(); throw new Error(err.message || err.error || 'Error al guardar'); }
         showMsg(' Precio guardado correctamente.', true);
@@ -4632,7 +4973,7 @@ async function prc_guardarPrecioBase() {
 function prc_renderTabla() {
     const tbody = document.getElementById('prc_tbody');
     if (!tbody) return;
-    const fmt = v => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(v);
+    const fmt = v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v);
 
     const lista = _prc_lista.filter(p => {
         if (!_prc_buscar) return true;
@@ -4645,10 +4986,10 @@ function prc_renderTabla() {
     }
 
     tbody.innerHTML = lista.map(p => {
-        const base  = Number(p.precio_base_kg);
+        const base = Number(p.precio_base_kg);
         const primo = base;
         const otros = base + 100;
-        const fecha = p.fecha ? new Date(p.fecha).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        const fecha = p.fecha ? fmtFechaLocal(p.fecha) : '—';
         const badge = p.activo
             ? `<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">Activo</span>`
             : `<span style="background:#f3f4f6;color:#6b7280;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">Inactivo</span>`;
@@ -4689,8 +5030,8 @@ function prc_limpiarFormulario() {
     const inp = document.getElementById('prc_inp_precio_base');
     const prev = document.getElementById('prc_preview_venta');
     const wrap = document.getElementById('prc_precio_actual_wrap');
-    if (sel)  sel.value  = '';
-    if (inp)  inp.value  = '';
+    if (sel) sel.value = '';
+    if (inp) inp.value = '';
     if (prev) prev.style.display = 'none';
     if (wrap) wrap.style.display = 'none';
 }
@@ -4698,9 +5039,9 @@ function prc_limpiarFormulario() {
 function prc_banner(msg, tipo) {
     const el = document.getElementById('prc_banner');
     if (!el) return;
-    el.style.display    = 'block';
+    el.style.display = 'block';
     el.style.background = tipo === 'ok' ? '#d1fae5' : '#fee2e2';
-    el.style.color      = tipo === 'ok' ? '#065f46' : '#991b1b';
+    el.style.color = tipo === 'ok' ? '#065f46' : '#991b1b';
     el.textContent = msg;
     setTimeout(() => { el.style.display = 'none'; }, 4500);
 }
@@ -4723,13 +5064,13 @@ function prc_banner(msg, tipo) {
 //  STOCK / INVENTARIO — Admin
 // ════════════════════════════════════════════════════════════════════════
 
-let _stk_todos  = [];
+let _stk_todos = [];
 let _stk_filtro = '';
 
 async function stk_cargar() {
     try {
         const token = localStorage.getItem('token') || '';
-        const res   = await fetch(`${API_URL}/stock`, {
+        const res = await fetch(`${API_URL}/stock`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Error al cargar stock');
@@ -4753,8 +5094,8 @@ function stk_renderKpis() {
     const fmt = n => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n ?? 0) + ' kg';
     const totalDisp = _stk_todos.reduce((s, x) => s + Number(x.kilos_disponibles ?? 0), 0);
     const totalAcum = _stk_todos.reduce((s, x) => s + Number(x.kilos_acumulados ?? 0), 0);
-    const sinStock  = _stk_todos.filter(x => Number(x.kilos_disponibles) <= 0).length;
-    const bajStock  = _stk_todos.filter(x => Number(x.kilos_disponibles) > 0 && Number(x.kilos_disponibles) < 50).length;
+    const sinStock = _stk_todos.filter(x => Number(x.kilos_disponibles) <= 0).length;
+    const bajStock = _stk_todos.filter(x => Number(x.kilos_disponibles) > 0 && Number(x.kilos_disponibles) < 50).length;
 
     container.innerHTML = [
         { label: 'Total disponible', value: fmt(totalDisp), color: '#16a34a', bg: '#f0fdf4', icon: '' },
@@ -4788,15 +5129,15 @@ function stk_renderTabla() {
 
     tbody.innerHTML = lista.map(s => {
         const disp = Number(s.kilos_disponibles ?? 0);
-        const acum = Number(s.kilos_acumulados  ?? 0);
-        const pct  = acum > 0 ? Math.min(100, Math.round((disp / acum) * 100)) : 0;
+        const acum = Number(s.kilos_acumulados ?? 0);
+        const pct = acum > 0 ? Math.min(100, Math.round((disp / acum) * 100)) : 0;
         const barColor = pct > 50 ? '#16a34a' : pct > 20 ? '#f59e0b' : '#ef4444';
 
         const badge = disp <= 0
             ? '<span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700">Sin stock</span>'
             : disp < 50
-            ? '<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700"> Bajo</span>'
-            : '<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700"> Disponible</span>';
+                ? '<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700"> Bajo</span>'
+                : '<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700"> Disponible</span>';
 
         return `<tr>
             <td style="font-weight:600">${s.producto}</td>
@@ -4827,19 +5168,19 @@ async function stk_cargarMovimientos(id_producto) {
 
     try {
         const token = localStorage.getItem('token') || '';
-        const tipo  = document.getElementById('stk_filtro_tipo')?.value || '';
+        const tipo = document.getElementById('stk_filtro_tipo')?.value || '';
         let url = `${API_URL}/stock/movimientos`;
         const params = [];
         if (id_producto) params.push(`id_producto=${id_producto}`);
-        if (tipo)        params.push(`tipo=${tipo}`);
+        if (tipo) params.push(`tipo=${tipo}`);
         if (params.length) url += '?' + params.join('&');
 
-        const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error('Error al cargar movimientos');
         const movs = await res.json();
 
-        const fmt  = n  => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n) + ' kg';
-        const fmtF = f  => f ? new Date(f).toLocaleString('es-CO', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+        const fmt = n => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n) + ' kg';
+        const fmtF = f => f ? fmtFechaLocal(f) : '—';
 
         if (!movs.length) {
             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sin movimientos registrados</td></tr>';
@@ -4888,3 +5229,67 @@ setInterval(() => {
         stk_cargar();
     }
 }, 30000);
+
+// ════════════════════════════════════════════════════════
+//  HELPERS FILTRO FECHA — COMPRAS Y VENTAS
+// ════════════════════════════════════════════════════════
+
+function cmp_aplicarFiltroFecha() {
+    _cmp_fechaDesde = document.getElementById('cmp_fecha_desde').value;
+    _cmp_fechaHasta = document.getElementById('cmp_fecha_hasta').value;
+    cmp_renderTabla();
+}
+
+function cmp_limpiarFechas() {
+    document.getElementById('cmp_fecha_desde').value = '';
+    document.getElementById('cmp_fecha_hasta').value = '';
+    _cmp_fechaDesde = '';
+    _cmp_fechaHasta = '';
+    cmp_renderTabla();
+}
+
+function vnt_aplicarFiltroFecha() {
+    _vnt_fechaDesde = document.getElementById('vnt_fecha_desde').value;
+    _vnt_fechaHasta = document.getElementById('vnt_fecha_hasta').value;
+    vnt_renderTabla();
+}
+
+function vnt_limpiarFechas() {
+    document.getElementById('vnt_fecha_desde').value = '';
+    document.getElementById('vnt_fecha_hasta').value = '';
+    _vnt_fechaDesde = '';
+    _vnt_fechaHasta = '';
+    vnt_renderTabla();
+}
+
+// ════════════════════════════════════════════════════════
+//  HELPERS FILTRO FECHA — COMPRAS Y VENTAS
+// ════════════════════════════════════════════════════════
+
+function cmp_aplicarFiltroFecha() {
+    _cmp_fechaDesde = document.getElementById('cmp_fecha_desde').value;
+    _cmp_fechaHasta = document.getElementById('cmp_fecha_hasta').value;
+    cmp_renderTabla();
+}
+
+function cmp_limpiarFechas() {
+    document.getElementById('cmp_fecha_desde').value = '';
+    document.getElementById('cmp_fecha_hasta').value = '';
+    _cmp_fechaDesde = '';
+    _cmp_fechaHasta = '';
+    cmp_renderTabla();
+}
+
+function vnt_aplicarFiltroFecha() {
+    _vnt_fechaDesde = document.getElementById('vnt_fecha_desde').value;
+    _vnt_fechaHasta = document.getElementById('vnt_fecha_hasta').value;
+    vnt_renderTabla();
+}
+
+function vnt_limpiarFechas() {
+    document.getElementById('vnt_fecha_desde').value = '';
+    document.getElementById('vnt_fecha_hasta').value = '';
+    _vnt_fechaDesde = '';
+    _vnt_fechaHasta = '';
+    vnt_renderTabla();
+}

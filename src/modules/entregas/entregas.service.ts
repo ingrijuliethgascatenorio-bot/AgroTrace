@@ -45,7 +45,7 @@ export class EntregasService {
               e.productor.usuario?.nombre ||
               'Sin nombre',
             apellido: e.productor.usuario?.apellido || '',
-            cedula: e.productor.cedula,
+            cedula: e.productor?.usuario.cedula ?? '',
             finca: e.productor.finca,
           }
         : null,

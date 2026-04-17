@@ -19,10 +19,11 @@ import { RutasService } from './ruta.service';
 export class RutasController {
   constructor(private readonly rutasService: RutasService) {}
 
-  // GET /api/rutas — listar todas
+  // GET /api/rutas — listar SOLO las rutas del operario autenticado
+  // FIX: antes llamaba listar() sin pasar id_usuario → devolvía todas las rutas.
   @Get()
-  listar() {
-    return this.rutasService.listar();
+  listar(@Req() req: any) {
+    return this.rutasService.listar(req.user.id_usuario);
   }
 
   // GET /api/rutas/:id
@@ -38,7 +39,6 @@ export class RutasController {
   }
 
   // POST /api/rutas — crear nueva ruta
-  // Pasa id_usuario para vincular automaticamente las entregas sin ruta
   @Post()
   crear(
     @Req() req: any,
@@ -50,7 +50,7 @@ export class RutasController {
     });
   }
 
-  // POST /api/rutas/:id/cerrar — cerrar ruta y liquidar
+  // POST /api/rutas/:id/cerrar
   @Post(':id/cerrar')
   cerrar(
     @Param('id', ParseIntPipe) id: number,
@@ -60,10 +60,10 @@ export class RutasController {
   }
 
   // POST /api/rutas/:id/vincular-pendientes
-  // Vincula manualmente las entregas sin ruta al id_ruta indicado
   @Post(':id/vincular-pendientes')
   vincularPendientes(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.rutasService.vincularEntregasPendientes(id, req.user.id_usuario)
+    return this.rutasService
+      .vincularEntregasPendientes(id, req.user.id_usuario)
       .then((n) => ({
         ok: true,
         mensaje: `${n} entrega${n !== 1 ? 's' : ''} vinculada${n !== 1 ? 's' : ''} a la ruta #${id}`,

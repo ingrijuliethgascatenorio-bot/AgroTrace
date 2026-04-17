@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARGA MASIVA — Agrega al final de frontend/css/style.css
+   Prefijo .cm- para no colisionar con estilos existentes
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Contenedor principal ─────────────────────────────────────────────── */
+.cm-card {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .05);
+}
+
+/* ── Cabecera colapsable ──────────────────────────────────────────────── */
+.cm-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #f9fafb;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: .88rem;
+    color: #374151;
+    border-bottom: 1.5px solid transparent;
+    transition: background .15s;
+    user-select: none;
+    gap: 10px;
+}
+
+.cm-card-header:hover {
+    background: #f3f4f6;
+}
+
+.cm-card-header.open {
+    background: #ecfdf5;
+    color: #065f46;
+    border-bottom-color: #d1fae5;
+}
+
+.cm-card-header span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Chevron ──────────────────────────────────────────────────────────── */
+.cm-chevron {
+    font-size: .8rem;
+    transition: transform .25s;
+    color: #9ca3af;
+    flex-shrink: 0;
+}
+
+.cm-chevron.open {
+    transform: rotate(180deg);
+    color: #059669;
+}
+
+/* ── Cuerpo ───────────────────────────────────────────────────────────── */
+.cm-card-body {
+    padding: 16px 18px 18px;
+}
+
+/* ── Hint / instrucciones CSV ─────────────────────────────────────────── */
+.cm-hint {
+    font-size: .8rem;
+    color: #6b7280;
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    line-height: 1.7;
+}
+
+.cm-hint code {
+    display: inline-block;
+    background: #e5e7eb;
+    color: #1f2937;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: .77rem;
+    font-family: 'Courier New', monospace;
+    margin: 2px 0;
+    word-break: break-all;
+}
+
+.cm-hint small {
+    display: block;
+    margin-top: 5px;
+    color: #059669;
+    font-weight: 600;
+}
+
+/* ── Fila de controles ────────────────────────────────────────────────── */
+.cm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ── Label/input file ─────────────────────────────────────────────────── */
+.cm-file-label {
+    flex: 1;
+    min-width: 200px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    font-size: .83rem;
+    color: #374151;
+    font-weight: 500;
+    transition: border-color .15s, background .15s;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.cm-file-label:hover {
+    border-color: var(--primary, #059669);
+    background: #f0fdf4;
+}
+
+.cm-file-label.has-file {
+    border-color: var(--primary, #059669);
+    color: #065f46;
+    background: #f0fdf4;
+}
+
+.cm-file-label input[type="file"] {
+    display: none;
+}
+
+.cm-file-label span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Botón subir ──────────────────────────────────────────────────────── */
+.cm-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    background: linear-gradient(135deg, var(--primary, #059669), var(--primary-dark, #047857));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .18s;
+    white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+    flex-shrink: 0;
+}
+
+.cm-btn:hover:not(:disabled) {
+    opacity: .88;
+}
+
+.cm-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* ── Loader ───────────────────────────────────────────────────────────── */
+.cm-loader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: .82rem;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.cm-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2.5px solid #d1d5db;
+    border-top-color: var(--primary, #059669);
+    border-radius: 50%;
+    animation: cm-spin .7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes cm-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Resultado ────────────────────────────────────────────────────────── */
+.cm-result {
+    margin-top: 14px;
+    font-size: .83rem;
+}
+
+.cm-result:empty {
+    display: none;
+}
+
+.cm-ok {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1.5px solid #a7f3d0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cm-errors-title {
+    font-weight: 700;
+    color: #991b1b;
+    margin: 8px 0 6px;
+    font-size: .82rem;
+}
+
+.cm-errors-list {
+    background: #fef2f2;
+    border: 1.5px solid #fecaca;
+    border-radius: 10px;
+    padding: 10px 14px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.cm-error-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #fee2e2;
+    color: #7f1d1d;
+    font-size: .79rem;
+    line-height: 1.5;
+}
+
+.cm-error-item:last-child {
+    border-bottom: none;
+}
+
+.cm-error-item strong {
+    color: #991b1b;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .cm-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cm-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .cm-file-label {
+        min-width: unset;
+        width: 100%;
+    }
+}

@@ -1,130 +1,222 @@
-/* AgroTrace - Sincronizacion Global
-   /public/frontend/js/agro-sync.js
-   Reemplaza: vista_productor/js/sync.js y offline.js
-   Requiere: agro-db.js cargado antes */
+/* =========================================
+   AgroTrace - SYNC ENGINE ENTERPRISE
+   FIX v9:
+   - API relativa (sin localhost hardcodeado)
+   - Manejo de 401/403 (token expirado offline)
+   - Sin duplicados: aborta item si backend rechaza con 4xx no-401
+   ========================================= */
 
 const AgroSync = (() => {
-  const API = 'http://localhost:3000/api';
-  const POLL = 30_000;
+  // FIX: ruta relativa — funciona en cualquier entorno (local, producción, móvil)
+  const API = '/api';
 
-  // ── Banner visual ──────────────────────────────────────
-  function _banner(texto, color) {
-    let el = document.getElementById('agro_offline_banner');
+  let syncing = false;
+
+  // ─────────────────────────────
+  // UI MESSAGES
+  // ─────────────────────────────
+  function msg(text, color = '#111') {
+    let el = document.getElementById('agro_sync_msg');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'agro_offline_banner';
+      el.id = 'agro_sync_msg';
       Object.assign(el.style, {
-        position:'fixed', top:'14px', left:'50%',
-        transform:'translateX(-50%)', padding:'9px 20px',
-        borderRadius:'10px', fontSize:'13px', fontWeight:'700',
-        zIndex:'99999', boxShadow:'0 4px 18px rgba(0,0,0,.18)',
-        display:'none', alignItems:'center', gap:'8px',
-        fontFamily:'Inter,sans-serif', whiteSpace:'nowrap',
+        position: 'fixed',
+        top: '14px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        padding: '10px 16px',
+        borderRadius: '10px',
+        fontSize: '13px',
+        fontWeight: '700',
+        zIndex: 99999,
+        color: '#fff',
+        display: 'none',
+        fontFamily: 'sans-serif'
       });
       document.body.appendChild(el);
     }
-    if (!texto) { el.style.display = 'none'; return; }
-    el.innerHTML        = texto;
-    el.style.background = color || '#dc2626';
-    el.style.color      = '#fff';
-    el.style.display    = 'flex';
+    if (!text) { el.style.display = 'none'; return; }
+    el.textContent = text;
+    el.style.background = color;
+    el.style.display = 'block';
   }
 
-  // ── Badge contador ─────────────────────────────────────
-  async function _badge() {
-    let n = 0;
-    try { n = await AgroDB.contarPendientes(); } catch {}
-    document.querySelectorAll('[data-agro-badge="pendientes"]').forEach(el => {
-      el.textContent   = n;
-      el.style.display = n > 0 ? 'inline-flex' : 'none';
-    });
-    return n;
+  // ─────────────────────────────
+  // TOKEN
+  // ─────────────────────────────
+  function headers() {
+    const token =
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('token') ||
+      '';
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
   }
 
-  // ── Token ──────────────────────────────────────────────
-  function _headers() {
-    const t = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-    return { 'Content-Type':'application/json', ...(t ? { Authorization:`Bearer ${t}` } : {}) };
+  // ─────────────────────────────
+  // ENQUEUE SAFE
+  // ─────────────────────────────
+  async function encolarCompra(data) {
+    await AgroDB.guardarCompraOffline({ ...data, estado: 'pendiente_sync' });
+    msg('Compra guardada sin conexión', '#d97706');
   }
 
-  // ── Colas offline ──────────────────────────────────────
-  async function encolarCompra(payload) {
-    await AgroDB.guardarCompraOffline(payload);
-    await _badge();
-    _banner('\ Sin internet — compra guardada para sincronizar', '#d97706');
+  async function encolarVenta(data) {
+    await AgroDB.guardarVentaOffline({ ...data, estado: 'pendiente_sync' });
+    msg('Venta guardada sin conexión', '#d97706');
   }
 
-  async function encolarVenta(payload) {
-    await AgroDB.guardarVentaOffline(payload);
-    await _badge();
-    _banner('\ Sin internet — venta guardada para sincronizar', '#d97706');
+  // ─────────────────────────────
+  // FIX: manejo de sesión expirada
+  // ─────────────────────────────
+  function _dispararSesionExpirada() {
+    msg('Sesión expirada. Inicia sesión para sincronizar.', '#7c3aed');
+    window.dispatchEvent(new CustomEvent('agrotrace:session-expired'));
   }
 
-  // ── Sincronizar ────────────────────────────────────────
-  async function _sincCompras() {
-    const lista = await AgroDB.obtenerComprasPendientes();
-    let ok = 0;
-    for (const item of lista) {
-      try {
-        const r = await fetch(`${API}/operario/registrar-entrega`, {
-          method: 'POST', headers: _headers(), body: JSON.stringify(item),
-        });
-        if (r.ok) { await AgroDB.eliminarCompraPendiente(item.id); ok++; }
-      } catch { if (!navigator.onLine) break; }
-    }
-    return ok;
-  }
-
-  async function _sincVentas() {
-    const lista = await AgroDB.obtenerVentasPendientes();
-    let ok = 0;
-    for (const item of lista) {
-      try {
-        const r = await fetch(`${API}/operario/registrar-venta`, {
-          method: 'POST', headers: _headers(), body: JSON.stringify(item),
-        });
-        if (r.ok) { await AgroDB.eliminarVentaPendiente(item.id); ok++; }
-      } catch { if (!navigator.onLine) break; }
-    }
-    return ok;
-  }
-
+  // ─────────────────────────────
+  // SYNC SAFE (ANTI DUPLICADOS + 401)
+  // ─────────────────────────────
   async function sincronizar() {
     if (!navigator.onLine) return;
-    if (await AgroDB.contarPendientes() === 0) return;
+    if (syncing) return;
 
-    _banner('🔄 Sincronizando datos...', '#2563eb');
+    syncing = true;
+
     try {
-      const [c, v] = await Promise.all([_sincCompras(), _sincVentas()]);
-      await _badge();
-      const total = c + v;
-      if (total > 0) {
-        _banner(`✅ ${total} registro(s) sincronizado(s)`, '#16a34a');
-        setTimeout(() => _banner(''), 4000);
-        window.dispatchEvent(new CustomEvent('agrotrace:sincronizado', {
-          detail: { compras: c, ventas: v }
-        }));
-      } else {
-        _banner('');
+      const compras = await AgroDB.obtenerComprasPendientes();
+      const ventas  = await AgroDB.obtenerVentasPendientes();
+      const total   = compras.length + ventas.length;
+
+      if (!total) { syncing = false; return; }
+
+      msg(`Sincronizando ${total} registros...`, '#2563eb');
+
+      // ── COMPRAS ──
+      for (const item of compras) {
+        try {
+          if (!navigator.onLine) break;
+
+          const res = await fetch(`${API}/operario/registrar-entrega`, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(item)
+          });
+
+          if (res.ok) {
+            // Éxito: eliminar de la cola
+            await AgroDB.eliminarCompraPendiente(item.id);
+
+          } else if (res.status === 401 || res.status === 403) {
+            // FIX: token expirado — detener sync, notificar al usuario
+            _dispararSesionExpirada();
+            syncing = false;
+            return;
+
+          } else {
+            // Otro error del servidor (400, 500…): loguear pero NO eliminar
+            // el item para que se reintente. Si es un 409 (duplicado detectado
+            // por el backend con offline_id), sí eliminarlo.
+            if (res.status === 409) {
+              console.warn('[SYNC] Compra ya existía en servidor (409), eliminando de cola:', item.offlineId);
+              await AgroDB.eliminarCompraPendiente(item.id);
+            } else {
+              console.warn('[SYNC] Compra rechazada por servidor:', res.status, item);
+            }
+          }
+
+        } catch (e) {
+          console.warn('[SYNC COMPRA ERROR]', e);
+          break;
+        }
       }
-    } catch (e) {
-      console.error('[AgroSync]', e);
-      _banner('');
+
+      // ── VENTAS ──
+      for (const item of ventas) {
+        try {
+          if (!navigator.onLine) break;
+
+          const res = await fetch(`${API}/operario/registrar-venta`, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(item)
+          });
+
+          if (res.ok) {
+            await AgroDB.eliminarVentaPendiente(item.id);
+
+          } else if (res.status === 401 || res.status === 403) {
+            _dispararSesionExpirada();
+            syncing = false;
+            return;
+
+          } else {
+            if (res.status === 409) {
+              console.warn('[SYNC] Venta ya existía en servidor (409), eliminando de cola:', item.offlineId);
+              await AgroDB.eliminarVentaPendiente(item.id);
+            } else {
+              console.warn('[SYNC] Venta rechazada por servidor:', res.status, item);
+            }
+          }
+
+        } catch (e) {
+          console.warn('[SYNC VENTA ERROR]', e);
+          break;
+        }
+      }
+
+      msg('Sincronización completa', '#16a34a');
+      setTimeout(() => msg(''), 2500);
+
+      window.dispatchEvent(new CustomEvent('agrotrace:synced', { detail: { ok: true } }));
+
+    } catch (err) {
+      console.error('[AGRO SYNC]', err);
+      msg('Error al sincronizar', '#dc2626');
+
+    } finally {
+      syncing = false;
     }
   }
 
-  // ── Eventos de conexion ────────────────────────────────
-  window.addEventListener('online',  () => { _banner(''); setTimeout(sincronizar, 1500); });
-  window.addEventListener('offline', () => _banner('📴 Sin conexion — modo offline activo'));
+  // ─────────────────────────────
+  // AUTO SYNC
+  // ─────────────────────────────
+  function iniciarAutoSync() {
+    setInterval(() => {
+      if (navigator.onLine) sincronizar();
+    }, 30000);
+  }
 
-  setInterval(() => { if (navigator.onLine) sincronizar(); }, POLL);
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    await _badge();
-    if (!navigator.onLine) _banner('📴 Sin conexion — modo offline activo');
+  // ─────────────────────────────
+  // NETWORK EVENTS
+  // ─────────────────────────────
+  window.addEventListener('online', () => {
+    msg('Conexión restaurada', '#16a34a');
+    setTimeout(sincronizar, 1200);
   });
 
-  return { sincronizar, encolarCompra, encolarVenta, actualizarBadge: _badge };
+  window.addEventListener('offline', () => {
+    msg('Sin conexión', '#dc2626');
+  });
+
+  // ─────────────────────────────
+  // INIT
+  // ─────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!navigator.onLine) msg('Sin conexión', '#dc2626');
+    iniciarAutoSync();
+  });
+
+  return {
+    sincronizar,
+    encolarCompra,
+    encolarVenta,
+    iniciarAutoSync
+  };
 })();
 
 window.AgroSync = AgroSync;

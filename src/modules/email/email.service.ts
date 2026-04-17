@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodemailer = require('nodemailer');
 
 export interface FacturaData {
@@ -177,6 +176,14 @@ export class EmailService {
 
   // ── Enviar factura por correo ─────────────────────────────────────────
   async enviarFactura(data: FacturaData): Promise<void> {
+     // 👇 TEMPORAL — borra esto después de confirmar que funciona
+  console.log('📧 [EMAIL DEBUG]', {
+    email_cliente: data.email_cliente,
+    numero_factura: data.numero_factura,
+    EMAIL_USER: process.env.EMAIL_USER,
+    EMAIL_PASS: process.env.EMAIL_PASS ? '✅ cargada' : '❌ NO cargada',
+  });
+  // 👆 fin del bloque temporal
     if (!data.email_cliente) {
       this.logger.warn(
         `Venta ${data.numero_factura}: sin email, no se envía correo`,

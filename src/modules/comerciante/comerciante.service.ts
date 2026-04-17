@@ -12,15 +12,25 @@ export class ComerciantesService {
     private comercianteRepo: Repository<Comerciante>,
   ) {}
 
-  listar(): Promise<Comerciante[]> {
+  /** Lista solo los comerciantes ACTIVOS del tenant — para el operario (select de ventas) */
+  listar(asociacionId: number): Promise<Comerciante[]> {
     return this.comercianteRepo.find({
-      order: { id_comerciante: 'DESC' },
+      where: { asociacion_id: asociacionId, activo: true },
+      order: { nombre: 'ASC' },
     });
   }
 
-  async obtener(id: number): Promise<Comerciante> {
+  /** Lista activos e inactivos del tenant — para el panel admin */
+  listarTodos(asociacionId: number): Promise<Comerciante[]> {
+    return this.comercianteRepo.find({
+      where: { asociacion_id: asociacionId },
+      order: { nombre: 'ASC' },
+    });
+  }
+
+  async obtener(id: number, asociacionId: number): Promise<Comerciante> {
     const comerciante = await this.comercianteRepo.findOne({
-      where: { id_comerciante: id },
+      where: { id_comerciante: id, asociacion_id: asociacionId },
     });
 
     if (!comerciante) {
@@ -30,32 +40,29 @@ export class ComerciantesService {
     return comerciante;
   }
 
-  crear(dto: CrearComercianteDto): Promise<Comerciante> {
-    const comerciante = this.comercianteRepo.create(dto);
+  crear(dto: CrearComercianteDto, asociacionId: number): Promise<Comerciante> {
+    const comerciante = this.comercianteRepo.create({
+      ...dto,
+      asociacion_id: asociacionId,
+    });
     return this.comercianteRepo.save(comerciante);
   }
 
-  async editar(id: number, dto: EditarComercianteDto) {
-    const comerciante = await this.obtener(id);
-
+  async editar(id: number, dto: EditarComercianteDto, asociacionId: number) {
+    const comerciante = await this.obtener(id, asociacionId);
     Object.assign(comerciante, dto);
-
     return this.comercianteRepo.save(comerciante);
   }
 
-  async desactivar(id: number) {
-    const comerciante = await this.obtener(id);
-
+  async desactivar(id: number, asociacionId: number) {
+    const comerciante = await this.obtener(id, asociacionId);
     comerciante.activo = false;
-
     return this.comercianteRepo.save(comerciante);
   }
 
-  async activar(id: number) {
-    const comerciante = await this.obtener(id);
-
+  async activar(id: number, asociacionId: number) {
+    const comerciante = await this.obtener(id, asociacionId);
     comerciante.activo = true;
-
     return this.comercianteRepo.save(comerciante);
   }
 }

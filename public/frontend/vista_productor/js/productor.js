@@ -1,5 +1,11 @@
 const API_URL = 'http://localhost:3000/api';
 
+// ── Guard: solo PRODUCTOR entra a productor.html ──────────────────────────────
+// auth-guard.js debe cargarse ANTES que productor.js en el HTML:
+//   <script src="../auth-guard.js"></script>
+//   <script src="productor.js"></script>
+AuthGuard.require('PRODUCTOR');
+
 // ── Estado global ──────────────────────────────────────
 let _perfil = null;
 let _historial = [];
@@ -599,7 +605,11 @@ async function cargarQR() {
     const wrap = document.getElementById('qr_img_wrap');
     if (!wrap) return;
 
-    if (!_perfil) await cargarPerfil();
+    // FIX: solo llamar cargarPerfil() si realmente no hay datos cargados.
+    // Antes se ejecutaba siempre que _perfil era null, pero _perfil puede ser
+    // null si pintarHeader no lo guardó bien (Bug 1, ya corregido arriba).
+    // Con el fix del Bug 1, _perfil siempre estará disponible aquí.
+    if (!_perfil || !_perfil.id_productor) await cargarPerfil();
 
     const botonDescarga = document.getElementById('qr_dl_btn');
 
@@ -927,7 +937,10 @@ function qr_imprimir() {
 
 //  HEADER — Cargar usuario
 async function cargarUsuarioHeader() {
-    if (!getToken()) { window.location.href = '../../login.html'; return; }
+    // AuthGuard.require('PRODUCTOR') al inicio del archivo ya garantiza sesión válida.
+    // Esta verificación extra cubre el caso de que el token expire MIENTRAS el usuario
+    // está en la página (ej: sesión larga sin recargar).
+    if (!getToken()) { window.location.replace('../../login.html'); return; }
 
     try {
         const res = await apiFetch(`${API_URL}/productor-dashboard/perfil`);
@@ -962,18 +975,17 @@ function pintarHeader(u) {
     const heroN = document.getElementById('hero_nombre');
     if (heroN) heroN.textContent = u.nombre || nombre;
 
-    _perfil = _perfil || u;
+    // FIX: siempre actualizar _perfil con datos reales del servidor
+    // antes: "_perfil = _perfil || u" nunca sobreescribía si _perfil ya existía
+    _perfil = u;
+
+    // FIX: pintar también los campos de perfil/QR para que estén disponibles
+    // sin necesidad de que el usuario navegue a la sección "Mi Perfil"
+    pintarPerfil(u);
 }
 
 function cerrarSesion() {
-    if (!confirm('¿Deseas cerrar sesión?')) return;
-
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('usuario');
-
-    window.location.replace('../../../frontend/login.html');
+    AuthGuard.cerrarSesion(true);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -1002,48 +1014,4 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Cargar perfil primero (necesario para obtener id_productor), luego mostrar sección
     cargarUsuarioHeader().then(() => mostrarSeccion('inicio'));
-});
-if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        navigator.serviceWorker.register("../../sw.js")
-            .then(() => console.log("Service Worker registrado"))
-            .catch(err => console.error("Error registrando Service Worker:", err));
-    });
-}
-let deferredPrompt;
-
-const btnInstalar = document.getElementById("btnInstalarApp");
-
-window.addEventListener("beforeinstallprompt", (e) => {
-
-    // Evita que Chrome muestre su botón automático
-    e.preventDefault();
-
-    deferredPrompt = e;
-
-    // Mostrar nuestro botón
-    btnInstalar.style.display = "block";
-
-});
-
-btnInstalar.addEventListener("click", async () => {
-
-    if (!deferredPrompt) return;
-
-    deferredPrompt.prompt();
-
-    const { outcome } = await deferredPrompt.userChoice;
-
-    if (outcome === "accepted") {
-
-        console.log("Usuario instaló la app");
-
-    } else {
-
-        console.log("Usuario canceló instalación");
-
-    }
-
-    deferredPrompt = null;
-
 });

@@ -52,7 +52,7 @@ export class RankingService {
       .createQueryBuilder('e')
       .select('e.id_productor', 'id_productor')
       .addSelect(valorExpr, 'valor')
-      .addSelect('SUM(e.total)', 'total_pagado')   // suma de lo pagado al productor
+      .addSelect('SUM(e.total)', 'total_pagado') // suma de lo pagado al productor
       .addSelect('COUNT(e.id_entrega)', 'n_entregas')
       .groupBy('e.id_productor')
       .orderBy('valor', 'DESC');
@@ -86,14 +86,14 @@ export class RankingService {
         : `Productor #${item.id_productor}`;
 
       return {
-        posicion:      index + 1,
-        id_productor:  Number(item.id_productor),
+        posicion: index + 1,
+        id_productor: Number(item.id_productor),
         nombre,
-        cedula:        prod?.cedula ?? '',
-        finca:         prod?.finca ?? '',
-        valor:         parseFloat(Number(item.valor).toFixed(2)),
-        total_pagado:  parseFloat(Number(item.total_pagado).toFixed(2)),
-        n_entregas:    Number(item.n_entregas),
+        cedula: prod?.usuario.cedula ?? '',
+        finca: prod?.finca ?? '',
+        valor: parseFloat(Number(item.valor).toFixed(2)),
+        total_pagado: parseFloat(Number(item.total_pagado).toFixed(2)),
+        n_entregas: Number(item.n_entregas),
       };
     });
   }

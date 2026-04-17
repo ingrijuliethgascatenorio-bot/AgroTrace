@@ -38,7 +38,7 @@ body {
    SIDEBAR
 ═══════════════════ */
 .sidebar {
-    background: white;
+    background: rgb(255, 255, 255);
     box-shadow: var(--shadow);
     position: fixed;
     top: 0;
@@ -151,11 +151,12 @@ body {
 
 .sidebar.collapsed .nav-btn {
     justify-content: center;
-    margin-left: 15px;
+    width: 3em;
 }
 
 .sidebar.collapsed .nav-btn i {
     font-size: 20px;
+    margin-left: 15px;
 }
 
 .sidebar.collapsed .topbar {
@@ -3148,4 +3149,37 @@ footer {
     margin-left: 4px;
     vertical-align: middle;
     letter-spacing: .2px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FILTRO FECHA — compras y ventas
+═══════════════════════════════════════════════════════ */
+.fecha-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.fecha-filter-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 9px;
+    padding: 0 10px;
+    height: 38px;
+    font-size: .85rem;
+    background: #f9fafb;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+    font-family: 'Inter', sans-serif;
+    line-height: 1;
+}
+
+.fecha-filter-clear:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
 }

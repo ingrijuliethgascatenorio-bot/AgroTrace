@@ -36,7 +36,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="icon" href="/public/frontend/iconos/icon-192.png">
-    <link rel="manifest" href="../../manifest.json">
+    <link rel="manifest" href="/frontend/manifest.json">
 </head>
 
 <body>
@@ -127,7 +127,7 @@
                 <div class="prd-hero">
                     <div class="prd-hero-bg"></div>
                     <div class="prd-hero-content">
-                        <div class="prd-hero-badge"> <span><i class="fa-solid fa-seedling"></i></span>AgroTrace ·
+                        <div class="prd-hero-badge"><span><i class="fa-solid fa-seedling"></i></span>AgroTrace ·
                             Productor</div>
                         <p class="prd-hero-greeting" id="hero_saludo">Bienvenido</p>
                         <h1 class="prd-hero-name" id="hero_nombre">—</h1>
@@ -554,11 +554,14 @@
         <p>Cargando...</p>
     </div>
 
-    <!-- ══ MÓDULOS OFFLINE ══ -->
+    <!-- ══ MÓDULOS OFFLINE -->
+     <script src="../js/auth-guard.js"></script> 
     <script src="../js/agro-db.js"></script>
     <script src="../js/agro-sync.js"></script>
     <!-- Módulos offline globales (reemplaza cache.js, offline.js, sync.js) -->
-    <script src="js/productor.js?v=5"></script>
+     <script src="../js/agro-ux.js"></script>
+    <script src="js/productor.js?v=6"></script>
+    <script src="/frontend/js/app-install.js"></script>
     <script>
         console.log('[HTML] JS cargado OK. Token:', localStorage.getItem('token') ? 'SI' : 'NO');
         console.log('[HTML] usuario raw:', localStorage.getItem('usuario'));
@@ -625,6 +628,16 @@
         </div>
     </div>
 
+  <!-- FIX v9: Registro Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
+          .then(reg => console.log('[SW Productor] Registrado'))
+          .catch(err => console.error('[SW Productor] Error:', err));
+      });
+    }
+  </script>
 </body>
 
 </html>

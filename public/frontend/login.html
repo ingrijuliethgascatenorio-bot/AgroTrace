@@ -67,11 +67,13 @@
             </form>
         </div>
     </div>
+<script src="js/auth-guard.js"></script>
 <script src="js/login.js"></script>
+<script src="./js/app-install.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
+      navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
         .then(() => console.log('[Login] Service Worker registrado'))
         .catch(err => console.error('[Login] SW error:', err));
     });

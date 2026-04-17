@@ -30,6 +30,7 @@ import { EntregasModule } from './modules/entregas/entregas.module';
 import { PreciosModule } from './modules/Precios/precio.module';
 import { RutasModule } from './modules/Ruta/rutas.module';
 import { StockModule } from './modules/stock/stock.module';
+import { AdminModule } from './modules/admin/Admin.module';
 
 @Module({
   imports: [
@@ -53,6 +54,9 @@ import { StockModule } from './modules/stock/stock.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: false,
       logging: process.env.NODE_ENV === 'development',
+      // FIX FECHAS: fuerza al driver pg a devolver campos 'date' como string
+      // 'YYYY-MM-DD' en lugar de new Date() en UTC, eliminando el desfase de -1 día
+      extra: { options: '-c TimeZone=America/Bogota' },
     }),
 
     // ── Registrar TenantModule PRIMERO ──────────────────────
@@ -74,6 +78,7 @@ import { StockModule } from './modules/stock/stock.module';
     PreciosModule,
     RutasModule,
     StockModule,
+    AdminModule,
   ],
 })
 export class AppModule implements NestModule {

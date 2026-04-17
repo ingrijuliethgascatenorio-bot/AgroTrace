@@ -870,6 +870,7 @@ select.input {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
+  width: 100%;
 }
 
 .hint {

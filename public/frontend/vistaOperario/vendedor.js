@@ -1,33 +1,10 @@
-/*
- * vendedor.js — Panel Operario AgroTrace
- * =======================================
- * Módulos:
- *  1.  Estado global y constantes
- *  2.  Utilidades
- *  3.  Catálogo de productos
- *  4.  Dashboard (corregido)
- *  5.  Filas dinámicas de productos  ← NUEVO
- *  6.  Productor — búsqueda QR/manual
- *  7.  Cliente — formulario de venta
- *  8.  Escáner QR
- *  9.  Registro de compra (multi-producto)  ← ACTUALIZADO
- *  10. Registro de venta  (multi-producto)  ← ACTUALIZADO
- *  11. Historial (con botón Editar)         ← ACTUALIZADO
- *  12. Modal de edición de operación        ← NUEVO
- *  13. Perfil de usuario (con edición)      ← ACTUALIZADO
- *  14. Seguridad — cambio de contraseña     ← NUEVO
- *  15. Foto de perfil
- *  16. Logout
- *  17. Sidebar toggle
- *  18. Event listeners
- *  19. Inicialización
- */
+const API_BASE = "/api"; // FIX v9: ruta relativa — funciona en local y produccion
 
-// =============================================
-// 1. ESTADO GLOBAL Y CONSTANTES
-// =============================================
-
-const API_BASE = "http://localhost:3000/api";
+// ── Guard: solo OPERARIO entra a vendedor.html ────────────────────────────────
+// auth-guard.js debe cargarse ANTES que vendedor.js en el HTML:
+//   <script src="../auth-guard.js"></script>
+//   <script src="vendedor.js"></script>
+AuthGuard.require('OPERARIO');
 
 let html5QrCode = null;
 let isCameraActive = false;
@@ -110,10 +87,53 @@ async function fetchWithAuth(url, options = {}) {
   return data;
 }
 
+
+// ── Helpers de fecha — AgroTrace Operario ────────────────────────────────────
+//
+// PROBLEMA: Colombia UTC-5. Entrega a las 9pm → timestamptz UTC = 2am día siguiente.
+// El backend devuelve "2026-04-11T02:00:00Z" pero la fecha real en Colombia es "2026-04-10".
+//
+// Hay dos tipos de campos:
+//   · 'YYYY-MM-DD' puro  → venta.fecha_venta, ruta.fecha  (sin desfase)
+//   · ISO UTC timestamp  → entrega.fecha (@CreateDateColumn) (con desfase)
+//
+// parseFechaLocal maneja ambos casos correctamente.
+
+/**
+ * Convierte cualquier valor de fecha a milisegundos en hora Colombia.
+ */
+function parseFechaLocal(f) {
+  if (!f) return 0;
+  const s = String(f).trim();
+  if (!s) return 0;
+
+  // Caso A: solo 'YYYY-MM-DD' — construir como fecha local para evitar
+  // que new Date('2026-04-10') la trate como UTC midnight (= 7pm del 9 en Colombia)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d).getTime();
+  }
+
+  // Caso B: ISO timestamp UTC → extraer fecha correcta en zona Bogotá
+  const ts = new Date(s);
+  if (isNaN(ts.getTime())) return 0;
+  const colStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(ts);
+  const [y, m, d] = colStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
+/**
+ * Formatea cualquier valor de fecha como string legible dd/mm/aaaa en Colombia.
+ */
 function formatFecha(fecha) {
-  if (!fecha) return "—";
-  return new Date(fecha).toLocaleDateString("es-CO", {
-    day: "2-digit", month: "2-digit", year: "numeric"
+  if (!fecha) return '—';
+  const t = parseFechaLocal(fecha);
+  if (!t) return '—';
+  return new Date(t).toLocaleDateString('es-CO', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
 
@@ -210,15 +230,57 @@ async function cargarDashboard() {
   if (!token) { window.location.href = "../../frontend/login.html"; return; }
 
   try {
-    const data = await fetchWithAuth(`${API_BASE}/operario/historial`);
-    // /operario/historial devuelve el array directamente (no envuelto)
-    historialCompleto = Array.isArray(data) ? data : [];
+    // 1. Historial base (ventas + compras cerradas/sin ruta)
+    const dataHistorial = await fetchWithAuth(`${API_BASE}/operario/historial`);
+    const historialBase = Array.isArray(dataHistorial) ? dataHistorial : [];
 
+    // 2. Si hay ruta activa, traer sus entregas y fusionarlas
+    //    El backend de /historial puede no incluir entregas con ruta ABIERTA
+    let entregasRuta = [];
+    if (rutaActiva && rutaActiva.id_ruta) {
+      try {
+        const dataRuta = await fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/entregas`);
+        const lista = Array.isArray(dataRuta) ? dataRuta : (dataRuta.data || []);
+        // Normalizar al formato del historial para que sean comparables
+        entregasRuta = lista.map(e => ({
+          tipo:              "COMPRA",
+          fecha:             e.fecha || e.createdAt || rutaActiva.fecha,
+          id_productor:      e.id_productor,
+          cedula_productor:  e.cedula_productor,
+          nombre_productor:  e.nombre_productor || e.nombre_productor_externo,
+          nombre_producto:   e.nombre_producto,
+          peso_kg:           e.peso_kg,
+          cantidad:          e.peso_kg,
+          precio_unitario:   e.precio_unitario,
+          total:             e.total,
+          ruta_id:           rutaActiva.id_ruta,
+          estado_liquidacion: e.estado_liquidacion || "PENDIENTE_LIQUIDACION",
+          _de_ruta_activa:   true,   // marca para no duplicar
+        }));
+      } catch (eRuta) {
+        console.warn("[DASHBOARD] No se pudieron cargar entregas de ruta activa:", eRuta.message);
+      }
+    }
+
+    // 3. Fusionar: quitar del base los registros que ya vienen de la ruta activa
+    //    (evitar duplicados si el endpoint ya los incluye)
+    const idsRuta = new Set(entregasRuta.map(e => e.ruta_id + "_" + e.nombre_productor + "_" + e.peso_kg));
+    const historialSinDuplicados = historialBase.filter(r => {
+      if ((r.tipo || "").toUpperCase() !== "COMPRA") return true;
+      const key = r.ruta_id + "_" + (r.nombre_productor || r.cedula_productor) + "_" + (r.peso_kg || r.cantidad);
+      return !idsRuta.has(key);
+    });
+
+    historialCompleto = [...entregasRuta, ...historialSinDuplicados];
+
+    // 4. Calcular métricas
     const compras = historialCompleto.filter(r => (r.tipo || "").toUpperCase() === "COMPRA");
-    const ventas = historialCompleto.filter(r => (r.tipo || "").toUpperCase() === "VENTA");
+    const ventas  = historialCompleto.filter(r => (r.tipo || "").toUpperCase() === "VENTA");
 
     const productoresUnicos = new Set(
-      compras.map(r => r.cedula_productor || r.id_productor).filter(Boolean)
+      compras
+        .map(r => r.cedula_productor || r.id_productor || r.nombre_productor)
+        .filter(Boolean)
     ).size;
 
     const set = (id, val) => {
@@ -227,20 +289,43 @@ async function cargarDashboard() {
     };
 
     set("dash-entregas-hoy", compras.length);
-    set("dash-kilos-hoy", ventas.length);
-    set("dash-productores", productoresUnicos || compras.length);
+    set("dash-kilos-hoy",    ventas.length);
+    set("dash-productores",  productoresUnicos > 0 ? productoresUnicos : "0");
 
-    // Última operación registrada
-    const ultima = historialCompleto[0];
-    const ultimaFecha = ultima?.fecha || ultima?.fecha_venta || ultima?.createdAt;
-    set("dash-ultima-op", ultimaFecha
-      ? new Date(ultimaFecha).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
-      : "Sin registros");
+    // 5. Última operación: la fecha más reciente entre TODO
+    const fechas = historialCompleto
+      .map(r => {
+        const f = r.fecha || r.fecha_venta || r.fecha_compra || r.createdAt || null;
+        if (!f) return null;
+        const t = parseFechaLocal(f);
+        return t ? new Date(t) : null;
+      })
+      .filter(f => f && !isNaN(f.getTime()));
 
-    // Últimas 5 operaciones en el dashboard
-    renderUltimasOps(historialCompleto.slice(0, 5));
+    if (fechas.length > 0) {
+      const masReciente = new Date(Math.max(...fechas.map(f => f.getTime())));
+      set("dash-ultima-op", masReciente.toLocaleDateString("es-CO", {
+        day: "2-digit", month: "2-digit", year: "numeric"
+      }));
+    } else {
+      set("dash-ultima-op", "Sin registros");
+    }
+
+    // 6. Últimas 5 operaciones ordenadas por fecha descendente
+    const ordenadas = [...historialCompleto].sort((a, b) => {
+      const fa = parseFechaLocal(a.fecha || a.fecha_venta || a.fecha_compra);
+      const fb = parseFechaLocal(b.fecha || b.fecha_venta || b.fecha_compra);
+      return fb - fa;
+    });
+    renderUltimasOps(ordenadas.slice(0, 5));
+
   } catch (error) {
     console.warn("Dashboard error:", error.message);
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set("dash-entregas-hoy", "—");
+    set("dash-kilos-hoy",    "—");
+    set("dash-productores",  "—");
+    set("dash-ultima-op",    "Sin registros");
   }
 }
 
@@ -248,27 +333,38 @@ function renderUltimasOps(registros) {
   const tbody = document.getElementById("ultimas-ops-body");
   if (!tbody) return;
 
-  if (!registros.length) {
+  if (!registros || !registros.length) {
     tbody.innerHTML = `<tr><td colspan="5" class="table-empty">No hay operaciones recientes.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = registros.map(r => {
     const esCompra = (r.tipo || "").toUpperCase() === "COMPRA";
-    const fecha = formatFecha(r.fecha || r.fecha_venta || r.createdAt);
+    const fecha = formatFecha(r.fecha || r.fecha_venta || r.fecha_compra || r.createdAt);
     const tipo = `<span class="badge ${esCompra ? "badge-compra" : "badge-venta"}">${esCompra ? "Compra" : "Venta"}</span>`;
+
     const quien = esCompra
-      ? (r.nombre_productor || `Prod. #${r.id_productor}` || "—")
-      : (r.nombre || r.cliente || "Cliente general");
-    const producto = r.nombre_producto || "—";
-    const total = formatMoneda(r.total);
+      ? (r.nombre_productor || r.nombre_productor_externo || (r.id_productor ? `Prod. #${r.id_productor}` : "—"))
+      : (r.nombre || r.cliente || r.nombre_comerciante || "Cliente general");
+
+    const producto = r.nombre_producto || r.producto || "—";
+
+    const pesoRaw = esCompra
+      ? parseFloat(r.peso_kg || r.cantidad || r.kilos || 0)
+      : parseFloat(r.cantidad_kg || r.cantidad || r.kilos || 0);
+    const pesoStr = pesoRaw > 0 ? pesoRaw.toFixed(2) + " kg" : "—";
+
+    // Indicador visual si es entrega de ruta activa (precio pendiente)
+    const rutaTag = r._de_ruta_activa
+      ? `<span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:99px;padding:1px 6px;font-weight:700;margin-left:4px">Ruta #${r.ruta_id}</span>`
+      : "";
 
     return `<tr>
       <td data-label="Fecha">${fecha}</td>
-      <td data-label="Tipo">${tipo}</td>
-      <td data-label="Poductor / Cliente">${quien}</td>
+      <td data-label="Tipo">${tipo}${rutaTag}</td>
+      <td data-label="Productor / Cliente">${quien}</td>
       <td data-label="Producto">${producto}</td>
-      <td data-label="Total"><strong>${total}</strong></td>
+      <td data-label="Peso / Cant.">${pesoStr}</td>
     </tr>`;
   }).join("");
 }
@@ -463,10 +559,8 @@ function initProductFilaEvents() {
     if (sel.value) {
       if (tipo === "venta") {
         // ── VENTA: precio según regla del comerciante ──────────
-        // Leer nombre del comerciante del campo de la venta
-        const nombreCom = (
-          document.getElementById("input-nombre-venta")?.value || ""
-        ).trim().toUpperCase();
+        // Leer nombre del comerciante desde currentCliente (select nativo)
+        const nombreCom = (currentCliente?.nombre || "").trim().toUpperCase();
         precioCalculado = prc_obtenerPrecioVenta(sel.value, nombreCom);
       } else {
         // ── COMPRA / EDICIÓN: precio_final_productor ───────────
@@ -644,7 +738,7 @@ function llenarDatosProductor(productor) {
     if (el) { el.textContent = val || "—"; el.classList.remove("vacio"); }
   };
   set("prod-nombre", productor.nombre);
-  set("prod-cedula", productor.cedula);
+  set("prod-cedula", productor.cedula || productor.usuario?.cedula);
   set("prod-ubicacion", productor.finca || productor.ubicacion || productor.direccion);
   // Ocultar badge tipo para afiliados
   const rowTipo = document.getElementById('row-tipo-productor');
@@ -679,16 +773,24 @@ async function cargarComerciantesVenta() {
   try {
     const data = await fetchWithAuth(`${API_BASE}/comerciantes`);
     comerciantes = Array.isArray(data) ? data : (data.data || []);
-    const dl = document.getElementById("dl-comerciantes");
-    if (!dl) return;
-    dl.innerHTML = "";
+
+    const sel = document.getElementById("select-comerciante");
+    if (!sel) return;
+
+    // Opción vacía inicial
+    sel.innerHTML = '<option value="">-- Selecciona un comerciante --</option>';
+
     comerciantes
       .filter(c => c.activo !== false)
       .forEach(c => {
         const opt = document.createElement("option");
-        opt.value = c.nombre;
-        opt.dataset.id = c.id_comerciante;
-        dl.appendChild(opt);
+        opt.value = c.id_comerciante;          // value = ID directo
+        opt.textContent = c.nombre;
+        opt.dataset.nombre    = c.nombre;
+        opt.dataset.telefono  = c.telefono  || "";
+        opt.dataset.direccion = c.direccion || "";
+        opt.dataset.email     = c.email || c.correo || "";
+        sel.appendChild(opt);
       });
   } catch (e) {
     console.warn("[COMERCIANTES] Error cargando:", e.message);
@@ -736,8 +838,23 @@ function com_onInput(valor) {
     return;
   }
 
-  // currentCliente provisional (sin id, por si no hay match en BD)
-  currentCliente = { nombre: valor.trim(), id_comerciante: null };
+  // Intentar match exacto con la lista de comerciantes
+  // (cubre el caso de autocompletado por teclado sin clic en el datalist)
+  const matchInput = comerciantes.find(
+    c => c.nombre.trim().toUpperCase() === valor.trim().toUpperCase()
+  );
+  if (matchInput) {
+    currentCliente = {
+      nombre: matchInput.nombre,
+      id_comerciante: matchInput.id_comerciante,
+      telefono: matchInput.telefono || "",
+      direccion: matchInput.direccion || "",
+      email: matchInput.email || matchInput.correo || "",
+    };
+  } else {
+    // Provisional: nombre libre sin comerciante registrado
+    currentCliente = { nombre: valor.trim(), id_comerciante: null };
+  }
 }
 
 /**
@@ -778,11 +895,64 @@ function com_onSelect(valor) {
       id_comerciante: match.id_comerciante,
       telefono: match.telefono || "",
       direccion: match.direccion || "",
+      email: match.email || match.correo || "",
     };
 
     // Recalcular precios con el nombre definitivo
     com_onInput(match.nombre);
   }
+}
+
+/**
+ * Handler para el <select> nativo de comerciantes.
+ * Lee id_comerciante directamente del value del <option> — sin ambigüedad.
+ */
+function com_onSelectId(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  if (!opt || !opt.value) {
+    limpiarFormCliente();
+    return;
+  }
+
+  const idComerciante = parseInt(opt.value, 10);
+  const nombre    = opt.dataset.nombre    || opt.textContent.trim();
+  const telefono  = opt.dataset.telefono  || "";
+  const direccion = opt.dataset.direccion || "";
+  const email     = opt.dataset.email     || "";
+
+  // Rellenar campos de sólo lectura
+  const tel = document.getElementById("input-telefono-venta");
+  const dir = document.getElementById("input-direccion-venta");
+  if (tel) tel.value = telefono;
+  if (dir) dir.value = direccion;
+
+  // Actualizar preview
+  const setEl = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val || "—";
+    val ? el.classList.remove("vacio") : el.classList.add("vacio");
+  };
+  setEl("cliente-nombre", nombre);
+  setEl("cliente-telefono", telefono || "—");
+  const esEspecial = nombre.trim().toUpperCase() === "EL PRIMO";
+  setEl("cliente-precio-tipo", esEspecial ? "Precio base (EL PRIMO)" : "Precio base + $100/kg");
+
+  // Badge EL PRIMO
+  const badge = document.getElementById("badge-el-primo");
+  if (badge) badge.style.display = esEspecial ? "inline-flex" : "none";
+
+  // currentCliente con id_comerciante GARANTIZADO
+  currentCliente = {
+    nombre,
+    id_comerciante: idComerciante,
+    telefono,
+    direccion,
+    email,
+  };
+
+  // Recalcular precios de filas de venta
+  com_onInput(nombre);
 }
 
 /** Limpia campos de solo lectura */
@@ -802,18 +972,18 @@ function _com_limpiarCampos() {
 
 function limpiarFormCliente() {
   currentCliente = null;
-  const inp = document.getElementById("input-nombre-venta");
-  if (inp) inp.value = "";
+  // Resetear el select
+  const sel = document.getElementById("select-comerciante");
+  if (sel) sel.value = "";
   _com_limpiarCampos();
   const badge = document.getElementById("badge-el-primo");
   if (badge) badge.style.display = "none";
 }
 
 function initClienteVentaListeners() {
-  // El listener principal ya está en los atributos oninput/onchange del HTML.
-  // Este hook garantiza que el badge se oculte si el campo está vacío al cargar.
-  const inp = document.getElementById("input-nombre-venta");
-  if (inp && !inp.value) {
+  // Garantizar que el badge esté oculto y el select sin selección al cargar.
+  const sel = document.getElementById("select-comerciante");
+  if (sel && !sel.value) {
     const badge = document.getElementById("badge-el-primo");
     if (badge) badge.style.display = "none";
   }
@@ -938,6 +1108,76 @@ function stopScanner() {
   showAlert("Camara desactivada.", "success");
 }
 
+
+// =============================================
+// TOAST DE CONFIRMACIÓN — Compra / Venta
+// =============================================
+
+/**
+ * Muestra un toast elegante de operación exitosa.
+ * tipo: "compra" | "venta"
+ */
+function showToastRegistro(tipo) {
+  const anterior = document.getElementById("toast-registro");
+  if (anterior) anterior.remove();
+
+  const esVenta = tipo === "venta";
+  const icono = esVenta ? "fi-rr-check-circle" : "fi-rr-shopping-cart";
+  const titulo = esVenta ? "¡Venta registrada!" : "¡Compra registrada!";
+  const subtitulo = esVenta
+    ? "La venta quedó guardada en el sistema"
+    : "La compra quedó guardada correctamente";
+  const color = esVenta ? "#2563eb" : "#16a34a";
+  const bg = esVenta ? "#eff6ff" : "#f0fdf4";
+  const borde = esVenta ? "#bfdbfe" : "#bbf7d0";
+
+  const toast = document.createElement("div");
+  toast.id = "toast-registro";
+  toast.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fi ${icono}" style="color:#fff;font-size:1.1rem;line-height:1;display:flex"></i>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:.95rem;color:#111827">${titulo}</div>
+        <div style="font-size:.78rem;color:#6b7280;margin-top:1px">${subtitulo}</div>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()"
+        style="margin-left:auto;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:1.1rem;padding:4px;line-height:1">✕</button>
+    </div>`;
+
+  Object.assign(toast.style, {
+    position: "fixed",
+    bottom: "88px",
+    right: "16px",
+    zIndex: "99999",
+    background: bg,
+    border: "1.5px solid " + borde,
+    borderRadius: "14px",
+    padding: "14px 16px",
+    boxShadow: "0 8px 32px rgba(0,0,0,.14)",
+    maxWidth: "320px",
+    width: "calc(100vw - 32px)",
+    transform: "translateY(20px)",
+    opacity: "0",
+    transition: "transform .3s cubic-bezier(.34,1.56,.64,1), opacity .25s ease"
+  });
+
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      toast.style.transform = "translateY(0)";
+      toast.style.opacity = "1";
+    });
+  });
+
+  setTimeout(() => {
+    toast.style.transform = "translateY(20px)";
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 // =============================================
 // 9. REGISTRAR COMPRA — adaptado al backend
 // =============================================
@@ -1002,7 +1242,7 @@ async function registrarEntrega(event) {
         precio_unitario: parseFloat(fila.precio),
         ruta_id: rutaActiva ? rutaActiva.id_ruta : null,
         id_usuario: perfilData?.id_usuario || perfilData?.id || null, // ID del operario que registra
-        nombre_operario: perfilData?.nombre || null, // Nombre del operario
+        nombre_operario: perfilData ? [perfilData.nombre, perfilData.apellido].filter(Boolean).join(' ') || null : null, // Nombre completo del operario
       };
       if (tipoProductorActual === 'EXTERNO') {
         // Solo los campos que el backend (Entrega entity) soporta:
@@ -1017,7 +1257,7 @@ async function registrarEntrega(event) {
 
     if (!navigator.onLine) {
       for (const p of payloads) await AgroSync.encolarCompra(p);
-      showAlert("Sin internet. Compra guardada localmente — se sincronizará al volver la conexión.", "success");
+      showToastRegistro("compra");
     } else {
       let exitosasC = 0;
       for (const p of payloads) {
@@ -1037,9 +1277,7 @@ async function registrarEntrega(event) {
         }
       }
       if (exitosasC > 0) {
-        const msgRuta = rutaActiva ? ` — Ruta #${rutaActiva.id_ruta}` : '';
-        const msgTipo = tipoProductorActual === 'EXTERNO' ? ' (productor externo)' : '';
-        showAlert(`Compra registrada correctamente${msgRuta}${msgTipo}.`, "success");
+        showToastRegistro("compra");
         if (rutaActiva) {
           fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
             method: 'POST'
@@ -1114,8 +1352,8 @@ async function registrarVenta(event) {
     const payloadsVenta = filasVenta.map(fila => ({
       id_comerciante: currentCliente?.id_comerciante ?? null,
       cliente: currentCliente?.nombre || "Sin comerciante",
-      id_usuario: perfilData?.id_usuario || perfilData?.id || null, // ID del operario que registra
-      nombre_operario: perfilData?.nombre || null, // Nombre del operario
+      id_usuario: perfilData?.id_usuario || perfilData?.id || null,
+      nombre_operario: perfilData ? [perfilData.nombre, perfilData.apellido].filter(Boolean).join(' ') || null : null,
       detalles: [{
         id_producto: parseInt(fila.productoId, 10),
         cantidad: parseFloat(fila.cantidad),
@@ -1124,45 +1362,427 @@ async function registrarVenta(event) {
     }));
 
     if (!navigator.onLine) {
-      // ── SIN INTERNET: encolar en IndexedDB ──────────────
       for (const p of payloadsVenta) await AgroSync.encolarVenta(p);
-      showAlert(
-        "Sin internet. Venta guardada localmente — se sincronizará al volver la conexión.",
-        "success",
-        "alert-venta"
-      );
+      showToastRegistro("venta");
     } else {
-      // ── CON INTERNET: enviar al backend ─────────────────
+      let ultimaVentaId = null;
       let exitosasV = 0;
+
       for (const p of payloadsVenta) {
         try {
-          await fetchWithAuth(`${API_BASE}/operario/registrar-venta`, {
+          const respuesta = await fetchWithAuth(`${API_BASE}/operario/registrar-venta`, {
             method: "POST",
             body: JSON.stringify(p)
           });
+          // Guardar el id de la ultima venta registrada para la factura
+          if (respuesta) {
+            ultimaVentaId = respuesta.id_venta || respuesta.id || respuesta.data?.id_venta || null;
+          }
           exitosasV++;
         } catch (err) {
           if (!navigator.onLine || err.name === "TypeError") {
             await AgroSync.encolarVenta(p);
-            showAlert("Sin conexión. Venta guardada localmente.", "success", "alert-venta");
           } else {
             throw err;
           }
         }
       }
+
       if (exitosasV > 0) {
-        showAlert("Venta registrada correctamente.", "success", "alert-venta");
+        // Capturar datos de la venta antes de limpiar el formulario
+        const resumenVenta = {
+          id_venta: ultimaVentaId,
+          cliente: currentCliente?.nombre || "Sin comerciante",
+          email: currentCliente?.email || currentCliente?.correo || "",
+          id_comerciante: currentCliente?.id_comerciante ?? null,
+          productos: filasVenta.map(f => {
+            const prod = productos.find(p => String(p.id_producto || p.id) === String(f.productoId));
+            return {
+              nombre: prod?.nombre || `Producto #${f.productoId}`,
+              cantidad: parseFloat(f.cantidad),
+              precio: parseFloat(f.precio),
+              subtotal: parseFloat(f.cantidad) * parseFloat(f.precio)
+            };
+          }),
+          total: filasVenta.reduce((s, f) => s + parseFloat(f.cantidad) * parseFloat(f.precio), 0),
+          fecha: new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })
+        };
+
+        // Limpiar formulario ANTES de abrir el modal
+        filasVenta = [];
+        renderFilas("venta");
+        limpiarFormCliente();
+        setTimeout(() => cargarDashboard(), 600);
+
+        // Mostrar toast de éxito
+        showToastRegistro("venta");
+
+        // Mostrar primero el modal de confirmación de envío de factura
+        setTimeout(() => abrirModalConfirmacionFactura(resumenVenta), 400);
+        return; // salir aqui para no repetir el limpiar de abajo
       }
     }
+
+    // Limpiar formulario (caso sin internet)
     filasVenta = [];
     renderFilas("venta");
     limpiarFormCliente();
-    cargarDashboard();
+    setTimeout(() => cargarDashboard(), 600);
+
   } catch (error) {
     showAlert(`Error al registrar la venta: ${error.message}`, "error", "alert-venta");
   } finally {
     btn.disabled = false;
     btn.textContent = "Registrar venta";
+  }
+}
+
+// =============================================
+// MODAL CONFIRMACIÓN ENVÍO FACTURA
+// =============================================
+
+/**
+ * Modal pequeño que aparece justo después de registrar la venta.
+ * Pregunta al operario si desea enviar la factura por correo.
+ *  - "Enviar"    → abre el modal completo de factura (abrirModalFactura)
+ *  - "Presencial / Cancelar" → cierra sin enviar nada
+ */
+function abrirModalConfirmacionFactura(venta) {
+  // Reutilizar el modal si ya existe, o crearlo dinámicamente
+  let modal = document.getElementById("modal-confirm-factura");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal-confirm-factura";
+    modal.style.cssText = `
+      display:none;position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,.45);
+      align-items:center;justify-content:center;padding:16px;
+    `;
+    modal.innerHTML = `
+      <div id="confirm-factura-card" style="
+        background:#fff;border-radius:16px;
+        box-shadow:0 8px 40px rgba(0,0,0,.18);
+        padding:28px 24px 20px;max-width:360px;width:100%;
+        transform:translateY(20px) scale(.97);opacity:0;
+        transition:transform .25s ease,opacity .25s ease;
+      ">
+        <!-- Icono y título -->
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="width:52px;height:52px;background:#f0fdf4;border-radius:50%;
+                      display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+            <i class="fi fi-rr-envelope" style="color:#16a34a;font-size:1.4rem;display:flex"></i>
+          </div>
+          <h3 style="margin:0 0 6px;font-size:1.05rem;font-weight:800;color:#111827">
+            ¿Enviar factura al comerciante?
+          </h3>
+          <p id="confirm-factura-cliente" style="margin:0;font-size:.85rem;color:#6b7280;font-weight:600"></p>
+        </div>
+
+        <!-- Correo actual -->
+        <div id="confirm-factura-email-wrap" style="
+          background:#f0fdf4;border-radius:10px;padding:10px 14px;
+          margin-bottom:16px;display:flex;align-items:center;gap:10px;
+        ">
+          <i class="fi fi-rr-at" style="color:#16a34a;font-size:1rem;flex-shrink:0;display:flex"></i>
+          <div style="min-width:0">
+            <div style="font-size:.7rem;color:#9ca3af;font-weight:700;text-transform:uppercase">
+              Correo del comerciante
+            </div>
+            <div id="confirm-factura-email-txt" style="font-size:.9rem;font-weight:700;color:#111827;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+          </div>
+        </div>
+
+        <!-- Aviso sin correo -->
+        <div id="confirm-factura-sin-email" style="display:none;
+          background:#fef3c7;border-radius:10px;padding:10px 14px;margin-bottom:16px;
+          font-size:.8rem;color:#92400e;font-weight:600">
+          <i class="fi fi-rr-triangle-warning" style="margin-right:5px"></i>
+          Este comerciante no tiene correo registrado.
+          <br>Puedes escribirlo manualmente o seleccionar <strong>Presencial</strong>.
+        </div>
+
+        <!-- Input email manual -->
+        <div id="confirm-factura-input-wrap" style="margin-bottom:16px">
+          <input type="email" id="confirm-factura-input" placeholder="correo@comerciante.com"
+            style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;
+                   padding:10px 12px;font-size:.88rem;outline:none;transition:border-color .2s"
+            onfocus="this.style.borderColor='#16a34a'"
+            onblur="this.style.borderColor='#d1d5db'"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();_confirmFacturaEnviar()}" />
+          <div id="confirm-factura-error" style="font-size:.75rem;color:#dc2626;margin-top:4px;min-height:16px"></div>
+        </div>
+
+        <!-- Botones -->
+        <div style="display:flex;gap:10px">
+          <button onclick="_confirmFacturaCancelar()"
+            style="flex:1;background:#f3f4f6;color:#374151;border:none;border-radius:8px;
+                   padding:11px 0;font-size:.9rem;font-weight:700;cursor:pointer;
+                   transition:background .15s"
+            onmouseover="this.style.background='#e5e7eb'"
+            onmouseout="this.style.background='#f3f4f6'">
+            <i class="fi fi-rr-handshake" style="margin-right:5px;vertical-align:middle;display:inline-flex"></i>
+            Presencial
+          </button>
+          <button onclick="_confirmFacturaEnviar()"
+            id="confirm-factura-btn-enviar"
+            style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:8px;
+                   padding:11px 0;font-size:.9rem;font-weight:700;cursor:pointer;
+                   transition:background .15s"
+            onmouseover="this.style.background='#15803d'"
+            onmouseout="this.style.background='#16a34a'">
+            <i class="fi fi-rr-paper-plane" style="margin-right:5px;vertical-align:middle;display:inline-flex"></i>
+            Enviar factura
+          </button>
+        </div>
+
+        <!-- Estado del envío -->
+        <div id="confirm-factura-estado" style="
+          margin-top:12px;text-align:center;font-size:.8rem;font-weight:600;min-height:18px
+        "></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // Guardar la venta en el modal para usarla al enviar
+  modal._ventaData = venta;
+
+  // Rellenar datos del comerciante
+  const email = (venta.email || "").trim();
+  document.getElementById("confirm-factura-cliente").textContent =
+    venta.cliente || "Comerciante";
+
+  if (email) {
+    document.getElementById("confirm-factura-email-wrap").style.display = "flex";
+    document.getElementById("confirm-factura-email-txt").textContent = email;
+    document.getElementById("confirm-factura-sin-email").style.display = "none";
+    document.getElementById("confirm-factura-input").value = email;
+  } else {
+    document.getElementById("confirm-factura-email-wrap").style.display = "none";
+    document.getElementById("confirm-factura-sin-email").style.display = "";
+    document.getElementById("confirm-factura-input").value = "";
+  }
+
+  document.getElementById("confirm-factura-error").textContent = "";
+  document.getElementById("confirm-factura-estado").textContent = "";
+  const btnEnviar = document.getElementById("confirm-factura-btn-enviar");
+  if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.textContent = ""; btnEnviar.innerHTML = '<i class="fi fi-rr-paper-plane" style="margin-right:5px;vertical-align:middle;display:inline-flex"></i> Enviar factura'; }
+
+  // Mostrar modal con animación
+  modal.style.display = "flex";
+  requestAnimationFrame(() => {
+    const card = document.getElementById("confirm-factura-card");
+    if (card) { card.style.transform = "translateY(0) scale(1)"; card.style.opacity = "1"; }
+  });
+}
+
+function _confirmFacturaCancelar() {
+  const modal = document.getElementById("modal-confirm-factura");
+  if (!modal) return;
+  const card = document.getElementById("confirm-factura-card");
+  if (card) { card.style.transform = "translateY(20px) scale(.97)"; card.style.opacity = "0"; }
+  setTimeout(() => { if (modal) modal.style.display = "none"; }, 250);
+}
+
+async function _confirmFacturaEnviar() {
+  const modal = document.getElementById("modal-confirm-factura");
+  if (!modal) return;
+
+  const email = (document.getElementById("confirm-factura-input")?.value || "").trim();
+  const errorEl = document.getElementById("confirm-factura-error");
+  const estadoEl = document.getElementById("confirm-factura-estado");
+  const btnEnviar = document.getElementById("confirm-factura-btn-enviar");
+  const venta = modal._ventaData;
+
+  // Validar email
+  if (!email) {
+    if (errorEl) { errorEl.textContent = "Ingresa un correo para enviar la factura."; }
+    document.getElementById("confirm-factura-input")?.focus();
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (errorEl) { errorEl.textContent = "El formato del correo no es válido."; }
+    return;
+  }
+  if (errorEl) errorEl.textContent = "";
+
+  const idVenta = venta?.id_venta || "";
+
+  if (!idVenta) {
+    // Offline — solo confirmación visual
+    if (estadoEl) { estadoEl.textContent = "✓ Se enviará al sincronizar."; estadoEl.style.color = "#16a34a"; }
+    if (btnEnviar) { btnEnviar.disabled = true; btnEnviar.innerHTML = "Enviado ✓"; }
+    setTimeout(_confirmFacturaCancelar, 1800);
+    return;
+  }
+
+  if (btnEnviar) { btnEnviar.disabled = true; btnEnviar.innerHTML = "Enviando..."; }
+  if (estadoEl) estadoEl.textContent = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/ventas/${idVenta}/estado`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`
+      },
+      body: JSON.stringify({ estado: "COMPLETADA", email_factura: email })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || err.error || `Error ${res.status}`);
+    }
+
+    if (estadoEl) { estadoEl.textContent = `✓ Factura enviada a ${email}`; estadoEl.style.color = "#16a34a"; }
+    if (btnEnviar) { btnEnviar.innerHTML = "Enviado ✓"; }
+    setTimeout(_confirmFacturaCancelar, 2000);
+
+  } catch (e) {
+    if (estadoEl) { estadoEl.textContent = `Error: ${e.message}`; estadoEl.style.color = "#dc2626"; }
+    if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.innerHTML = '<i class="fi fi-rr-paper-plane" style="margin-right:5px;vertical-align:middle;display:inline-flex"></i> Reintentar'; }
+  }
+}
+
+// =============================================
+// MODAL FACTURA ELECTRÓNICA
+// =============================================
+
+/**
+ * Abre el modal de factura electrónica al terminar una venta.
+ * Muestra el resumen y permite al operario decidir si enviar el correo.
+ */
+function abrirModalFactura(venta) {
+  const modal = document.getElementById("modal-factura");
+  if (!modal) return;
+
+  const fmt = n => "$" + parseFloat(n || 0).toLocaleString("es-CO", { minimumFractionDigits: 0 });
+  const emailDisponible = !!(venta.email || "").trim();
+
+  // Número de factura provisional (ID o fecha)
+  const numFactura = venta.id_venta
+    ? String(venta.id_venta).padStart(6, "0")
+    : new Date().getTime().toString().slice(-6);
+
+  // Filas de productos
+  const filasHTML = (venta.productos || []).map(p => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f4f0;font-size:.88rem;color:#374151">${p.nombre}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f4f0;text-align:center;font-size:.88rem;color:#6b7280">${parseFloat(p.cantidad).toFixed(2)} kg</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f4f0;text-align:right;font-size:.88rem;color:#6b7280">${fmt(p.precio)}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f4f0;text-align:right;font-size:.88rem;font-weight:700;color:#166534">${fmt(p.subtotal)}</td>
+    </tr>`).join("");
+
+  document.getElementById("factura-numero").textContent = `#${numFactura}`;
+  document.getElementById("factura-fecha").textContent = venta.fecha;
+  document.getElementById("factura-cliente").textContent = venta.cliente;
+  document.getElementById("factura-productos").innerHTML = filasHTML;
+  document.getElementById("factura-total").textContent = fmt(venta.total);
+
+  // Sección email
+  const secEmail = document.getElementById("factura-sec-email");
+  const inputEmail = document.getElementById("factura-input-email");
+  const btnEnviar = document.getElementById("factura-btn-enviar");
+  const msgSinEmail = document.getElementById("factura-msg-sin-email");
+
+  if (emailDisponible) {
+    if (inputEmail) inputEmail.value = venta.email;
+    if (secEmail) secEmail.style.display = "";
+    if (msgSinEmail) msgSinEmail.style.display = "none";
+    if (btnEnviar) {
+      btnEnviar.disabled = false;
+      btnEnviar.textContent = "Enviar factura al correo";
+    }
+  } else {
+    if (secEmail) secEmail.style.display = "";
+    if (inputEmail) inputEmail.value = "";
+    if (inputEmail) inputEmail.placeholder = "Escribe el correo del comerciante";
+    if (msgSinEmail) msgSinEmail.style.display = "";
+    if (btnEnviar) {
+      btnEnviar.disabled = false;
+      btnEnviar.textContent = "Enviar factura al correo";
+    }
+  }
+
+  // Guardar id venta para envío
+  modal.dataset.idVenta = venta.id_venta || "";
+  modal.dataset.emailOriginal = venta.email || "";
+
+  // Estado del botón enviar
+  document.getElementById("factura-estado-envio").textContent = "";
+
+  // Mostrar modal con animación
+  modal.style.display = "flex";
+  requestAnimationFrame(() => modal.classList.add("factura-visible"));
+}
+
+function cerrarModalFactura() {
+  const modal = document.getElementById("modal-factura");
+  if (!modal) return;
+  modal.classList.remove("factura-visible");
+  setTimeout(() => { modal.style.display = "none"; }, 280);
+}
+
+async function enviarFacturaPorCorreo() {
+  const modal = document.getElementById("modal-factura");
+  const inputEmail = document.getElementById("factura-input-email");
+  const btnEnviar = document.getElementById("factura-btn-enviar");
+  const estadoEl = document.getElementById("factura-estado-envio");
+
+  const email = (inputEmail?.value || "").trim();
+  const idVenta = modal?.dataset.idVenta || "";
+
+  if (!email) {
+    estadoEl.textContent = "Ingresa un correo válido para continuar.";
+    estadoEl.style.color = "#dc2626";
+    inputEmail?.focus();
+    return;
+  }
+
+  // Validación simple de formato email
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    estadoEl.textContent = "El formato del correo no es válido.";
+    estadoEl.style.color = "#dc2626";
+    return;
+  }
+
+  if (!idVenta) {
+    // Sin id de venta: solo confirmación visual (offline o sin respuesta del servidor)
+    estadoEl.textContent = "✓ Factura marcada para envío al sincronizar.";
+    estadoEl.style.color = "#16a34a";
+    if (btnEnviar) { btnEnviar.disabled = true; btnEnviar.textContent = "Enviado ✓"; }
+    return;
+  }
+
+  if (btnEnviar) { btnEnviar.disabled = true; btnEnviar.textContent = "Enviando..."; }
+  estadoEl.textContent = "";
+
+  try {
+    const token = localStorage.getItem("token") || "";
+    const res = await fetch(`${API_BASE}/ventas/${idVenta}/estado`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ estado: "COMPLETADA", email_factura: email })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || errData.error || `Error ${res.status}`);
+    }
+
+    estadoEl.textContent = `✓ Factura enviada a ${email}`;
+    estadoEl.style.color = "#16a34a";
+    if (btnEnviar) { btnEnviar.textContent = "Enviado ✓"; }
+
+  } catch (e) {
+    estadoEl.textContent = `No se pudo enviar: ${e.message}`;
+    estadoEl.style.color = "#dc2626";
+    if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.textContent = "Reintentar"; }
   }
 }
 
@@ -1178,9 +1798,57 @@ async function cargarHistorial() {
   if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Cargando...</td></tr>`;
 
   try {
+    // 1. Historial base desde el endpoint principal
     const data = await fetchWithAuth(`${API_BASE}/operario/historial`);
-    // /operario/historial devuelve el array directamente (no envuelto)
-    historialCompleto = Array.isArray(data) ? data : [];
+    const historialBase = Array.isArray(data) ? data : [];
+
+    // 2. Fusionar entregas de ruta activa (el backend puede excluirlas hasta cerrar la ruta)
+    let entregasRuta = [];
+    if (rutaActiva && rutaActiva.id_ruta) {
+      try {
+        const dataRuta = await fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/entregas`);
+        const lista = Array.isArray(dataRuta) ? dataRuta : (dataRuta.data || []);
+        entregasRuta = lista.map(e => ({
+          tipo:              "COMPRA",
+          fecha:             e.fecha || e.createdAt || rutaActiva.fecha,
+          id_productor:      e.id_productor,
+          cedula_productor:  e.cedula_productor,
+          nombre_productor:  e.nombre_productor || e.nombre_productor_externo,
+          nombre_producto:   e.nombre_producto,
+          peso_kg:           e.peso_kg,
+          cantidad:          e.peso_kg,
+          precio_unitario:   e.precio_unitario,
+          total:             e.total,
+          ruta_id:           rutaActiva.id_ruta,
+          id_entrega:        e.id_entrega || e.id,
+          estado_liquidacion: e.estado_liquidacion || "PENDIENTE_LIQUIDACION",
+          _de_ruta_activa:   true,
+        }));
+      } catch (eRuta) {
+        console.warn("[HISTORIAL] No se pudieron cargar entregas de ruta activa:", eRuta.message);
+      }
+    }
+
+    // 3. Evitar duplicados: si el historialBase ya trae la entrega, no agregar de nuevo
+    const idsEnBase = new Set(
+      historialBase
+        .filter(r => (r.tipo || "").toUpperCase() === "COMPRA" && r.ruta_id)
+        .map(r => String(r.ruta_id) + "_" + String(r.id_entrega || ""))
+        .filter(k => !k.endsWith("_"))
+    );
+    const entregasSinDuplicar = entregasRuta.filter(e => {
+      const key = String(e.ruta_id) + "_" + String(e.id_entrega || "");
+      return !idsEnBase.has(key);
+    });
+
+    // 4. Combinar y ordenar por fecha descendente
+    const todos = [...entregasSinDuplicar, ...historialBase].sort((a, b) => {
+      const fa = parseFechaLocal(a.fecha || a.fecha_venta || a.fecha_compra);
+      const fb = parseFechaLocal(b.fecha || b.fecha_venta || b.fecha_compra);
+      return fb - fa;
+    });
+
+    historialCompleto = todos;
     renderHistorial(historialCompleto);
   } catch (error) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error: ${error.message}</td></tr>`;
@@ -1199,25 +1867,26 @@ function renderHistorial(registros) {
   if (!tbody) return;
 
   if (!registros?.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">No hay registros para mostrar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">Sin registros.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = registros.map((r, idx) => {
-    const esCompra = r.tipo === "COMPRA";
+    const esCompra = (r.tipo || "").toUpperCase() === "COMPRA";
     const badgeClass = esCompra ? "badge-compra" : "badge-venta";
     const badgeTexto = esCompra ? "Compra" : "Venta";
-    const fecha = formatFecha(r.fecha || r.fecha_venta);
+    const fecha = formatFecha(r.fecha || r.fecha_venta || r.fecha_compra || r.createdAt);
 
     const quien = esCompra
-      ? (r.nombre_productor || `Prod. #${r.id_productor}` || "Sin productor")
-      : (r.nombre || r.cliente || "Cliente general");
+      ? (r.nombre_productor || r.nombre_productor_externo || (r.id_productor ? `Prod. #${r.id_productor}` : "Sin productor"))
+      : (r.nombre || r.cliente || r.nombre_comerciante || "Cliente general");
 
-    const producto = r.nombre_producto || "—";
+    const producto = r.nombre_producto || r.producto || "—";
 
-    const volumen = esCompra
-      ? parseFloat(r.peso_kg || 0).toFixed(2) + " kg"
-      : parseFloat(r.cantidad_kg || 0).toFixed(2) + " kg";
+    const pesoRaw = esCompra
+      ? parseFloat(r.peso_kg || r.cantidad || r.kilos || 0)
+      : parseFloat(r.cantidad_kg || r.cantidad || r.kilos || 0);
+    const volumen = pesoRaw > 0 ? pesoRaw.toFixed(2) + " kg" : "—";
 
     // ── Total: null = pendiente de liquidación ──────────────────
     let totalCol;
@@ -1273,17 +1942,31 @@ function renderHistorial(registros) {
 // 12. GUARDAR EDICIÓN — endpoint y payload corregidos
 // =============================================
 function filtrarHistorial() {
-  const fecha = document.getElementById("hist-fecha")?.value || "";
+  const fecha  = document.getElementById("hist-fecha")?.value || "";
   const cedula = (document.getElementById("hist-cedula")?.value || "").toLowerCase().trim();
-  const tipo = document.getElementById("hist-tipo")?.value || "";
+  const tipo   = (document.getElementById("hist-tipo")?.value || "").toUpperCase();
 
   let filtrado = historialCompleto;
-  if (fecha) filtrado = filtrado.filter(r => (r.fecha || r.fecha_venta || "").toString().split("T")[0] === fecha);
-  if (cedula) filtrado = filtrado.filter(r =>
-    (r.cedula_productor || r.cedula || "").toLowerCase().includes(cedula) ||
-    (r.nombre_productor || r.nombre || r.cliente || "").toLowerCase().includes(cedula)
-  );
-  if (tipo) filtrado = filtrado.filter(r => r.tipo === tipo);
+
+  if (fecha) {
+    // ✅ FIX TIMEZONE: NO usar .split("T")[0] porque para timestamps UTC toma
+    // la fecha UTC, no Colombia. parseFechaLocal() convierte correctamente.
+    // El input type="date" devuelve 'YYYY-MM-DD' local → parseFechaLocal lo trata bien.
+    const tsFiltroDia = parseFechaLocal(fecha);
+    filtrado = filtrado.filter(r => {
+      const f = r.fecha || r.fecha_venta || r.fecha_compra || r.createdAt || '';
+      return parseFechaLocal(f) === tsFiltroDia;
+    });
+  }
+
+  if (cedula) {
+    filtrado = filtrado.filter(r =>
+      (r.cedula_productor || r.cedula || "").toLowerCase().includes(cedula) ||
+      (r.nombre_productor || r.nombre_productor_externo || r.nombre || r.cliente || r.nombre_comerciante || "").toLowerCase().includes(cedula)
+    );
+  }
+
+  if (tipo) filtrado = filtrado.filter(r => (r.tipo || "").toUpperCase() === tipo);
 
   renderHistorial(filtrado);
 }

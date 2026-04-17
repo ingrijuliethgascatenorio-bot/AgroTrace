@@ -7,10 +7,14 @@
     <title>AgroTrace - Dashboard</title>
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet"
+        href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css" />
+
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-thin-rounded/css/uicons-thin-rounded.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/carga-masiva.css">
 </head>
 
 <body>
@@ -84,7 +88,7 @@
                 <!-- Contenido hero -->
                 <div class="db-hero">
                     <div class="db-hero-content">
-                        <div class="db-hero-badge">Sistema Activo</div>
+                        <div class="db-hero-badge"><span><i class="fa-solid fa-seedling"></i></span>Sistema Activo</div>
                         <h1 class="db-hero-title">AgroTrace</h1>
                         <p class="db-hero-subtitle">Plataforma de trazabilidad agrícola</p>
                         <div class="db-hero-greeting-row">
@@ -525,11 +529,33 @@
                         <input class="usr-search-input" id="cmp_buscar" placeholder="Buscar factura o productor..."
                             oninput="cmp_filtrar(this.value)">
                     </div>
+                    <div class="fecha-filter-group">
+                        <div class="an-input-labeled">
+                            <i class="fi fi-rr-calendar" style="color:#9ca3af;font-size:.8rem"></i>
+                            <input type="date" id="cmp_fecha_desde" class="an-input"
+                                onchange="cmp_setFechaDesde(this.value)">
+                        </div>
+                        <div class="an-input-labeled">
+                            <i class="fi fi-rr-calendar" style="color:#9ca3af;font-size:.8rem"></i>
+                            <input type="date" id="cmp_fecha_hasta" class="an-input"
+                                onchange="cmp_setFechaHasta(this.value)">
+                        </div>
+                        <button class="an-btn" style="padding:0 14px;height:38px" onclick="cmp_aplicarFiltroFecha()">
+                            <i class="fi fi-rr-search"></i> Filtrar
+                        </button>
+                        <button class="fecha-filter-clear" onclick="cmp_limpiarFechas()" title="Limpiar">✕</button>
+                    </div>
                     <div class="usr-filter-tabs">
                         <button class="usr-ftab active" onclick="cmp_setEstado('', this)">Todos</button>
                         <button class="usr-ftab" onclick="cmp_setEstado('PENDIENTE', this)">Pendiente</button>
                         <button class="usr-ftab" onclick="cmp_setEstado('COMPLETADO', this)">Completado</button>
-                        <button class="usr-ftab" onclick="cmp_setEstado('ANULADO', this)">Anulado</button>
+                        <span style="width:1px;background:#e5e7eb;align-self:stretch;margin:0 4px"></span>
+                        <button class="cmp-pago-tab usr-ftab active" onclick="cmp_setPago('', this)"
+                            title="Filtrar por comprobante">Comprobante: Todos</button>
+                        <button class="cmp-pago-tab usr-ftab" onclick="cmp_setPago('PENDIENTE', this)"
+                            title="Sin comprobante subido">⏳ Pago pendiente</button>
+                        <button class="cmp-pago-tab usr-ftab" onclick="cmp_setPago('PAGADO', this)"
+                            title="Comprobante subido"> Pagado</button>
                     </div>
                 </div>
                 <div class="usr-count" id="cmp_count">0 registros</div>
@@ -539,7 +565,6 @@
                             <tr>
                                 <th>Factura</th>
                                 <th>Productor</th>
-                                <th>Operario</th>
                                 <th>Fecha</th>
                                 <th>Productos</th>
                                 <th>Total</th>
@@ -551,12 +576,12 @@
                         </thead>
                         <tbody id="cmp_tbody">
                             <tr>
-                                <td colspan="10" class="empty-state">Cargando...</td>
+                                <td colspan="9" class="empty-state">Cargando...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-            </section> 
+            </section>
 
             <!-- VENTAS -->
             <section id="ventas" class="section">
@@ -570,11 +595,26 @@
                         <input class="usr-search-input" id="vnt_buscar" placeholder="Buscar factura o cliente..."
                             oninput="vnt_filtrar(this.value)">
                     </div>
+                    <div class="fecha-filter-group">
+                        <div class="an-input-labeled">
+                            <i class="fi fi-rr-calendar" style="color:#9ca3af;font-size:.8rem"></i>
+                            <input type="date" id="vnt_fecha_desde" class="an-input"
+                                onchange="vnt_setFechaDesde(this.value)">
+                        </div>
+                        <div class="an-input-labeled">
+                            <i class="fi fi-rr-calendar" style="color:#9ca3af;font-size:.8rem"></i>
+                            <input type="date" id="vnt_fecha_hasta" class="an-input"
+                                onchange="vnt_setFechaHasta(this.value)">
+                        </div>
+                        <button class="an-btn" style="padding:0 14px;height:38px" onclick="vnt_aplicarFiltroFecha()">
+                            <i class="fi fi-rr-search"></i> Filtrar
+                        </button>
+                        <button class="fecha-filter-clear" onclick="vnt_limpiarFechas()" title="Limpiar">✕</button>
+                    </div>
                     <div class="usr-filter-tabs">
                         <button class="usr-ftab active" onclick="vnt_setEstado('', this)">Todos</button>
                         <button class="usr-ftab" onclick="vnt_setEstado('PENDIENTE', this)">Pendiente</button>
                         <button class="usr-ftab" onclick="vnt_setEstado('COMPLETADO', this)">Completado</button>
-                        <button class="usr-ftab" onclick="vnt_setEstado('ANULADO', this)">Anulado</button>
                     </div>
                 </div>
                 <div class="usr-count" id="vnt_count">0 registros</div>
@@ -584,7 +624,6 @@
                             <tr>
                                 <th>Factura</th>
                                 <th>Cliente</th>
-                                <th>Operario</th>
                                 <th>Fecha</th>
                                 <th>Productos</th>
                                 <th>Total</th>
@@ -661,16 +700,43 @@
                         <p>Gestión de productores</p>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center">
-                        <button onclick="prd_regenerarTodosQR()"
-                                style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;
-                                       padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;
-                                       font-weight:600;display:flex;align-items:center;gap:6px">
-                            <i class="fi fi-rr-qrcode"></i> Regenerar todos los QR
+                        <button id="prd_btn_nuevo" class="btn-nuevo" onclick="prd_abrirPanel()">
+                            <i class="fi fi-rr-user-add"></i> Nuevo productor
                         </button>
-                        <button id="prd_btn_nuevo" class="btn-nuevo" onclick="prd_abrirPanel()"><i
-                                class="fi fi-rr-user-add"></i> Nuevo productor</button>
                     </div>
                 </div>
+
+                <!-- ── CARGA MASIVA DE PRODUCTORES ── -->
+                <div class="cm-card">
+                    <div class="cm-card-header" onclick="cm_toggle('cm_prod_body','cm_prod_chevron')">
+                        <span><i class="fi fi-rr-upload"></i> Carga masiva de productores</span>
+                        <i class="fi fi-rr-angle-down cm-chevron" id="cm_prod_chevron"></i>
+                    </div>
+                    <div class="cm-card-body" id="cm_prod_body" style="display:none">
+                        <p class="cm-hint">
+                            Formato CSV requerido (primera fila = encabezado):<br>
+                            <code>nombre,apellido,email,password,telefono,cedula,finca,ubicacion</code><br>
+                            <small>Crea automáticamente el Usuario + Productor + QR en una sola operación.</small>
+                        </p>
+                        <div class="cm-row">
+                            <label class="cm-file-label" id="cm_prod_label" for="cm_prod_file">
+                                <i class="fi fi-rr-document"></i>
+                                <span id="cm_prod_filename">Seleccionar archivo .csv</span>
+                                <input type="file" id="cm_prod_file" accept=".csv"
+                                    onchange="cm_onFileChange(this,'cm_prod_filename','cm_prod_label')">
+                            </label>
+                            <button class="cm-btn" id="cm_prod_btn" onclick="cm_subirProductores()">
+                                <i class="fi fi-rr-cloud-upload"></i> Subir productores
+                            </button>
+                        </div>
+                        <div class="cm-loader" id="cm_prod_loader" style="display:none">
+                            <span class="cm-spinner"></span> Procesando...
+                        </div>
+                        <div class="cm-result" id="cm_prod_result"></div>
+                    </div>
+                </div>
+                <!-- ── FIN CARGA MASIVA ── -->
+
                 <div class="usr-toolbar">
                     <div class="usr-search">
                         <i class="fi fi-rr-search"></i>
@@ -805,17 +871,17 @@
                         <thead>
                             <tr>
                                 <th>Producto</th>
-                                <th>Precio base/kg</th>
-                                <th>Transporte</th>
-                                <th>Costo transp./kg</th>
-                                <th>Precio productor/kg</th>
-                                <th>Fecha</th>
+                                <th style="text-align:right">Precio base/kg</th>
+                                <th style="text-align:right">Venta EL PRIMO</th>
+                                <th style="text-align:right">Venta otros</th>
+                                <th>Fecha registro</th>
                                 <th>Estado</th>
                             </tr>
                         </thead>
                         <tbody id="his_tbody_precios">
                             <tr>
-                                <td colspan="7" class="empty-state">Carga el historial de precios pulsando «Filtrar»</td>
+                                <td colspan="6" class="empty-state">Carga el historial de precios pulsando «Filtrar»
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -829,9 +895,42 @@
                         <h2>Usuarios</h2>
                         <p>Gestión de usuarios del sistema</p>
                     </div>
-                    <button class="btn-nuevo" onclick="usr_abrirPanel()"><i class="fi fi-rr-user-add"></i> Nuevo
-                        usuario</button>
+                    <button class="btn-nuevo" onclick="usr_abrirPanel()">
+                        <i class="fi fi-rr-user-add"></i> Nuevo usuario
+                    </button>
                 </div>
+
+                <!-- ── CARGA MASIVA DE USUARIOS ── -->
+                <div class="cm-card">
+                    <div class="cm-card-header" onclick="cm_toggle('cm_usr_body','cm_usr_chevron')">
+                        <span><i class="fi fi-rr-upload"></i> Carga masiva de usuarios</span>
+                        <i class="fi fi-rr-angle-down cm-chevron" id="cm_usr_chevron"></i>
+                    </div>
+                    <div class="cm-card-body" id="cm_usr_body" style="display:none">
+                        <p class="cm-hint">
+                            Formato CSV requerido (primera fila = encabezado):<br>
+                            <code>nombre,apellido,email,password,telefono,cedula,tipo_usuario</code><br>
+                            <small>tipo_usuario acepta: ADMIN · OPERARIO · PRODUCTOR</small>
+                        </p>
+                        <div class="cm-row">
+                            <label class="cm-file-label" id="cm_usr_label" for="cm_usr_file">
+                                <i class="fi fi-rr-document"></i>
+                                <span id="cm_usr_filename">Seleccionar archivo .csv</span>
+                                <input type="file" id="cm_usr_file" accept=".csv"
+                                    onchange="cm_onFileChange(this,'cm_usr_filename','cm_usr_label')">
+                            </label>
+                            <button class="cm-btn" id="cm_usr_btn" onclick="cm_subirUsuarios()">
+                                <i class="fi fi-rr-cloud-upload"></i> Subir usuarios
+                            </button>
+                        </div>
+                        <div class="cm-loader" id="cm_usr_loader" style="display:none">
+                            <span class="cm-spinner"></span> Procesando...
+                        </div>
+                        <div class="cm-result" id="cm_usr_result"></div>
+                    </div>
+                </div>
+                <!-- ── FIN CARGA MASIVA ── -->
+
                 <div class="usr-toolbar">
                     <div class="usr-search">
                         <i class="fi fi-rr-search"></i>
@@ -841,7 +940,7 @@
                     <div class="usr-filter-tabs">
                         <button class="usr-ftab active" onclick="usr_setRol('', this)">Todos</button>
                         <button class="usr-ftab" onclick="usr_setRol('ADMIN', this)">Admin</button>
-                        <button class="usr-ftab" onclick="usr_setRol('VENDEDOR', this)">Vendedor</button>
+                        <button class="usr-ftab" onclick="usr_setRol('OPERARIO', this)">Operario</button>
                         <button class="usr-ftab" onclick="usr_setRol('PRODUCTOR', this)">Productor</button>
                     </div>
                 </div>
@@ -1074,26 +1173,121 @@
                         <h2>Precios por kilogramo</h2>
                         <p>Define el precio semanal de compra/venta para cada producto</p>
                     </div>
-                    <!-- Banner de notificación inline con el título -->
-                    <div id="prc_banner" style="display:none;border-radius:10px;padding:8px 16px;font-weight:600;font-size:.85em;align-self:center"></div>
+                    <div id="prc_banner"
+                        style="display:none;border-radius:10px;padding:8px 16px;font-weight:600;font-size:.85em;align-self:center">
+                    </div>
                 </div>
 
-                <!-- Layout 2 columnas -->
+                <!-- Layout 2 columnas: explicación + formulario -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
 
-                    <!-- ─── FORMULARIO ─── -->
+                    <!-- ─── EXPLICACIÓN IZQUIERDA ─── -->
+                    <div
+                        style="background:#f0fdf4;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1.5px solid #bbf7d0">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+                            <div
+                                style="width:40px;height:40px;background:#16a34a;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                <i class="fi fi-rr-info" style="color:#fff;font-size:1.1rem;display:flex"></i>
+                            </div>
+                            <h3 style="margin:0;font-size:.95rem;font-weight:800;color:#14532d">¿Cómo funciona el precio
+                                semanal?</h3>
+                        </div>
+
+                        <div style="display:flex;flex-direction:column;gap:14px">
+
+                            <div style="display:flex;gap:10px;align-items:flex-start">
+                                <div
+                                    style="width:28px;height:28px;background:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+                                    <span style="color:#fff;font-weight:800;font-size:.8rem">1</span>
+                                </div>
+                                <div>
+                                    <div style="font-weight:700;color:#14532d;font-size:.88rem">¿Cuándo se cambia?</div>
+                                    <div style="color:#166534;font-size:.82rem;margin-top:2px">Cada <strong>jueves en la
+                                            mañana</strong> el administrador revisa y actualiza el precio base del
+                                        kilogramo según el mercado.</div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex;gap:10px;align-items:flex-start">
+                                <div
+                                    style="width:28px;height:28px;background:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+                                    <span style="color:#fff;font-weight:800;font-size:.8rem">2</span>
+                                </div>
+                                <div>
+                                    <div style="font-weight:700;color:#14532d;font-size:.88rem">¿Qué pasa si no se
+                                        cambia?</div>
+                                    <div style="color:#166534;font-size:.82rem;margin-top:2px">Si el jueves no se
+                                        registra un nuevo precio, el sistema <strong>mantiene automáticamente el precio
+                                            de la semana anterior</strong>. Las operaciones continúan sin interrupción.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex;gap:10px;align-items:flex-start">
+                                <div
+                                    style="width:28px;height:28px;background:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+                                    <span style="color:#fff;font-weight:800;font-size:.8rem">3</span>
+                                </div>
+                                <div>
+                                    <div style="font-weight:700;color:#14532d;font-size:.88rem">Precio al productor vs.
+                                        precio de venta</div>
+                                    <div style="color:#166534;font-size:.82rem;margin-top:2px">El <strong>precio
+                                            base</strong> es lo que recibe el productor. Al vender a un comerciante, el
+                                        operario cobra: <strong>EL PRIMO</strong> → precio base exacto &nbsp;·&nbsp;
+                                        <strong>Otros</strong> → precio base + $100/kg.</div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex;gap:10px;align-items:flex-start">
+                                <div
+                                    style="width:28px;height:28px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+                                    <i class="fi fi-rr-truck-side" style="color:#fff;font-size:.75rem;display:flex"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight:700;color:#92400e;font-size:.88rem">Descuento de transporte
+                                    </div>
+                                    <div style="color:#78350f;font-size:.82rem;margin-top:2px">El flete se descuenta
+                                        automáticamente <strong>al cerrar cada ruta</strong> según los kilogramos
+                                        transportados. No se registra aquí.</div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Resumen visual -->
+                        <div style="margin-top:18px;background:#dcfce7;border-radius:10px;padding:12px 14px">
+                            <div
+                                style="font-size:.75rem;color:#14532d;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">
+                                Resumen rápido</div>
+                            <div style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#166534">
+                                <div><i class="fi fi-rr-calendar" style="margin-right:5px"></i><strong>Jueves:</strong>
+                                    revisar y actualizar precio base</div>
+                                <div><i class="fi fi-rr-arrows-repeat" style="margin-right:5px"></i><strong>Sin
+                                        cambio:</strong> precio anterior sigue activo</div>
+                                <div><i class="fi fi-rr-user" style="margin-right:5px"></i><strong>Productor
+                                        cobra:</strong> precio base (según ruta)</div>
+                                <div><i class="fi fi-rr-shop" style="margin-right:5px"></i><strong>EL PRIMO
+                                        paga:</strong> precio base exacto</div>
+                                <div><i class="fi fi-rr-shop" style="margin-right:5px"></i><strong>Otros
+                                        comerciantes:</strong> precio base + $100/kg</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ─── FORMULARIO DERECHA ─── -->
                     <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
                         <h3 style="font-size:.95rem;font-weight:700;margin:0 0 20px;color:#111827">
                             <i class="fi fi-rr-edit" style="margin-right:6px"></i>Registrar precio
                         </h3>
 
-                        <div id="prc_banner_form" style="display:none;border-radius:8px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:14px"></div>
+                        <div id="prc_banner_form"
+                            style="display:none;border-radius:8px;padding:10px 14px;font-size:.85rem;font-weight:600;margin-bottom:14px">
+                        </div>
 
                         <!-- Producto -->
                         <div class="hp-campo" style="margin-bottom:16px">
                             <label class="hp-label">Producto <span style="color:#ef4444">*</span></label>
-                            <select id="prc_sel_producto" class="hp-input"
-                                    onchange="prc_alProductoCambia(this.value)">
+                            <select id="prc_sel_producto" class="hp-input" onchange="prc_alProductoCambia(this.value)">
                                 <option value="">-- Seleccionar producto --</option>
                             </select>
                         </div>
@@ -1101,14 +1295,15 @@
                         <!-- Precio base -->
                         <div class="hp-campo" style="margin-bottom:16px">
                             <label class="hp-label">Precio base / kg ($COP) <span style="color:#ef4444">*</span></label>
-                            <input id="prc_inp_precio_base" class="hp-input" type="number"
-                                   placeholder="Ej: 2500" min="1" step="1"
-                                   oninput="prc_previewVenta()" />
+                            <input id="prc_inp_precio_base" class="hp-input" type="number" placeholder="Ej: 2500"
+                                min="1" step="1" oninput="prc_previewVenta()" />
                         </div>
 
                         <!-- Preview precios de venta -->
-                        <div id="prc_preview_venta" style="display:none;background:#f0fdf4;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.83rem">
-                            <div style="font-weight:700;color:#166534;margin-bottom:6px">Precios de venta al comerciante</div>
+                        <div id="prc_preview_venta"
+                            style="display:none;background:#f0fdf4;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.83rem">
+                            <div style="font-weight:700;color:#166534;margin-bottom:6px">Precios de venta al comerciante
+                            </div>
                             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
                                 <span style="color:#6b7280">EL PRIMO (precio base exacto)</span>
                                 <strong id="prc_prev_primo"></strong>
@@ -1120,13 +1315,15 @@
                         </div>
 
                         <!-- Precio actual si ya existe -->
-                        <div id="prc_precio_actual_wrap" style="display:none;background:#fef3c7;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:#92400e">
-                            Precio actual registrado: <strong id="prc_precio_actual_val"></strong>/kg — se sobreescribirá
+                        <div id="prc_precio_actual_wrap"
+                            style="display:none;background:#fef3c7;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:#92400e">
+                            Precio actual registrado: <strong id="prc_precio_actual_val"></strong>/kg — se
+                            sobreescribirá
                         </div>
 
                         <!-- Botón guardar -->
                         <button class="btn-nuevo hp-btn-guardar" style="width:100%;margin:0"
-                                onclick="prc_guardarPrecioBase()">
+                            onclick="prc_guardarPrecioBase()">
                             <i class="fi fi-rr-check"></i> Guardar precio
                         </button>
                     </div>
@@ -1136,7 +1333,7 @@
 
             </section>
 
-        
+
             <!-- ═══════════════════════════════ STOCK ═══════════════════════════════ -->
             <section id="stock" class="section">
                 <div class="section-header">
@@ -1145,14 +1342,16 @@
                 </div>
 
                 <!-- KPI cards -->
-                <div id="stk_kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px"></div>
+                <div id="stk_kpis"
+                    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px">
+                </div>
 
                 <!-- Toolbar -->
                 <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
                     <div class="usr-search" style="flex:1;min-width:200px">
                         <i class="fi fi-rr-search"></i>
                         <input class="usr-search-input" id="stk_buscar" placeholder="Buscar producto..."
-                               oninput="stk_filtrar(this.value)">
+                            oninput="stk_filtrar(this.value)">
                     </div>
                     <div style="display:flex;gap:8px">
                         <button onclick="stk_cargar()" class="an-btn">↺ Refrescar</button>
@@ -1175,7 +1374,9 @@
                             </tr>
                         </thead>
                         <tbody id="stk_tbody">
-                            <tr><td colspan="6" class="empty-state">Cargando inventario...</td></tr>
+                            <tr>
+                                <td colspan="6" class="empty-state">Cargando inventario...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -1191,7 +1392,8 @@
                                 <option value="ENTRADA">Solo entradas (rutas)</option>
                                 <option value="SALIDA">Solo salidas (ventas)</option>
                             </select>
-                            <button onclick="stk_cargarMovimientos()" class="an-btn" style="font-size:.82rem">Filtrar</button>
+                            <button onclick="stk_cargarMovimientos()" class="an-btn"
+                                style="font-size:.82rem">Filtrar</button>
                         </div>
                     </div>
                     <div class="usr-table-wrap">
@@ -1207,22 +1409,27 @@
                                 </tr>
                             </thead>
                             <tbody id="stk_movs_tbody">
-                                <tr><td colspan="6" class="empty-state">Cargando movimientos...</td></tr>
+                                <tr>
+                                    <td colspan="6" class="empty-state">Cargando movimientos...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            </main>
+        </main>
     </div>
 
     <!-- MODAL ALERTA MIÉRCOLES PRECIOS -->
-    <div id="prc_modal_alerta" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
+    <div id="prc_modal_alerta"
+        style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center"
         onclick="if(event.target===this)prc_cerrarAlerta(false)">
-        <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.22);animation:slideUp .3s ease">
+        <div
+            style="background:#fff;border-radius:20px;padding:36px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.22);animation:slideUp .3s ease">
             <div style="font-size:3rem;margin-bottom:12px"></div>
-            <h2 style="font-size:1.15rem;font-weight:800;color:#111827;margin-bottom:8px">Debes ingresar los precios de la semana</h2>
+            <h2 style="font-size:1.15rem;font-weight:800;color:#111827;margin-bottom:8px">Debes ingresar los precios de
+                la semana</h2>
             <p style="font-size:.87rem;color:#6b7280;line-height:1.6;margin-bottom:24px">
                 Es miércoles y no hay precios registrados para esta semana.<br>
                 Ve a <strong>Precios</strong> para definir los valores.
@@ -1236,8 +1443,21 @@
         </div>
     </div>
     <style>
-    @keyframes slideUp { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
-    #prc_modal_alerta.show { display:flex !important; }
+        @keyframes slideUp {
+            from {
+                transform: translateY(24px);
+                opacity: 0
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1
+            }
+        }
+
+        #prc_modal_alerta.show {
+            display: flex !important;
+        }
     </style>
 
     <!-- LOADING -->
@@ -1297,7 +1517,7 @@
                     </div>
                     <select id="hp_f_tipo" class="hp-input" style="display:none">
                         <option value="ADMIN">Administrador</option>
-                        <option value="VENDEDOR">Vendedor</option>
+                        <option value="OPERARIO">Operario</option>
                         <option value="PRODUCTOR">Productor</option>
                     </select>
                 </div>
@@ -1435,7 +1655,7 @@
             <div class="hp-campo">
                 <label class="hp-label">Rol <span style="color:#ef4444">*</span></label>
                 <select id="usr_f_rol" class="hp-input" onchange="usr_chkRol(this)">
-                    <option value="VENDEDOR">Vendedor</option>
+                    <option value="OPERARIO">Operario</option>
                     <option value="ADMIN">Administrador</option>
                     <option value="PRODUCTOR">Productor</option>
                 </select>
@@ -1609,18 +1829,21 @@
     </footer>
 
     <!-- Módulos offline globales -->
+    <script src="./js/auth-guard.js"></script>
     <script src="./js/agro-db.js"></script>
     <script src="./js/agro-sync.js"></script>
-    <script src="./js/app.js"></script>
+    <script src="./js/agro-ux.js"></script>
+    <script src="./js/app.js?v=7.0"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
-            .then(() => console.log('[Admin] Service Worker registrado'))
-            .catch(err => console.error('[Admin] SW error:', err));
-        });
-      }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
+                    .then(() => console.log('[Admin] Service Worker registrado'))
+                    .catch(err => console.error('[Admin] SW error:', err));
+            });
+        }
     </script>
+    <script src="js/carga-masiva.js"></script>
 </body>
 
 </html>

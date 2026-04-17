@@ -191,4 +191,18 @@ export class ProductoresController {
       data: resultado,
     };
   }
+
+  @Post('sincronizar')
+  @UseGuards(PermissionGuard)
+  @Permissions(Permission.PRODUCTORES)
+  async sincronizarProductores(@Tenant() asociacionId: number) {
+    const resultado = await this.productoresService.sincronizarProductores(asociacionId);
+    return {
+      ok: true,
+      mensaje: resultado.creados > 0
+        ? `Se crearon ${resultado.creados} fila(s) en tabla productor para usuarios PRODUCTOR sin perfil.`
+        : `Todos los usuarios PRODUCTOR ya tienen su fila en tabla productor.`,
+      data: resultado,
+    };
+  }
 }

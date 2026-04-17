@@ -13,7 +13,7 @@
   <link rel="stylesheet"
     href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="manifest" href="../manifest.json">
+  <link rel="manifest" href="/frontend/manifest.json">
   <meta name="theme-color" content="#ff6600">
 </head>
 
@@ -187,7 +187,9 @@
               </table>
             </div>
           </div>
-
+          <button id="btnInstalarApp" onclick="instalarApp()" style="display:none;">
+            Instalar App
+          </button>
         </section>
 
         <!-- ===========================================
@@ -202,14 +204,12 @@
 
               <!-- Toggle afiliado / externo -->
               <div style="display:flex;gap:8px;margin-bottom:16px">
-                <button type="button" id="btn-tipo-afiliado"
-                  onclick="prod_setTipo('AFILIADO')"
-                  class="btn btn-primary" style="flex:1;font-size:.85rem">
+                <button type="button" id="btn-tipo-afiliado" onclick="prod_setTipo('AFILIADO')" class="btn btn-primary"
+                  style="flex:1;font-size:.85rem">
                   Afiliado (QR / cedula)
                 </button>
-                <button type="button" id="btn-tipo-externo"
-                  onclick="prod_setTipo('EXTERNO')"
-                  class="btn btn-outline" style="flex:1;font-size:.85rem">
+                <button type="button" id="btn-tipo-externo" onclick="prod_setTipo('EXTERNO')" class="btn btn-outline"
+                  style="flex:1;font-size:.85rem">
                   Externo (sin QR)
                 </button>
               </div>
@@ -218,14 +218,16 @@
               <div id="panel-afiliado">
                 <div class="camera-controls">
                   <button type="button" id="btn-activar-camara" class="btn btn-primary">Activar cámara</button>
-                  <button type="button" id="btn-desactivar-camara" class="btn btn-secondary" disabled>Desactivar cámara</button>
+                  <button type="button" id="btn-desactivar-camara" class="btn btn-secondary" disabled>Desactivar
+                    cámara</button>
                 </div>
                 <div id="qr-reader" class="qr-reader" style="width:100%;min-height:10px"></div>
                 <div class="divider"></div>
                 <div class="manual-input">
                   <label for="input-cedula" class="label">Ingresar cédula manualmente</label>
                   <div class="input-group">
-                    <input type="text" id="input-cedula" class="input" placeholder="Cedula del productor" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
+                    <input type="text" id="input-cedula" class="input" placeholder="Cedula del productor"
+                      inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
                     <button type="button" id="btn-buscar-productor" class="btn btn-outline">Buscar</button>
                   </div>
                   <p class="hint">Si no puedes usar la cámara, ingresa la cédula y presiona "Buscar".</p>
@@ -234,32 +236,32 @@
 
               <!-- Panel externo -->
               <div id="panel-externo" style="display:none">
-                <div style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;color:#92400e">
+                <div
+                  style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;color:#92400e">
                   Productor no afiliado. Recibirá <strong>$100/kg menos</strong> que un productor afiliado.<br>
-                  <span style="font-size:.78rem;opacity:.85">Cédula y ubicación son informativos — solo el nombre es requerido.</span>
+                  <span style="font-size:.78rem;opacity:.85">Cédula y ubicación son informativos — solo el nombre es
+                    requerido.</span>
                 </div>
                 <div class="form-field" style="margin-bottom:10px">
                   <label class="label">Nombre del productor <span style="color:#ef4444">*</span></label>
-                  <input type="text" id="input-nombre-externo" class="input"
-                    placeholder="Nombre completo" oninput="prod_onExternoInput()" />
-                </div>
-                <div class="form-field" style="margin-bottom:10px">
-                  <label class="label">Cédula <span style="color:#9ca3af;font-size:.78rem">(informativo)</span></label>
-                  <input type="text" id="input-cedula-externo" class="input"
-                    placeholder="Número de cédula" inputmode="numeric" pattern="[0-9]*"
+                  <input type="text" id="input-nombre-externo" class="input" placeholder="Nombre completo"
                     oninput="prod_onExternoInput()" />
                 </div>
                 <div class="form-field" style="margin-bottom:10px">
-                  <label class="label">Ubicación <span style="color:#9ca3af;font-size:.78rem">(informativo)</span></label>
-                  <input type="text" id="input-ubicacion-externo" class="input"
-                    placeholder="Vereda o finca"
+                  <label class="label">Cédula <span style="color:#9ca3af;font-size:.78rem">(informativo)</span></label>
+                  <input type="text" id="input-cedula-externo" class="input" placeholder="Número de cédula"
+                    inputmode="numeric" pattern="[0-9]*" oninput="prod_onExternoInput()" />
+                </div>
+                <div class="form-field" style="margin-bottom:10px">
+                  <label class="label">Ubicación <span
+                      style="color:#9ca3af;font-size:.78rem">(informativo)</span></label>
+                  <input type="text" id="input-ubicacion-externo" class="input" placeholder="Vereda o finca"
                     oninput="prod_onExternoInput()" />
                 </div>
                 <div class="form-field">
                   <label class="label">Teléfono (opcional)</label>
-                  <input type="tel" id="input-telefono-externo" class="input"
-                    placeholder="Ej: 3001234567" inputmode="numeric" pattern="[0-9]*"
-                    oninput="prod_onExternoInput()" />
+                  <input type="tel" id="input-telefono-externo" class="input" placeholder="Ej: 3001234567"
+                    inputmode="numeric" pattern="[0-9]*" oninput="prod_onExternoInput()" />
                 </div>
               </div>
 
@@ -316,16 +318,13 @@
 
             <section class="card">
               <h2 class="card-title">Comerciante</h2>
-              <p class="card-subtitle">Busca o escribe el nombre del comerciante. Los datos se rellenan solos.</p>
-
-              <!-- Datalist con comerciantes de la BD -->
-              <datalist id="dl-comerciantes"></datalist>
+              <p class="card-subtitle">Selecciona el comerciante. Los datos se rellenan solos.</p>
 
               <div class="form">
 
-                <!-- Buscador con autocompletado -->
+                <!-- SELECT de comerciantes -->
                 <div class="form-row">
-                  <div class="form-field" style="position:relative">
+                  <div class="form-field">
                     <label class="label">
                       Comerciante
                       <span id="badge-el-primo" style="display:none;margin-left:8px;background:#fef3c7;color:#92400e;
@@ -333,13 +332,16 @@
                         EL PRIMO — precio base
                       </span>
                     </label>
-                    <div style="position:relative">
-                      <input type="text" id="input-nombre-venta" class="input" list="dl-comerciantes"
-                        placeholder="Escribe o selecciona..." autocomplete="off" style="padding-right:36px"
-                        oninput="com_onInput(this.value)" onchange="com_onSelect(this.value)" />
-                      <button type="button" title="Limpiar" onclick="limpiarFormCliente()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-                                   background:none;border:none;cursor:pointer;color:#9ca3af;
-                                   font-size:1rem;line-height:1;padding:2px 4px">x</button>
+                    <div style="display:flex;gap:8px;align-items:center">
+                      <select id="select-comerciante" class="input" style="flex:1;cursor:pointer"
+                        onchange="com_onSelectId(this)">
+                        <option value="">-- Selecciona un comerciante --</option>
+                      </select>
+                      <button type="button" title="Limpiar" onclick="limpiarFormCliente()" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;
+                               cursor:pointer;color:#6b7280;font-size:.85rem;padding:8px 12px;
+                               white-space:nowrap;transition:background .15s"
+                        onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">✕
+                        Limpiar</button>
                     </div>
                     <span style="font-size:.72rem;color:#9ca3af;margin-top:3px;display:block">
                       EL PRIMO = precio base exacto &nbsp;·&nbsp; Otros = precio base + $100/kg
@@ -509,18 +511,20 @@
                 Ingresa el valor total del flete del camión. Se calculará el precio para cada productor.
               </p>
               <label style="font-size:.85rem;font-weight:600;color:#374151">Valor del flete ($)</label>
-              <input type="number" id="rut-input-flete" inputmode="numeric" pattern="[0-9]*" placeholder="Ej: 150000" min="1"
-                oninput="rut_previsualizarPrecio()"
-                style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
+              <input type="number" id="rut-input-flete" inputmode="numeric" pattern="[0-9]*" placeholder="Ej: 150000"
+                min="1" oninput="rut_previsualizarPrecio()" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
                             font-size:1rem;margin:8px 0 10px;box-sizing:border-box">
               <div
                 style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:.8rem;color:#92400e">
                 Fórmula: (Base − Flete÷Kg) × (1 − 3.5%)
               </div>
-              <div id="rut-preview-precio" style="display:none;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.85rem;font-weight:600;text-align:center"></div>
+              <div id="rut-preview-precio"
+                style="display:none;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.85rem;font-weight:600;text-align:center">
+              </div>
               <div style="display:flex;gap:10px">
                 <button onclick="rut_cerrarModal()" class="btn btn-outline" style="flex:1">Cancelar</button>
-                <button onclick="rut_confirmarCierre()" class="btn btn-primary" style="flex:2">Calcular y cerrar</button>
+                <button onclick="rut_confirmarCierre()" class="btn btn-primary" style="flex:2">Calcular y
+                  cerrar</button>
               </div>
               <div id="rut-modal-resultado" style="display:none;margin-top:16px;background:#d1fae5;
                  border-radius:8px;padding:12px;font-size:.85rem;color:#065f46"></div>
@@ -1022,10 +1026,154 @@
   </div>
 
 
+  <!-- ================================================
+     MODAL FACTURA ELECTRÓNICA
+     Se abre automáticamente al registrar una venta.
+     El operario decide si envía el correo o no.
+     ================================================ -->
+  <div id="modal-factura" style="display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.55);
+           backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px"
+    onclick="if(event.target===this)cerrarModalFactura()">
+
+    <div id="factura-card" style="
+      background:#fff;border-radius:20px;width:100%;max-width:480px;
+      max-height:90vh;overflow-y:auto;box-shadow:0 28px 80px rgba(0,0,0,.22);
+      transform:translateY(24px) scale(.97);opacity:0;
+      transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .22s ease">
+
+      <!-- Header verde -->
+      <div
+        style="background:linear-gradient(135deg,#16a34a,#15803d);padding:22px 24px 18px;border-radius:20px 20px 0 0;position:relative">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:50%;
+                      display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fi fi-rr-file-invoice" style="color:#fff;font-size:1.3rem;display:flex"></i>
+          </div>
+          <div>
+            <div style="color:#fff;font-weight:800;font-size:1.05rem;line-height:1.2">Factura Electrónica</div>
+            <div style="color:rgba(255,255,255,.75);font-size:.78rem;margin-top:2px">
+              Venta <span id="factura-numero" style="font-weight:700;color:#fff">#000000</span>
+              &nbsp;·&nbsp; <span id="factura-fecha">—</span>
+            </div>
+          </div>
+        </div>
+        <!-- Marca de agua AgroTrace -->
+        <div style="position:absolute;right:20px;top:50%;transform:translateY(-50%);
+                    opacity:.2;font-size:.65rem;font-weight:900;color:#fff;letter-spacing:.08em;
+                    text-transform:uppercase;text-align:right;line-height:1.3">
+          Agro<br>Trace
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:20px 24px">
+
+        <!-- Cliente -->
+        <div style="display:flex;align-items:center;gap:10px;background:#f0fdf4;border-radius:10px;
+                    padding:12px 14px;margin-bottom:18px">
+          <div style="width:36px;height:36px;background:#16a34a;border-radius:50%;
+                      display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fi fi-rr-shop" style="color:#fff;font-size:.9rem;display:flex"></i>
+          </div>
+          <div>
+            <div style="font-size:.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.04em">
+              Comerciante</div>
+            <div id="factura-cliente" style="font-weight:800;color:#111827;font-size:.95rem">—</div>
+          </div>
+        </div>
+
+        <!-- Tabla productos -->
+        <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:16px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#f9fafb">
+                <th style="padding:9px 12px;text-align:left;font-size:.72rem;font-weight:700;
+                           color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Producto</th>
+                <th style="padding:9px 12px;text-align:center;font-size:.72rem;font-weight:700;
+                           color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Cant.</th>
+                <th style="padding:9px 12px;text-align:right;font-size:.72rem;font-weight:700;
+                           color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Precio</th>
+                <th style="padding:9px 12px;text-align:right;font-size:.72rem;font-weight:700;
+                           color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="factura-productos"></tbody>
+          </table>
+        </div>
+
+        <!-- Total -->
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    background:#f0fdf4;border-radius:10px;padding:12px 16px;margin-bottom:20px">
+          <span style="font-weight:700;color:#374151;font-size:.9rem">Total de la venta</span>
+          <span id="factura-total" style="font-size:1.25rem;font-weight:900;color:#16a34a">$0</span>
+        </div>
+
+        <!-- Divider -->
+        <div style="height:1px;background:#e5e7eb;margin-bottom:18px"></div>
+
+        <!-- Sección correo -->
+        <div id="factura-sec-email">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <i class="fi fi-rr-envelope" style="color:#2563eb;font-size:1rem;display:flex"></i>
+            <span style="font-weight:700;color:#111827;font-size:.9rem">Enviar factura al comerciante</span>
+          </div>
+
+          <!-- Aviso si no tiene correo -->
+          <div id="factura-msg-sin-email" style="display:none;background:#fef3c7;border-radius:8px;
+               padding:9px 12px;margin-bottom:10px;font-size:.78rem;color:#92400e;font-weight:600">
+            <i class="fi fi-rr-triangle-warning" style="margin-right:4px"></i>
+            Este comerciante no tiene correo registrado. Puedes escribirlo aquí para enviar la factura.
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <input type="email" id="factura-input-email" placeholder="correo@comerciante.com" style="flex:1;border:1.5px solid #d1d5db;border-radius:8px;padding:10px 12px;
+                     font-size:.87rem;outline:none;transition:border-color .2s"
+              onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();enviarFacturaPorCorreo()}" />
+            <button id="factura-btn-enviar" onclick="enviarFacturaPorCorreo()" style="background:#2563eb;color:#fff;border:none;border-radius:8px;
+                     padding:10px 16px;font-size:.85rem;font-weight:700;cursor:pointer;
+                     white-space:nowrap;transition:background .15s;flex-shrink:0"
+              onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+              <i class="fi fi-rr-paper-plane" style="margin-right:5px;display:inline-flex;vertical-align:middle"></i>
+              Enviar
+            </button>
+          </div>
+
+          <!-- Estado del envío -->
+          <div id="factura-estado-envio" style="margin-top:8px;font-size:.8rem;font-weight:600;min-height:20px"></div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:14px 24px 20px;border-top:1px solid #f3f4f6;
+                  display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="cerrarModalFactura()" style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;
+                 padding:10px 20px;font-size:.88rem;font-weight:600;cursor:pointer;
+                 transition:background .15s" onmouseover="this.style.background='#e5e7eb'"
+          onmouseout="this.style.background='#f3f4f6'">
+          Cerrar sin enviar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <style>
+    /* Animación de entrada del modal factura */
+    #modal-factura.factura-visible #factura-card {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  </style>
+
   <!-- Módulos offline globales -->
-  <script src="../js/agro-db.js?v=2"></script>
-  <script src="../js/agro-sync.js?v=2"></script>
-  <script src="vendedor.js?v=2"></script>
+   <script src="../js/auth-guard.js"></script> 
+  <script src="../js/agro-db.js?v=3"></script>
+  <script src="../js/agro-sync.js?v=3"></script>
+  <script src="../js/agro-ux.js"></script>
+  <script src="vendedor.js?v=6"></script>
+  <script src="/frontend/js/app-install.js"></script>
 
   <script>
     /* ── Sidebar — Mi perfil ───────────────────── */
@@ -1107,6 +1255,16 @@
         syncInitialState();
       }
     })();
+  </script>
+  <!-- FIX v9: Registro Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
+          .then(reg => console.log('[SW Vendedor] Registrado'))
+          .catch(err => console.error('[SW Vendedor] Error:', err));
+      });
+    }
   </script>
 </body>
 

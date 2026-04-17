@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 // src/tenant/tenant.middleware.ts
 import {
   Injectable,

@@ -51,23 +51,23 @@ export class EstadisticasService {
     const entregas = await query.getMany();
 
     return entregas.map((e) => ({
-      id_entrega:       e.id_entrega,
-      fecha_produccion: e.fecha,          // alias para compatibilidad con frontend
-      fecha:            e.fecha,
-      cantidad:         Number(e.peso_kg), // kg como "cantidad"
-      peso_kg:          Number(e.peso_kg),
-      unidad:           'kg',
-      lote:             `ENT-${String(e.id_entrega).padStart(6, '0')}`,
-      estado:           'ENTREGADO',
-      id_productor:     e.id_productor,
-      id_producto:      e.id_producto,
+      id_entrega: e.id_entrega,
+      fecha_produccion: e.fecha, // alias para compatibilidad con frontend
+      fecha: e.fecha,
+      cantidad: Number(e.peso_kg), // kg como "cantidad"
+      peso_kg: Number(e.peso_kg),
+      unidad: 'kg',
+      lote: `ENT-${String(e.id_entrega).padStart(6, '0')}`,
+      estado: 'ENTREGADO',
+      id_productor: e.id_productor,
+      id_producto: e.id_producto,
       nombre_productor: e.productor?.usuario
         ? `${e.productor.usuario.nombre ?? ''} ${e.productor.usuario.apellido ?? ''}`.trim()
         : `Productor #${e.id_productor}`,
-      cedula_productor: e.productor?.cedula ?? '',
-      nombre_producto:  e.producto?.nombre ?? `Producto #${e.id_producto}`,
-      precio_unitario:  Number(e.precio_unitario),  // precio_final_productor
-      total:            Number(e.total),
+      cedula_productor: e.productor?.usuario.cedula ?? '',
+      nombre_producto: e.producto?.nombre ?? `Producto #${e.id_producto}`,
+      precio_unitario: Number(e.precio_unitario), // precio_final_productor
+      total: Number(e.total),
     }));
   }
 
@@ -89,9 +89,8 @@ export class EstadisticasService {
       idProductor !== undefined && !isNaN(idProductor)
         ? 'e.id_productor = :idProductor'
         : '1=1';
-    const params = idProductor !== undefined && !isNaN(idProductor)
-      ? { idProductor }
-      : {};
+    const params =
+      idProductor !== undefined && !isNaN(idProductor) ? { idProductor } : {};
 
     // Promedio últimos 3 meses
     const resActual = await this.entregaRepo
@@ -114,23 +113,23 @@ export class EstadisticasService {
       .andWhere('e.fecha < :hasta', { hasta: tresMesesAtras })
       .getRawOne();
 
-    const actual   = parseFloat(resActual?.promedio   || '0');
+    const actual = parseFloat(resActual?.promedio || '0');
     const anterior = parseFloat(resAnterior?.promedio || '0');
 
     let tendencia = 'Estable';
     let diferenciaPorcentual = 0;
     if (anterior > 0) {
       diferenciaPorcentual = ((actual - anterior) / anterior) * 100;
-      if (diferenciaPorcentual > 5)  tendencia = 'Creciente';
+      if (diferenciaPorcentual > 5) tendencia = 'Creciente';
       if (diferenciaPorcentual < -5) tendencia = 'Decreciente';
     }
 
     return {
-      promedio_actual:      actual,
-      promedio_anterior:    anterior,
-      total_kg_actual:      parseFloat(resActual?.total_kg    || '0'),
-      total_dinero_actual:  parseFloat(resActual?.total_dinero || '0'),
-      n_entregas_actual:    Number(resActual?.n_entregas || 0),
+      promedio_actual: actual,
+      promedio_anterior: anterior,
+      total_kg_actual: parseFloat(resActual?.total_kg || '0'),
+      total_dinero_actual: parseFloat(resActual?.total_dinero || '0'),
+      n_entregas_actual: Number(resActual?.n_entregas || 0),
       diferencia_porcentual: diferenciaPorcentual.toFixed(2),
       tendencia,
     };
