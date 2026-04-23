@@ -73,7 +73,10 @@ async function fetchWithAuth(url, options = {}) {
   };
   // Prevent stale cache — always fetch fresh data from server
   const method = (options.method || 'GET').toUpperCase();
-  const cacheMode = (method === 'GET') ? 'no-store' : 'no-store';
+  // FIX OFFLINE: 'no-store' impedía que el SW devolviera caché sin red.
+  // GET usa 'default' → el SW puede interceptar y servir del caché.
+  // Mutaciones siguen sin caché para no mandar datos viejos.
+  const cacheMode = method === 'GET' ? 'default' : 'no-store';
   const response = await fetch(url, { ...options, headers, cache: cacheMode });
   let data;
   try { data = await response.json(); } catch { data = null; }
@@ -151,11 +154,23 @@ function formatMoneda(valor) {
  * Las filas dinámicas lo usan para generar los <option>.
  */
 async function cargarProductos() {
+  // FIX OFFLINE: si no hay red, usar caché de localStorage
+  if (!navigator.onLine) {
+    const cached = localStorage.getItem('cache_op_productos');
+    if (cached) { try { productos = JSON.parse(cached); console.warn('[OFFLINE] Productos desde caché:', productos.length); return; } catch(_){} }
+    console.warn('[OFFLINE] Sin productos en caché — selects quedarán vacíos');
+    return;
+  }
   try {
     const data = await fetchWithAuth(`${API_BASE}/productos`);
     productos = Array.isArray(data) ? data : data.productos || [];
+    // Guardar para uso offline
+    try { localStorage.setItem('cache_op_productos', JSON.stringify(productos)); } catch(_) {}
   } catch (error) {
     console.warn("Error cargando productos:", error.message);
+    // Fallback a caché si la petición falla (señal intermitente)
+    const cached = localStorage.getItem('cache_op_productos');
+    if (cached) { try { productos = JSON.parse(cached); } catch(_){} }
   }
 }
 
@@ -168,12 +183,35 @@ async function cargarProductos() {
  * Se guarda en `preciosActuales` y se usa al seleccionar producto en filas.
  */
 async function cargarPreciosActuales() {
+  // FIX OFFLINE: precios son críticos para el operario — siempre tener caché
+  if (!navigator.onLine) {
+    const cached = localStorage.getItem('cache_op_precios');
+    if (cached) { try { preciosActuales = JSON.parse(cached); console.warn('[OFFLINE] Precios desde caché:', preciosActuales.length); return; } catch(_){} }
+    console.warn('[OFFLINE] Sin precios en caché — precio quedará en 0');
+    preciosActuales = [];
+    return;
+  }
   try {
     const data = await fetchWithAuth(`${API_BASE}/precios/actual`);
     preciosActuales = Array.isArray(data) ? data : [];
+    // Guardar con timestamp para saber qué tan recientes son
+    try {
+      localStorage.setItem('cache_op_precios', JSON.stringify(preciosActuales));
+      localStorage.setItem('cache_op_precios_ts', Date.now().toString());
+    } catch(_) {}
   } catch (error) {
     console.warn("[PRECIOS] Error cargando precios actuales:", error.message);
-    preciosActuales = [];
+    const cached = localStorage.getItem('cache_op_precios');
+    if (cached) {
+      try {
+        preciosActuales = JSON.parse(cached);
+        const ts = localStorage.getItem('cache_op_precios_ts');
+        const dias = ts ? Math.round((Date.now() - Number(ts)) / 86400000) : '?';
+        console.warn(`[PRECIOS] Usando caché de hace ${dias} día(s)`);
+      } catch(_) { preciosActuales = []; }
+    } else {
+      preciosActuales = [];
+    }
   }
 }
 
@@ -291,6 +329,17 @@ async function cargarDashboard() {
     set("dash-entregas-hoy", compras.length);
     set("dash-kilos-hoy",    ventas.length);
     set("dash-productores",  productoresUnicos > 0 ? productoresUnicos : "0");
+    // FIX OFFLINE: guardar snapshot del dashboard para uso sin conexión
+    try {
+      localStorage.setItem('cache_op_dashboard', JSON.stringify({
+        compras: compras.length,
+        ventas: ventas.length,
+        productores: productoresUnicos > 0 ? productoresUnicos : 0,
+        ultimaOp: null, // se actualiza abajo
+        ultimasOps: historialCompleto.slice(0, 5),
+        ts: Date.now()
+      }));
+    } catch(_) {}
 
     // 5. Última operación: la fecha más reciente entre TODO
     const fechas = historialCompleto
@@ -321,6 +370,20 @@ async function cargarDashboard() {
 
   } catch (error) {
     console.warn("Dashboard error:", error.message);
+    // FIX OFFLINE: mostrar datos del caché si hay
+    const cached = localStorage.getItem('cache_op_dashboard');
+    if (cached) {
+      try {
+        const d = JSON.parse(cached);
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set("dash-entregas-hoy", d.compras || "—");
+        set("dash-kilos-hoy",    d.ventas  || "—");
+        set("dash-productores",  d.productores || "—");
+        set("dash-ultima-op",    d.ultimaOp || "Sin registros");
+        if (d.ultimasOps) renderUltimasOps(d.ultimasOps);
+        return;
+      } catch(_) {}
+    }
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     set("dash-entregas-hoy", "—");
     set("dash-kilos-hoy",    "—");
@@ -770,31 +833,53 @@ async function buscarProductorPorCedula(cedula) {
  * Se llama al inicializar el panel.
  */
 async function cargarComerciantesVenta() {
+  // FIX OFFLINE: cargar desde caché si no hay red
+  if (!navigator.onLine) {
+    const cached = localStorage.getItem('cache_op_comerciantes');
+    if (cached) {
+      try {
+        comerciantes = JSON.parse(cached);
+        console.warn('[OFFLINE] Comerciantes desde caché:', comerciantes.length);
+        _poblarSelectComerciantes(comerciantes);
+        return;
+      } catch(_) {}
+    }
+    console.warn('[OFFLINE] Sin comerciantes en caché');
+    return;
+  }
   try {
     const data = await fetchWithAuth(`${API_BASE}/comerciantes`);
     comerciantes = Array.isArray(data) ? data : (data.data || []);
-
-    const sel = document.getElementById("select-comerciante");
-    if (!sel) return;
-
-    // Opción vacía inicial
-    sel.innerHTML = '<option value="">-- Selecciona un comerciante --</option>';
-
-    comerciantes
-      .filter(c => c.activo !== false)
-      .forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.id_comerciante;          // value = ID directo
-        opt.textContent = c.nombre;
-        opt.dataset.nombre    = c.nombre;
-        opt.dataset.telefono  = c.telefono  || "";
-        opt.dataset.direccion = c.direccion || "";
-        opt.dataset.email     = c.email || c.correo || "";
-        sel.appendChild(opt);
-      });
+    // Guardar para uso offline
+    try { localStorage.setItem('cache_op_comerciantes', JSON.stringify(comerciantes)); } catch(_) {}
+    _poblarSelectComerciantes(comerciantes);
   } catch (e) {
     console.warn("[COMERCIANTES] Error cargando:", e.message);
+    // Fallback a caché si la red falla a medias
+    const cached = localStorage.getItem('cache_op_comerciantes');
+    if (cached) {
+      try { comerciantes = JSON.parse(cached); _poblarSelectComerciantes(comerciantes); } catch(_) {}
+    }
   }
+}
+
+// Helper: llena el select de comerciantes (extraído para reusar en offline)
+function _poblarSelectComerciantes(lista) {
+  const sel = document.getElementById("select-comerciante");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Selecciona un comerciante --</option>';
+  lista
+    .filter(c => c.activo !== false)
+    .forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id_comerciante;
+      opt.textContent = c.nombre;
+      opt.dataset.nombre    = c.nombre;
+      opt.dataset.telefono  = c.telefono  || "";
+      opt.dataset.direccion = c.direccion || "";
+      opt.dataset.email     = c.email || c.correo || "";
+      sel.appendChild(opt);
+    });
 }
 
 /**
@@ -1850,8 +1935,20 @@ async function cargarHistorial() {
 
     historialCompleto = todos;
     renderHistorial(historialCompleto);
+    // FIX OFFLINE: persistir historial para consulta sin conexión
+    try { localStorage.setItem('cache_op_historial', JSON.stringify(historialCompleto.slice(0, 200))); } catch(_) {}
   } catch (error) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error: ${error.message}</td></tr>`;
+    // FIX OFFLINE: mostrar historial cacheado si no hay red
+    const cached = localStorage.getItem('cache_op_historial');
+    if (cached) {
+      try {
+        historialCompleto = JSON.parse(cached);
+        renderHistorial(historialCompleto);
+        console.warn('[OFFLINE] Historial desde caché:', historialCompleto.length, 'registros');
+        return;
+      } catch(_) {}
+    }
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Sin conexión — ${error.message}</td></tr>`;
   }
 }
 
@@ -2135,13 +2232,36 @@ function clearDrawerAlert(containerId = "drawer-alert-perfil") {
 // =============================================
 
 async function cargarPerfil() {
+  // FIX OFFLINE: si no hay red, mostrar perfil del caché
+  if (!navigator.onLine) {
+    const cached = localStorage.getItem('cache_op_perfil');
+    if (cached) {
+      try {
+        perfilData = JSON.parse(cached);
+        renderPerfil(perfilData);
+        console.warn('[OFFLINE] Perfil desde caché');
+        return;
+      } catch(_) {}
+    }
+    // Fallback al usuario del login
+    const usuarioLogin = localStorage.getItem('usuario');
+    if (usuarioLogin) {
+      try { perfilData = JSON.parse(usuarioLogin); renderPerfil(perfilData); } catch(_) {}
+    }
+    return;
+  }
   try {
     const data = await fetchWithAuth(`${API_BASE}/operario/perfil`);
     console.log('[PERFIL DEBUG] Datos recibidos del backend:', data);
     perfilData = data;
+    // FIX OFFLINE: guardar perfil para uso sin conexión
+    try { localStorage.setItem('cache_op_perfil', JSON.stringify(data)); } catch(_) {}
     renderPerfil(data);
   } catch (error) {
     console.warn("No se pudo cargar el perfil:", error.message);
+    // Fallback a caché si hay señal intermitente
+    const cached = localStorage.getItem('cache_op_perfil') || localStorage.getItem('usuario');
+    if (cached) { try { perfilData = JSON.parse(cached); renderPerfil(perfilData); } catch(_) {} }
   }
 }
 
@@ -2562,6 +2682,12 @@ async function rut_cargarRutas() {
 
     rut_actualizarPanel();
     rut_renderHistorial(rutas);
+    // FIX OFFLINE: persistir rutas en IndexedDB para uso sin conexión
+    try {
+      for (const r of rutas) {
+        await AgroDB.guardarRutaOffline(r);
+      }
+    } catch(_) {}
 
     // Si hay ruta activa, cargar sus entregas
     if (rutaActiva) {
@@ -2573,6 +2699,16 @@ async function rut_cargarRutas() {
     }
   } catch (e) {
     console.warn('[RUTAS] Error cargando:', e.message);
+    // FIX OFFLINE: mostrar rutas del caché de IndexedDB
+    try {
+      const rutasOffline = await AgroDB.obtenerRutasOffline();
+      if (rutasOffline && rutasOffline.length) {
+        rutaActiva = rutasOffline.find(r => r.estado === 'ABIERTA') || null;
+        rut_actualizarPanel();
+        rut_renderHistorial(rutasOffline);
+        console.warn('[OFFLINE] Rutas desde IndexedDB:', rutasOffline.length);
+      }
+    } catch(_) {}
   }
 }
 
@@ -2968,10 +3104,20 @@ function init() {
   }
 
   initEventListeners();
-  cargarProductos();           // catálogo de productos
-  cargarPreciosActuales();     // precios activos del admin (módulo PRECIOS)
-  cargarComerciantesVenta();   // comerciantes para el select de ventas
-  rut_cargarRutas();           // rutas del operario
+
+  // FIX OFFLINE: si no hay red, mostrar banner y cargar desde caché
+  if (!navigator.onLine) {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1f2937;color:#fff;text-align:center;padding:8px;font-size:.82rem;font-weight:600';
+    bar.textContent = '📵 Sin conexión — mostrando datos guardados. Las compras se guardarán y sincronizarán al recuperar señal.';
+    document.body.prepend(bar);
+    window.addEventListener('online', () => bar.remove(), { once: true });
+  }
+
+  cargarProductos();           // catálogo de productos (con caché offline)
+  cargarPreciosActuales();     // precios activos (con caché offline)
+  cargarComerciantesVenta();   // comerciantes (con caché offline)
+  rut_cargarRutas();           // rutas (con IndexedDB offline)
 
   // Mobile nav — Stock
   const mnavStock = document.getElementById('mnav-stock');

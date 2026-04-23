@@ -1820,3 +1820,137 @@ textarea {
         display: none;
     }
 }
+
+/* ══════════════════════════════════════════════
+   MIS INGRESOS — responsive fixes
+══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .ing-kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .ing-filtros {
+        gap: 6px;
+    }
+
+    .ing-tab {
+        padding: 7px 14px;
+        font-size: 12px;
+    }
+
+    .ing-kpi-value {
+        font-size: 1.35rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ing-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ══ MIS INGRESOS — from ing-ingresos.css ══ */
+/* ═══════════════════════════════════════════
+   MIS INGRESOS — estilos sección
+   ═══════════════════════════════════════════ */
+
+/* Filtros de período */
+.ing-filtros {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.ing-tab {
+    padding: 8px 18px;
+    border-radius: 99px;
+    border: 1.5px solid var(--border, #e2e8f0);
+    background: #fff;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .18s;
+    font-family: inherit;
+}
+
+.ing-tab:hover {
+    border-color: var(--primary, #16a34a);
+    color: var(--primary, #16a34a);
+}
+
+.ing-tab.active {
+    background: var(--primary, #16a34a);
+    border-color: var(--primary, #16a34a);
+    color: #fff;
+}
+
+/* Grid de KPIs */
+.ing-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: .5rem;
+}
+
+.ing-kpi-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 18px 16px;
+}
+
+.ing-kpi-card--pend {
+    border-color: #fcd34d;
+    background: #fffbeb;
+}
+
+.ing-kpi-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 8px;
+}
+
+.ing-kpi-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.15;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.ing-kpi-card--pend .ing-kpi-value {
+    color: #92400e;
+}
+
+.ing-kpi-sub {
+    font-size: 11.5px;
+    color: #9ca3af;
+}
+
+/* Estado badge en tabla */
+.ing-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 99px;
+    white-space: nowrap;
+}
+.ing-badge--liq  { background: #dcfce7; color: #166534; }
+.ing-badge--pend { background: #fef3c7; color: #92400e; }
+.ing-badge--pago { background: #dbeafe; color: #1e40af; }
+
+/* Label chart */
+.ing-chart-label {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 500;
+}

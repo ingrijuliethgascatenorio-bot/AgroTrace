@@ -1,4 +1,4 @@
-// src/app.module.ts
+// src/app.module.ts  — REEMPLAZA el existente
 import {
   Module,
   MiddlewareConsumer,
@@ -9,9 +9,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
-// ── Módulo Tenant ──────────────────────────────────────────
+
+// ── Módulo Tenant (nuevo) ──────────────────────────────────
 import { TenantModule } from './tenant/tenant.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
+
 // ── Módulos de negocio ─────────────────────────────────────
 import { AnalisisModule } from './analisis/analisis.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -32,26 +34,35 @@ import { AdminModule } from './modules/admin/Admin.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
       exclude: ['/api/{*path}'],
     }),
-    // ── Tenant PRIMERO ─────────────────────────────────────
-    TenantModule,
-    // ── Módulos de negocio ─────────────────────────────────
+
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      username: process.env.DB_USERNAME || 'postgres',
+      password: process.env.DB_PASSWORD || '071121',
+      database: process.env.DB_NAME || 'AgroTrace',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      synchronize: false,
+      logging: process.env.NODE_ENV === 'development',
+      // FIX FECHAS: fuerza al driver pg a devolver campos 'date' como string
+      // 'YYYY-MM-DD' en lugar de new Date() en UTC, eliminando el desfase de -1 día
+      extra: { options: '-c TimeZone=America/Bogota' },
+    }),
+
+    // ── Registrar TenantModule PRIMERO ──────────────────────
+    TenantModule, // ← NUEVO: registra Asociacion entity y TenantMiddleware
+
+    // ── Módulos de negocio (sin cambios) ───────────────────
     AuthModule,
     UsersModule,
     ProductorModule,
@@ -71,6 +82,10 @@ import { AdminModule } from './modules/admin/Admin.module';
   ],
 })
 export class AppModule implements NestModule {
+  /**
+   * Aplica TenantMiddleware a TODAS las rutas bajo /api/*
+   * Se ejecuta ANTES que cualquier guard o handler.
+   */
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantMiddleware)

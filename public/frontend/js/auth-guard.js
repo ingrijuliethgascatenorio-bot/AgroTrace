@@ -67,11 +67,14 @@ const AuthGuard = (function () {
 
     // ── Limpiar sesión completamente ───────────────────────────────────────────
     function _limpiarSesion() {
-        ['token', 'usuario', 'cache_historial', 'cache_preview',
-         'cache_resumen', 'qr_productor'].forEach(k => {
+        // FIX OFFLINE: NO borrar los cachés de datos — el operario los necesita
+        // para trabajar sin internet. Solo eliminar el token y la sesión de usuario.
+        // Los cachés (cache_op_*, cache_historial, etc.) se quedan para uso offline.
+        ['token', 'usuario'].forEach(k => {
             localStorage.removeItem(k);
             sessionStorage.removeItem(k);
         });
+        // qr_productor también se mantiene — se necesita offline para identificación
     }
 
     // ── Redirigir de forma segura (no se puede volver con el botón atrás) ──────
@@ -99,13 +102,31 @@ const AuthGuard = (function () {
             _redirigir(RUTAS.LOGIN);
         }
 
-        // 2. Token malformado o expirado → limpiar y login
+        // 2. Token malformado → siempre al login (token corrupto no tiene solución offline)
         const payload = _decodificarToken(token);
         if (!payload) {
             _limpiarSesion();
             _redirigir(RUTAS.LOGIN);
         }
+
+        // FIX OFFLINE CRÍTICO: si el token expiró pero NO HAY INTERNET,
+        // NO expulsamos al usuario. Operario y Productor están en fincas sin señal
+        // y no pueden renovar el token. Continúan en modo "sesión extendida offline".
+        // Cuando recupere internet, el primer request al backend fallará con 401
+        // y el evento 'agrotrace:session-expired' forzará el re-login normalmente.
         if (_tokenExpirado(payload)) {
+            if (!navigator.onLine) {
+                // Sin internet: permitir acceso con token vencido (solo datos locales)
+                console.warn('[AuthGuard] Token expirado pero sin internet — modo sesión offline extendida');
+                // Verificar al menos que el rol coincida para no mostrar vista incorrecta
+                const rolUsuario = payload.tipo_usuario || '';
+                if (rolUsuario !== rolRequerido) {
+                    const rutaCorrecta = RUTAS[rolUsuario];
+                    if (rutaCorrecta) _redirigir(rutaCorrecta);
+                }
+                return; // ← continuar sin expulsar
+            }
+            // Con internet: token expirado = al login para renovar
             _limpiarSesion();
             _redirigir(RUTAS.LOGIN);
         }

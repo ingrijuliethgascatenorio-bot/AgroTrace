@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api'; // FIX: relativa — funciona en cualquier entorno
 
 // ── Guard: solo PRODUCTOR entra a productor.html ──────────────────────────────
 // auth-guard.js debe cargarse ANTES que productor.js en el HTML:
@@ -25,10 +25,14 @@ function getHeaders() {
 // Wrapper fetch with auth + no-cache to prevent stale responses
 async function apiFetch(url, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
+    // FIX OFFLINE: no usar 'no-store' — eso impide que el SW cachee las respuestas.
+    // Usar 'default' para GET (SW puede interceptar y devolver caché si no hay red).
+    // Para mutaciones (POST/PUT/PATCH/DELETE) va directo sin caché.
+    const cacheMode = method === 'GET' ? 'default' : 'no-store';
     const res = await fetch(url, {
         ...options,
         headers: { ...getHeaders(), ...(options.headers || {}) },
-        cache: 'no-store',
+        cache: cacheMode,
     });
     return res;
 }
@@ -107,21 +111,37 @@ function mostrarSeccion(id) {
         historial: 'Mis entregas',
         perfil: 'Mi perfil',
         'mi-qr': 'Mi código QR',
+        'mis-ingresos': 'Mis ingresos',
     };
     const tp = document.getElementById('topbar_title');
     if (tp) tp.textContent = titulos[id] || '';
 
     if (id === 'inicio') { cargarResumen(); cargarPreviewEntregas(); }
     if (id === 'historial') cargarHistorial();
+    if (id === 'mis-ingresos' && window.ING) ING.cargar();
     if (id === 'perfil') cargarPerfil();
     if (id === 'mi-qr') cargarQR();
 }
 
 // Sidebar toggle
 document.addEventListener('DOMContentLoaded', () => {
-    localStorage.removeItem('cache_historial');
-    localStorage.removeItem('cache_preview');
-    localStorage.removeItem('cache_resumen');
+    // FIX OFFLINE: NO borrar el caché al cargar — lo necesitamos si no hay red.
+    // Antes borraba cache_historial, cache_preview y cache_resumen al inicio,
+    // lo que destruía el fallback offline en cada recarga.
+    // (eliminado: localStorage.removeItem('cache_historial/preview/resumen'))
+
+    // FIX OFFLINE: banner si no hay conexión al iniciar
+    if (!navigator.onLine) {
+        const bar = document.createElement('div');
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1f2937;color:#fff;text-align:center;padding:8px 16px;font-size:.82rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px';
+        bar.innerHTML = '<span>📵</span><span>Sin conexión — mostrando tus datos guardados</span>';
+        document.body.prepend(bar);
+        window.addEventListener('online', () => {
+            bar.remove();
+            cargarResumen();
+            cargarPreviewEntregas();
+        }, { once: true });
+    }
     const toggle = document.getElementById('menu_toggle');
     if (toggle) {
         toggle.addEventListener('click', (e) => {
@@ -199,10 +219,29 @@ function getIdProductor() {
 
 //  1. INICIO — Resumen KPI
 async function cargarResumen() {
-    ['kpi_entregas', 'kpi_kg', 'kpi_dinero', 'kpi_ultima'].forEach(id => {
+    ['kpi_entregas', 'kpi_kg', 'kpi_dinero', '/* kpi_ultima removed */'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '...';
     });
+
+    // FIX OFFLINE: mostrar caché inmediatamente si no hay red
+    if (!navigator.onLine) {
+        const cache = localStorage.getItem('cache_resumen');
+        if (cache) {
+            try {
+                const d = JSON.parse(cache);
+                animarNum('kpi_entregas', Number(d.total_entregas || 0));
+                animarNum('kpi_kg', Number(d.total_kg || 0), ' kg');
+                const elD = document.getElementById('kpi_dinero');
+                if (elD) elD.textContent = fmtCOP(d.total_dinero);
+                return;
+            } catch(_) {}
+        }
+        ['kpi_entregas', 'kpi_kg', 'kpi_dinero'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.textContent = '—';
+        });
+        return;
+    }
     try {
         // Intentar con el endpoint específico del productor primero
         const res = await apiFetch(`${API_URL}/productor-dashboard/resumen`);
@@ -239,7 +278,7 @@ async function cargarResumen() {
         animarNum('kpi_kg', Number(totalKg), ' kg');
         const elD = document.getElementById('kpi_dinero');
         if (elD) elD.textContent = fmtCOP(totalDinero);
-        const elU = document.getElementById('kpi_ultima');
+        const elU = document.getElementById('/* kpi_ultima removed */');
         if (elU) elU.textContent = ultimaEntrega ? fmtFecha(ultimaEntrega) : 'Sin entregas';
 
     } catch (e) {
@@ -260,7 +299,7 @@ async function cargarResumen() {
                     animarNum('kpi_kg', Math.round(totalKg), ' kg');
                     const elD = document.getElementById('kpi_dinero');
                     if (elD) elD.textContent = fmtCOP(totalDinero);
-                    const elU = document.getElementById('kpi_ultima');
+                    const elU = document.getElementById('/* kpi_ultima removed */');
                     if (elU) elU.textContent = ultimaEntrega ? fmtFecha(ultimaEntrega) : 'Sin entregas';
                     localStorage.setItem('cache_resumen', JSON.stringify({ total_entregas: totalEntregas, total_kg: totalKg, total_dinero: totalDinero, ultima_entrega: ultimaEntrega }));
                     return;
@@ -275,11 +314,11 @@ async function cargarResumen() {
             animarNum('kpi_kg', Number(d.total_kg || 0), ' kg');
             const elD = document.getElementById('kpi_dinero');
             if (elD) elD.textContent = fmtCOP(d.total_dinero);
-            const elU = document.getElementById('kpi_ultima');
+            const elU = document.getElementById('/* kpi_ultima removed */');
             if (elU) elU.textContent = d.ultima_entrega ? fmtFecha(d.ultima_entrega) : 'Sin entregas';
             return;
         }
-        ['kpi_entregas', 'kpi_kg', 'kpi_dinero', 'kpi_ultima'].forEach(id => {
+        ['kpi_entregas', 'kpi_kg', 'kpi_dinero', '/* kpi_ultima removed */'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '—';
         });
@@ -291,6 +330,27 @@ async function cargarPreviewEntregas() {
     const tbody = document.getElementById('inicio_tbody');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Cargando...</td></tr>';
+
+    // FIX OFFLINE: mostrar del caché si no hay red
+    if (!navigator.onLine) {
+        const cache = localStorage.getItem('cache_preview');
+        if (cache) {
+            try {
+                const arr = JSON.parse(cache);
+                if (!arr.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Sin entregas registradas</td></tr>'; return; }
+                tbody.innerHTML = arr.map(e => `<tr>
+                    <td data-label="Fecha" style="font-size:.82em;color:var(--color-text-secondary)">${fmtFecha(e.fecha)}</td>
+                    <td data-label="Producto" style="font-weight:500">${e.producto}</td>
+                    <td data-label="Peso">${fmtKg(e.peso)}</td>
+                    <td data-label="Total"><span style="font-weight:700;color:#166534">${fmtCOP(e.total)}</span></td>
+                    <td data-label="Estado">${badgeEstado(e.estado)}</td>
+                </tr>`).join('');
+                return;
+            } catch(_) {}
+        }
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Sin datos guardados</td></tr>';
+        return;
+    }
     try {
         // Intentar endpoint específico del productor
         let arr = [];
@@ -350,6 +410,22 @@ async function cargarHistorial(mes = '', anio = '') {
     const countEl = document.getElementById('hist_count');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Cargando...</td></tr>';
+
+    // FIX OFFLINE: mostrar caché si no hay red
+    if (!navigator.onLine) {
+        const cache = localStorage.getItem('cache_historial');
+        if (cache) {
+            try {
+                _historial = JSON.parse(cache);
+                if (countEl) countEl.textContent = `${_historial.length} registro${_historial.length !== 1 ? 's' : ''} (sin conexión)`;
+                if (!_historial.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No hay entregas guardadas</td></tr>'; return; }
+                _renderHistorialRows(tbody, _historial);
+                return;
+            } catch(_) {}
+        }
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Sin conexión y sin datos guardados</td></tr>';
+        return;
+    }
 
     let url = `${API_URL}/productor-dashboard/historial`;
     const params = [];
@@ -415,7 +491,8 @@ async function cargarHistorial(mes = '', anio = '') {
             if (e.comprobante_pago) {
                 var urlComp = e.comprobante_pago.startsWith('http')
                     ? e.comprobante_pago
-                    : 'http://localhost:3000' + e.comprobante_pago;
+                    : e.comprobante_pago;
+                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : window.location.origin + e.comprobante_pago;
                 accionTd = '<a href="' + urlComp + '" target="_blank" '
                     + 'style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;'
                     + 'padding:4px 10px;font-size:.75rem;font-weight:600;text-decoration:none">Ver comprobante</a>';
@@ -454,8 +531,9 @@ async function cargarHistorial(mes = '', anio = '') {
             var pend = (liq === 'PENDIENTE_LIQUIDACION');
             var accionTd;
             if (e.comprobante_pago) {
-                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : 'http://localhost:3000' + e.comprobante_pago;
-                accionTd = '<a href="' + urlComp + '" target="_blank" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:600;text-decoration:none">Ver comprobante</a>';
+                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : e.comprobante_pago;
+                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : window.location.origin + e.comprobante_pago;
+                accionTd = '<button onclick="compModal.abrir(\'' + urlComp + '\')" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:600;cursor:pointer">Ver comprobante</button>';
             } else if (!pend) {
                 accionTd = '<button onclick="prd_descargarRecibo(' + idx + ')" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;font-weight:600"> Recibo</button>';
             } else {
@@ -519,16 +597,23 @@ function exportarCSV() {
 //  3. MI PERFIL
 
 async function cargarPerfil() {
+    // FIX OFFLINE: intentar desde localStorage primero si no hay red
+    if (!navigator.onLine) {
+        const guardado = localStorage.getItem('cache_perfil_productor') || localStorage.getItem('usuario');
+        if (guardado) { try { pintarPerfil(JSON.parse(guardado)); } catch(_){} return; }
+    }
     try {
         const res = await apiFetch(`${API_URL}/productor-dashboard/perfil`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Error');
         _perfil = data;
+        // FIX OFFLINE: persistir perfil para uso sin conexión
+        try { localStorage.setItem('cache_perfil_productor', JSON.stringify(data)); } catch(_) {}
         pintarPerfil(data);
     } catch (e) {
         console.error('cargarPerfil:', e);
-        const guardado = localStorage.getItem('usuario');
-        if (guardado) pintarPerfil(JSON.parse(guardado));
+        const guardado = localStorage.getItem('cache_perfil_productor') || localStorage.getItem('usuario');
+        if (guardado) try { pintarPerfil(JSON.parse(guardado)); } catch(_) {}
     }
 }
 
@@ -605,10 +690,12 @@ async function cargarQR() {
     const wrap = document.getElementById('qr_img_wrap');
     if (!wrap) return;
 
-    // FIX: solo llamar cargarPerfil() si realmente no hay datos cargados.
-    // Antes se ejecutaba siempre que _perfil era null, pero _perfil puede ser
-    // null si pintarHeader no lo guardó bien (Bug 1, ya corregido arriba).
-    // Con el fix del Bug 1, _perfil siempre estará disponible aquí.
+    // FIX OFFLINE: si no hay red, mostrar QR guardado
+    if (!navigator.onLine) {
+        _mostrarQROffline(wrap);
+        return;
+    }
+
     if (!_perfil || !_perfil.id_productor) await cargarPerfil();
 
     const botonDescarga = document.getElementById('qr_dl_btn');
@@ -747,8 +834,10 @@ function prd_det_abrir(idx) {
     if (e.comprobante_pago && compDiv && compLink) {
         var url = e.comprobante_pago.startsWith('http')
             ? e.comprobante_pago
-            : 'http://localhost:3000' + e.comprobante_pago;
-        compLink.href = url;
+            : e.comprobante_pago;
+        compLink.href = '#';
+        compLink.onclick = function(ev) { ev.preventDefault(); compModal.abrir((e.comprobante_pago.startsWith('http') ? e.comprobante_pago : window.location.origin + e.comprobante_pago)); };
+        compLink.textContent = 'Ver comprobante';
         compDiv.style.display = 'block';
     } else if (compDiv) {
         compDiv.style.display = 'none';
