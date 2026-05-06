@@ -27,7 +27,7 @@
         })();
     </script>
 
-    <link rel="stylesheet" href="css/productor.css?v=2">
+    <link rel="stylesheet" href="css/productor.css?v=9.3">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
@@ -37,6 +37,7 @@
         rel="stylesheet">
     <link rel="icon" href="/public/frontend/iconos/icon-192.png">
     <link rel="manifest" href="/frontend/manifest.json">
+    <link rel="stylesheet" href="css/ingresos.css">
 </head>
 
 <body>
@@ -64,6 +65,11 @@
             <button class="nav-btn" data-section="historial" data-tip="Mis entregas">
                 <i class="fi fi-rr-box"></i>
                 <span>Mis entregas</span>
+            </button>
+
+            <button class="nav-btn" data-section="mis-ingresos" data-tip="Mis ingresos">
+                <i class="fi fi-rr-chart-histogram"></i>
+                <span>Mis ingresos</span>
             </button>
 
             <span class="nav-label">MI CUENTA</span>
@@ -244,6 +250,7 @@
                                     <th>Fecha</th>
                                     <th>Producto</th>
                                     <th>Peso</th>
+                                    <th>Precio/kg</th>
                                     <th>Total</th>
                                     <th>Estado</th>
                                 </tr>
@@ -346,6 +353,111 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="hist-pagination" class="hist-pagination"></div>
+                </div>
+
+            </section>
+
+
+            <!-- ════════════════════════════════
+             MIS INGRESOS — Sección nueva
+            ════════════════════════════════ -->
+            <section id="mis-ingresos" class="section">
+
+                <div class="sec-header-row">
+                    <div class="section-header">
+                        <h2>Mis ingresos</h2>
+                        <p class="section-sub">Cuánto has ganado y cuántos kilos has entregado</p>
+                    </div>
+                </div>
+
+                <!-- Filtros de período -->
+                <div class="ing-filtros">
+                    <button class="ing-tab active" data-periodo="semana">Esta semana</button>
+                    <button class="ing-tab" data-periodo="mes">Este mes</button>
+                    <button class="ing-tab" data-periodo="anio">Este año</button>
+                    <button class="ing-tab" data-periodo="todo">Todo</button>
+                </div>
+
+                <!-- Tarjetas resumen del período -->
+                <div class="ing-kpi-grid">
+                    <div class="ing-kpi-card">
+                        <div class="ing-kpi-label">Dinero recibido</div>
+                        <div class="ing-kpi-value" id="ing_dinero">—</div>
+                        <div class="ing-kpi-sub" id="ing_dinero_sub">Solo entregas liquidadas</div>
+                    </div>
+                    <div class="ing-kpi-card">
+                        <div class="ing-kpi-label">Kilos entregados</div>
+                        <div class="ing-kpi-value" id="ing_kg">—</div>
+                        <div class="ing-kpi-sub" id="ing_kg_sub">kg en el período</div>
+                    </div>
+                    <div class="ing-kpi-card">
+                        <div class="ing-kpi-label">Número de entregas</div>
+                        <div class="ing-kpi-value" id="ing_entregas">—</div>
+                        <div class="ing-kpi-sub" id="ing_entregas_sub">entregas realizadas</div>
+                    </div>
+                    <div class="ing-kpi-card ing-kpi-card--pend">
+                        <div class="ing-kpi-label">Por liquidar</div>
+                        <div class="ing-kpi-value" id="ing_pend_kg">—</div>
+                        <div class="ing-kpi-sub">kg sin precio asignado aún</div>
+                    </div>
+                </div>
+
+                <!-- Gráfica mensual de barras (Canvas) -->
+                <div class="card" style="margin-top:1.5rem">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <i class="fi fi-rr-chart-histogram" style="color:var(--primary)"></i>
+                            Kilos por mes
+                        </span>
+                        <span class="ing-chart-label" id="ing_chart_label">Últimos 6 meses</span>
+                    </div>
+                    <div style="position:relative;height:220px;padding:8px 0">
+                        <canvas id="ing_chart_kg"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfica ingresos por mes -->
+                <div class="card" style="margin-top:1rem">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <i class="fi fi-rr-coins" style="color:var(--primary)"></i>
+                            Dinero recibido por mes
+                        </span>
+                    </div>
+                    <div style="position:relative;height:220px;padding:8px 0">
+                        <canvas id="ing_chart_dinero"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tabla detalle del período -->
+                <div class="card" style="margin-top:1rem">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <i class="fi fi-rr-list" style="color:var(--primary)"></i>
+                            Detalle de entregas
+                        </span>
+                        <span class="table-count" id="ing_count">0 registros</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="prd-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Producto</th>
+                                    <th>Kilos</th>
+                                    <th>Precio/kg</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ing_tbody">
+                                <tr>
+                                    <td colspan="6" class="empty-cell">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
             </section>
@@ -416,8 +528,8 @@
                                     <label class="pf-key" for="inp_telefono">
                                         <i class="fi fi-rr-phone-call"></i> Teléfono
                                     </label>
-                                    <input id="inp_telefono" type="tel" class="pf-input" placeholder="Ej: 3201234567" inputmode="numeric" pattern="[0-9]*"
-                                        maxlength="15">
+                                    <input id="inp_telefono" type="tel" class="pf-input" placeholder="Ej: 3201234567"
+                                        inputmode="numeric" pattern="[0-9]*" maxlength="15">
                                 </div>
                                 <div class="pf-row pf-row-edit">
                                     <label class="pf-key" for="inp_ubicacion">
@@ -536,13 +648,17 @@
                 <i class="fi fi-rr-box"></i>
                 <span>Entregas</span>
             </button>
+            <button class="bn-item" data-section="mis-ingresos">
+                <i class="fi fi-rr-chart-histogram"></i>
+                <span>Ingresos</span>
+            </button>
             <button class="bn-item" data-section="perfil">
                 <i class="fi fi-rr-user"></i>
                 <span>Perfil</span>
             </button>
             <button class="bn-item" data-section="mi-qr">
-                <i class="fi fi-bs-qrcode"></i>
-                <span>Mi QR</span>
+                <i class="fi fi-rr-qrcode"></i>
+                <span>QR</span>
             </button>
         </nav>
 
@@ -555,16 +671,59 @@
     </div>
 
     <!-- ══ MÓDULOS OFFLINE -->
-     <script src="../js/auth-guard.js"></script> 
+    <script src="../js/auth-guard.js"></script>
     <script src="../js/agro-db.js"></script>
-    <script src="../js/agro-sync.js"></script>
+    <script src="../js/agro-sync.js?v=7"></script>
     <!-- Módulos offline globales (reemplaza cache.js, offline.js, sync.js) -->
-     <script src="../js/agro-ux.js"></script>
-    <script src="js/productor.js?v=6"></script>
+    <script src="../js/agro-ux.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="js/ingresos.js?v=7"></script>
+    <script src="js/productor.js?v=11.1"></script>
+    <script>document.addEventListener("DOMContentLoaded", () => {
+            if (window.ING) {
+                ING.init();
+                // Precarga silenciosa — datos listos antes de que el productor navegue
+                setTimeout(() => ING.cargarSilencioso(), 1500);
+            }
+        });</script>
     <script src="/frontend/js/app-install.js"></script>
     <script>
         console.log('[HTML] JS cargado OK. Token:', localStorage.getItem('token') ? 'SI' : 'NO');
         console.log('[HTML] usuario raw:', localStorage.getItem('usuario'));
+    </script>
+    <script>
+        /* Scroll automático al ítem activo en bottom-nav */
+        (function () {
+            function centerActiveItem() {
+                var nav = document.getElementById("bottom_nav");
+                if (!nav) return;
+                var active = nav.querySelector(".bn-item.active");
+                if (!active) return;
+                var itemLeft = active.offsetLeft;
+                var itemWidth = active.offsetWidth;
+                var containerWidth = nav.offsetWidth;
+                nav.scrollLeft = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", centerActiveItem);
+            } else {
+                setTimeout(centerActiveItem, 100);
+            }
+
+            document.addEventListener("click", function (e) {
+                var item = e.target.closest(".bn-item");
+                if (!item) return;
+                var nav = document.getElementById("bottom_nav");
+                if (!nav) return;
+                setTimeout(function () {
+                    var itemLeft = item.offsetLeft;
+                    var itemWidth = item.offsetWidth;
+                    var containerWidth = nav.offsetWidth;
+                    nav.scrollLeft = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+                }, 60);
+            });
+        })();
     </script>
 
 
@@ -628,16 +787,129 @@
         </div>
     </div>
 
-  <!-- FIX v9: Registro Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
-          .then(reg => console.log('[SW Productor] Registrado'))
-          .catch(err => console.error('[SW Productor] Error:', err));
-      });
-    }
-  </script>
+
+    <!-- ══════════════════════════════════════════
+         MODAL COMPROBANTE (lightbox)
+    ══════════════════════════════════════════ -->
+    <div id="comp_modal_overlay" onclick="compModal.cerrar()" style="
+        display:none;
+        position:fixed;inset:0;
+        background:rgba(0,0,0,0.82);
+        z-index:9999;
+        align-items:center;
+        justify-content:center;
+        padding:16px;
+    ">
+        <div onclick="event.stopPropagation()" style="
+            position:relative;
+            background:#fff;
+            border-radius:16px;
+            max-width:680px;
+            width:100%;
+            max-height:90vh;
+            overflow:hidden;
+            display:flex;
+            flex-direction:column;
+        ">
+            <!-- Header -->
+            <div style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                padding:14px 18px;
+                border-bottom:1px solid #e5e7eb;
+                flex-shrink:0;
+            ">
+                <span style="font-weight:600;font-size:15px;color:#111827">Comprobante de pago</span>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <a id="comp_modal_download" href="#" target="_blank" style="
+                        font-size:12px;font-weight:600;
+                        color:#166534;background:#f0fdf4;
+                        border:1px solid #bbf7d0;border-radius:8px;
+                        padding:6px 12px;text-decoration:none;
+                    ">Abrir en nueva pestaña</a>
+                    <button onclick="compModal.cerrar()" style="
+                        width:32px;height:32px;border-radius:50%;
+                        border:1px solid #e5e7eb;background:#f9fafb;
+                        cursor:pointer;font-size:18px;color:#6b7280;
+                        display:flex;align-items:center;justify-content:center;
+                        line-height:1;
+                    ">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#6b7280" stroke-width="2"
+                            stroke-linecap="round">
+                            <line x1="1" y1="1" x2="13" y2="13" />
+                            <line x1="13" y1="1" x2="1" y2="13" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Contenido: imagen o PDF -->
+            <div id="comp_modal_body" style="
+                overflow:auto;
+                flex:1;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                padding:16px;
+                min-height:300px;
+                background:#f9fafb;
+            ">
+                <span style="color:#9ca3af;font-size:14px">Cargando...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const compModal = (() => {
+            function abrir(url) {
+                if (!url) return;
+
+                // Resolver URL relativa
+                const fullUrl = url.startsWith('http') ? url : (window.location.origin + url);
+
+                const overlay = document.getElementById('comp_modal_overlay');
+                const body = document.getElementById('comp_modal_body');
+                const dl = document.getElementById('comp_modal_download');
+
+                if (!overlay || !body) return;
+
+                // Enlace "abrir en nueva pestaña"
+                if (dl) dl.href = fullUrl;
+
+                // Detectar si es imagen o PDF por extensión
+                const ext = fullUrl.split('?')[0].split('.').pop().toLowerCase();
+                const esImagen = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+                const esPDF = ext === 'pdf';
+
+                if (esImagen) {
+                    body.innerHTML = '<img src="' + fullUrl + '" style="max-width:100%;max-height:72vh;border-radius:8px;object-fit:contain" onerror="this.parentElement.innerHTML=<p style=color:#dc2626>No se pudo cargar la imagen.</p>">';
+                } else if (esPDF) {
+                    body.innerHTML = '<iframe src="' + fullUrl + '" style="width:100%;height:72vh;border:none;border-radius:8px"></iframe>';
+                } else {
+                    // Intentar como imagen por defecto
+                    body.innerHTML = '<img src="' + fullUrl + '" style="max-width:100%;max-height:72vh;border-radius:8px;object-fit:contain" onerror="this.parentElement.innerHTML=<p style=color:#dc2626;text-align:center>No se puede previsualizar este archivo.<br><a href=\'' + fullUrl + '\' target=\"_blank\" style=\"color:#166534;font-weight:600\">Descargar archivo</a></p>">';
+                }
+
+                overlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+
+            function cerrar() {
+                const overlay = document.getElementById('comp_modal_overlay');
+                const body = document.getElementById('comp_modal_body');
+                if (overlay) overlay.style.display = 'none';
+                if (body) body.innerHTML = '<span style="color:#9ca3af;font-size:14px">Cargando...</span>';
+                document.body.style.overflow = '';
+            }
+
+            // Cerrar con Escape
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+
+            return { abrir, cerrar };
+        })();
+        window.compModal = compModal;
+    </script>
+
 </body>
 
 </html>

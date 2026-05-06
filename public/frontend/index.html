@@ -14,7 +14,75 @@
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-thin-rounded/css/uicons-thin-rounded.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="css/carga-masiva.css">
+
+    <style id="cm-extras">
+        /* Fila de botones de plantilla */
+        .cm-plantillas-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .cm-plantillas-label {
+            font-size: .78rem;
+            color: #6b7280;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .cm-btn-plantilla {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: .75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid;
+            background: transparent;
+            transition: background .15s, color .15s;
+        }
+
+        .cm-btn-plantilla--csv {
+            border-color: #16a34a;
+            color: #16a34a;
+        }
+
+        .cm-btn-plantilla--csv:hover {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        .cm-btn-plantilla--excel {
+            border-color: #1d6f42;
+            color: #1d6f42;
+        }
+
+        .cm-btn-plantilla--excel:hover {
+            background: #1d6f42;
+            color: #fff;
+        }
+
+        /* Indicador de tipo de archivo */
+        .cm-file-label.is-csv {
+            border-color: #16a34a !important;
+        }
+
+        .cm-file-label.is-excel {
+            border-color: #1d6f42 !important;
+        }
+
+        .cm-file-label.is-invalid {
+            border-color: #dc2626 !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -676,8 +744,10 @@
                                 <th>Nombre</th>
                                 <th>Teléfono</th>
                                 <th>Dirección</th>
+                                <th>Correo</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
+
                             </tr>
                         </thead>
 
@@ -714,15 +784,27 @@
                     </div>
                     <div class="cm-card-body" id="cm_prod_body" style="display:none">
                         <p class="cm-hint">
-                            Formato CSV requerido (primera fila = encabezado):<br>
-                            <code>nombre,apellido,email,password,telefono,cedula,finca,ubicacion</code><br>
-                            <small>Crea automáticamente el Usuario + Productor + QR en una sola operación.</small>
+                            Columnas requeridas (primera fila = encabezado exacto):<br>
+                            <code>nombre, apellido, email, password, telefono, cedula, finca, ubicacion</code><br>
+                            <small>Crea automáticamente el Usuario + Productor + QR. Acepta CSV y Excel (.xlsx).</small>
                         </p>
+                        <div class="cm-plantillas-row">
+                            <span class="cm-plantillas-label"><i class="fi fi-rr-file-download"></i> Descargar
+                                plantilla:</span>
+                            <button class="cm-btn-plantilla cm-btn-plantilla--csv"
+                                onclick="cm_descargarPlantillaCSV('productores')">
+                                <i class="fi fi-rr-document"></i> CSV
+                            </button>
+                            <button class="cm-btn-plantilla cm-btn-plantilla--excel"
+                                onclick="cm_descargarPlantillaExcel('productores')">
+                                <i class="fi fi-rr-file-spreadsheet"></i> Excel
+                            </button>
+                        </div>
                         <div class="cm-row">
                             <label class="cm-file-label" id="cm_prod_label" for="cm_prod_file">
                                 <i class="fi fi-rr-document"></i>
-                                <span id="cm_prod_filename">Seleccionar archivo .csv</span>
-                                <input type="file" id="cm_prod_file" accept=".csv"
+                                <span id="cm_prod_filename">Seleccionar archivo .csv o .xlsx</span>
+                                <input type="file" id="cm_prod_file" accept=".csv,.xlsx,.xls"
                                     onchange="cm_onFileChange(this,'cm_prod_filename','cm_prod_label')">
                             </label>
                             <button class="cm-btn" id="cm_prod_btn" onclick="cm_subirProductores()">
@@ -735,7 +817,48 @@
                         <div class="cm-result" id="cm_prod_result"></div>
                     </div>
                 </div>
-                <!-- ── FIN CARGA MASIVA ── -->
+                <!-- ── ACTUALIZAR FINCA / UBICACIÓN DE PRODUCTORES ── -->
+                <div class="cm-card">
+                    <div class="cm-card-header" onclick="cm_toggle('cm_prd_upd_body','cm_prd_upd_chevron')">
+                        <span><i class="fi fi-rr-pen-square"></i> Actualizar finca y ubicación</span>
+                        <i class="fi fi-rr-angle-down cm-chevron" id="cm_prd_upd_chevron"></i>
+                    </div>
+                    <div class="cm-card-body" id="cm_prd_upd_body" style="display:none">
+                        <p class="cm-hint">
+                            Columnas requeridas (primera fila = encabezado exacto):<br>
+                            <code>cedula, finca, ubicacion</code><br>
+                            <small>Actualiza o crea el perfil de productor y genera el QR automáticamente. Acepta CSV y
+                                Excel (.xlsx).</small>
+                        </p>
+                        <div class="cm-plantillas-row">
+                            <span class="cm-plantillas-label"><i class="fi fi-rr-file-download"></i> Descargar
+                                plantilla:</span>
+                            <button class="cm-btn-plantilla cm-btn-plantilla--csv"
+                                onclick="cm_descargarPlantillaCSV('productores_update')">
+                                <i class="fi fi-rr-document"></i> CSV
+                            </button>
+                            <button class="cm-btn-plantilla cm-btn-plantilla--excel"
+                                onclick="cm_descargarPlantillaExcel('productores_update')">
+                                <i class="fi fi-rr-file-spreadsheet"></i> Excel
+                            </button>
+                        </div>
+                        <div class="cm-row">
+                            <label class="cm-file-label" id="cm_prd_upd_label" for="cm_prd_upd_file">
+                                <i class="fi fi-rr-document"></i>
+                                <span id="cm_prd_upd_filename">Seleccionar archivo .csv o .xlsx</span>
+                                <input type="file" id="cm_prd_upd_file" accept=".csv,.xlsx,.xls"
+                                    onchange="cm_onFileChange(this,'cm_prd_upd_filename','cm_prd_upd_label')">
+                            </label>
+                            <button class="cm-btn" id="cm_prd_upd_btn" onclick="cm_actualizarProductores()">
+                                <i class="fi fi-rr-cloud-upload"></i> Subir actualización
+                            </button>
+                        </div>
+                        <div class="cm-loader" id="cm_prd_upd_loader" style="display:none">
+                            <span class="cm-spinner"></span> Procesando...
+                        </div>
+                        <div class="cm-result" id="cm_prd_upd_result"></div>
+                    </div>
+                </div>
 
                 <div class="usr-toolbar">
                     <div class="usr-search">
@@ -761,7 +884,7 @@
                                 <th>Teléfono</th>
                                 <th>QR</th>
                                 <th>Estado</th>
-                                <th></th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="prd_tbody">
@@ -908,15 +1031,28 @@
                     </div>
                     <div class="cm-card-body" id="cm_usr_body" style="display:none">
                         <p class="cm-hint">
-                            Formato CSV requerido (primera fila = encabezado):<br>
-                            <code>nombre,apellido,email,password,telefono,cedula,tipo_usuario</code><br>
-                            <small>tipo_usuario acepta: ADMIN · OPERARIO · PRODUCTOR</small>
+                            Columnas requeridas (primera fila = encabezado exacto):<br>
+                            <code>nombre, apellido, email, password(numero de documento), telefono, cedula, tipo_usuario</code><br>
+                            <small>tipo_usuario acepta: ADMIN · OPERARIO · PRODUCTOR. Acepta CSV y Excel
+                                (.xlsx).</small>
                         </p>
+                        <div class="cm-plantillas-row">
+                            <span class="cm-plantillas-label"><i class="fi fi-rr-file-download"></i> Descargar
+                                plantilla:</span>
+                            <button class="cm-btn-plantilla cm-btn-plantilla--csv"
+                                onclick="cm_descargarPlantillaCSV('usuarios')">
+                                <i class="fi fi-rr-document"></i> CSV
+                            </button>
+                            <button class="cm-btn-plantilla cm-btn-plantilla--excel"
+                                onclick="cm_descargarPlantillaExcel('usuarios')">
+                                <i class="fi fi-rr-file-spreadsheet"></i> Excel
+                            </button>
+                        </div>
                         <div class="cm-row">
                             <label class="cm-file-label" id="cm_usr_label" for="cm_usr_file">
                                 <i class="fi fi-rr-document"></i>
-                                <span id="cm_usr_filename">Seleccionar archivo .csv</span>
-                                <input type="file" id="cm_usr_file" accept=".csv"
+                                <span id="cm_usr_filename">Seleccionar archivo .csv o .xlsx</span>
+                                <input type="file" id="cm_usr_file" accept=".csv,.xlsx,.xls"
                                     onchange="cm_onFileChange(this,'cm_usr_filename','cm_usr_label')">
                             </label>
                             <button class="cm-btn" id="cm_usr_btn" onclick="cm_subirUsuarios()">
@@ -1234,7 +1370,8 @@
                                     <div style="color:#166534;font-size:.82rem;margin-top:2px">El <strong>precio
                                             base</strong> es lo que recibe el productor. Al vender a un comerciante, el
                                         operario cobra: <strong>EL PRIMO</strong> → precio base exacto &nbsp;·&nbsp;
-                                        <strong>Otros</strong> → precio base + $100/kg.</div>
+                                        <strong>Otros</strong> → precio base + $100/kg.
+                                    </div>
                                 </div>
                             </div>
 
@@ -1831,7 +1968,7 @@
     <!-- Módulos offline globales -->
     <script src="./js/auth-guard.js"></script>
     <script src="./js/agro-db.js"></script>
-    <script src="./js/agro-sync.js"></script>
+    <!--<script src="./js/agro-sync.js?v=7"></script>-->
     <script src="./js/agro-ux.js"></script>
     <script src="./js/app.js?v=7.0"></script>
     <script>

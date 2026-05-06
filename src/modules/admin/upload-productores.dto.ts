@@ -1,4 +1,4 @@
-// src/modules/admin/dto/upload-productores.dto.ts
+// src/modules/admin/upload-productores.dto.ts
 import {
   IsEmail,
   IsNotEmpty,
@@ -10,8 +10,7 @@ import {
 import { Transform } from 'class-transformer';
 
 /**
- * DTO que valida cada fila del CSV.
- * Se usa en el servicio después de parsear el CSV.
+ * DTO que valida cada fila del CSV de creación.
  */
 export class ProductorCsvRowDto {
   @IsNotEmpty({ message: 'nombre es requerido' })
@@ -35,7 +34,7 @@ export class ProductorCsvRowDto {
   @IsNotEmpty({ message: 'cedula es requerida' })
   @IsString()
   @MaxLength(20)
-  @Transform(({ value }) => String(value).replace(/\D/g, '')) // limpia puntos y espacios
+  @Transform(({ value }) => String(value).replace(/\D/g, ''))
   cedula: string;
 
   @IsOptional()
@@ -60,13 +59,46 @@ export class ProductorCsvRowDto {
 }
 
 /**
- * Resultado devuelto al cliente.
+ * Resultado devuelto al cliente tras la creación masiva.
  */
 export interface UploadProductoresResult {
   creados: number;
   errores: Array<{
     fila: number;
     datos: Partial<ProductorCsvRowDto>;
+    error: string;
+  }>;
+}
+
+/**
+ * DTO que valida cada fila del CSV de actualización (solo finca/ubicación).
+ */
+export class ProductorUpdateCsvRowDto {
+  @IsNotEmpty({ message: 'cedula es requerida' })
+  @IsString()
+  @MaxLength(20)
+  @Transform(({ value }) => String(value).replace(/\D/g, ''))
+  cedula: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  finca?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  ubicacion?: string;
+}
+
+/**
+ * Resultado devuelto al cliente tras la actualización masiva.
+ */
+export interface UploadProductoresUpdateResult {
+  actualizados: number;
+  errores: Array<{
+    fila: number;
+    cedula: string;
     error: string;
   }>;
 }

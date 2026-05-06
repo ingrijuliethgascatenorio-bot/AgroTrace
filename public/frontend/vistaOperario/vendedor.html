@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <title>Panel Operario - AgroTrace</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="vendedor.css?v=2" />
+  <link rel="stylesheet" href="vendedor.css?v=10" />
   <script src="./libs/html5-qrcode.min.js?v=2"></script>
   <link rel="stylesheet"
     href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css" />
@@ -444,14 +444,14 @@
               <p class="card-subtitle" id="rut-entregas-subtitle">—</p>
 
               <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+                <table class="rut-open-table" style="width:100%;border-collapse:collapse;font-size:.85rem">
                   <thead>
                     <tr style="background:#f0fdf4">
-                      <th style="padding:8px;text-align:left;color:#166534">Productor</th>
-                      <th style="padding:8px;text-align:left;color:#166534">Producto</th>
-                      <th style="padding:8px;text-align:center;color:#166534">Kg</th>
-                      <th style="padding:8px;text-align:right;color:#166534">Precio/kg</th>
-                      <th style="padding:8px;text-align:right;color:#166534">Subtotal</th>
+                      <th data-label="Productor" style="padding:8px;text-align:left;color:#166534">Productor</th>
+                      <th data-label="Producto" style="padding:8px;text-align:left;color:#166534">Producto</th>
+                      <th data-label="Kg" style="padding:8px;text-align:center;color:#166534">Kg</th>
+                      <th data-label="Precio/kg" style="padding:8px;text-align:right;color:#166534">Precio/kg</th>
+                      <th data-label="Subtotal" style="padding:8px;text-align:right;color:#166534">Subtotal</th>
                     </tr>
                   </thead>
                   <tbody id="rut-entregas-tbody">
@@ -460,6 +460,15 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <!-- Paginación entregas ruta activa -->
+              <div id="rut-ent-pagination"
+                style="display:none;align-items:center;justify-content:center;gap:12px;margin-top:12px">
+                <button id="rut-ent-prev" class="btn btn-secondary" style="padding:4px 14px;font-size:.82rem"
+                  onclick="rut_ent_paginar(-1)">&#8592; Anterior</button>
+                <span id="rut-ent-info" style="font-size:.82rem;color:#6b7280;font-weight:600">1 / 1</span>
+                <button id="rut-ent-next" class="btn btn-secondary" style="padding:4px 14px;font-size:.82rem"
+                  onclick="rut_ent_paginar(1)">Siguiente &#8594;</button>
               </div>
             </section>
 
@@ -477,26 +486,52 @@
           </div>
 
           <!-- Historial de rutas anteriores -->
-          <section class="card" style="margin-top:16px">
-            <h2 class="card-title">Historial de rutas</h2>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+          <section class="card rut-hist-card" style="margin-top:16px">
+            <div class="rut-hist-header">
+              <h2 class="card-title" style="margin:0">Historial de rutas</h2>
+              <div class="ux-pills ux-pills-sm" id="rut-pills-periodo">
+                <button class="ux-pill active" data-rperiodo="todo">Todos</button>
+                <button class="ux-pill" data-rperiodo="semana">Esta semana</button>
+                <button class="ux-pill" data-rperiodo="mes">Mes</button>
+                <button class="ux-pill" data-rperiodo="anio">Año</button>
+              </div>
+            </div>
+
+            <!-- Contador -->
+            <div class="ux-count-row" style="margin-bottom:8px">
+              <span id="rut-count-label" class="ux-count-label">— rutas</span>
+            </div>
+
+            <!-- Tabla → tarjetas (mismo patrón que historial) -->
+            <div class="hist-table-wrapper">
+              <table class="table hist-table-desktop rut-hist-table">
                 <thead>
-                  <tr style="background:#f9fafb">
-                    <th style="padding:8px;text-align:left">Fecha</th>
-                    <th style="padding:8px;text-align:center">Entregas</th>
-                    <th style="padding:8px;text-align:right">Kg totales</th>
-                    <th style="padding:8px;text-align:right">Precio/kg</th>
-                    <th style="padding:8px;text-align:center">Estado</th>
-                    <th style="padding:8px;text-align:center">Ver</th>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Entregas</th>
+                    <th>Kg totales</th>
+                    <th>Precio/kg</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="rut-historial-tbody">
                   <tr>
-                    <td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">Sin rutas</td>
+                    <td colspan="6" class="table-empty">Sin rutas</td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="ux-pagination" id="rut-pagination" style="display:none">
+              <button class="ux-page-btn" id="rut-prev" onclick="rut_paginar(-1)">
+                <i class="fi fi-rr-angle-left"></i>
+              </button>
+              <span class="ux-page-info" id="rut-page-info">1 / 1</span>
+              <button class="ux-page-btn" id="rut-next" onclick="rut_paginar(1)">
+                <i class="fi fi-rr-angle-right"></i>
+              </button>
             </div>
           </section>
 
@@ -534,163 +569,212 @@
         </section>
 
 
-        <!-- ═══════════════ STOCK (OPERARIO — solo lectura) ═══════════════ -->
-        <section id="section-stock" class="content-section">
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-              <div>
-                <h2 class="card-title" style="margin:0"><span><i class="fi fi-rr-boxes"></i></span> Stock disponible
-                </h2>
-                <p class="card-subtitle" style="margin:4px 0 0">Kilos disponibles para venta en este momento</p>
-              </div>
-              <button onclick="stk_op_cargar()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;
-                       padding:8px 14px;font-size:.82rem;cursor:pointer;font-weight:600">
-                <span><i class="fa-solid fa-rotate"></i></span> Actualizar
+        <!-- Este bloque es legacy — el STOCK real está abajo -->
+
+        <section id="section-historial" class="content-section">
+
+          <!-- ── Cabecera ── -->
+          <div class="ux-section-header">
+            <h2 class="ux-section-title">Operaciones</h2>
+            <p class="ux-section-sub">Compras y ventas registradas</p>
+          </div>
+
+          <!-- ── Submenu tipo / período ── -->
+          <div class="ux-submenu-row">
+            <!-- Tipo: Todos / Compras / Ventas -->
+            <div class="ux-pills" id="hist-pills-tipo">
+              <button class="ux-pill active" data-tipo="">
+                <i class="fi fi-rr-apps"></i> Todos
+              </button>
+              <button class="ux-pill" data-tipo="COMPRA">
+                <i class="fi fi-rr-shopping-cart"></i> Compras
+              </button>
+              <button class="ux-pill" data-tipo="VENTA">
+                <i class="fi fi-rr-box"></i> Ventas
               </button>
             </div>
 
-            <!-- Tarjetas por producto -->
-            <div id="stk_op_cards"
-              style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:20px">
-              <p style="color:#9ca3af;font-size:.85rem">Cargando...</p>
-            </div>
-
-            <!-- Últimos movimientos -->
-            <h3 style="font-size:.88rem;font-weight:700;color:#374151;margin:16px 0 10px">
-              Últimos movimientos
-            </h3>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:.83rem">
-                <thead>
-                  <tr style="background:#f0fdf4">
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Fecha</th>
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Tipo</th>
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Producto</th>
-                    <th
-                      style="padding:8px 10px;text-align:right;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Kilos</th>
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Origen</th>
-                  </tr>
-                </thead>
-                <tbody id="stk_op_tbody">
-                  <tr>
-                    <td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Cargando...</td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- Período rápido -->
+            <div class="ux-pills" id="hist-pills-periodo">
+              <button class="ux-pill active" data-periodo="todo">Todos</button>
+              <button class="ux-pill" data-periodo="semana">Semana</button>
+              <button class="ux-pill" data-periodo="mes">Mes</button>
+              <button class="ux-pill" data-periodo="anio">Año</button>
+              <button class="ux-pill" data-periodo="custom">
+                <i class="fi fi-rr-calendar"></i>
+              </button>
             </div>
           </div>
-        </section>
 
-        <section id="section-historial" class="content-section">
-          <div class="card">
-            <h2 class="card-title">Historial de operaciones</h2>
-            <p class="card-subtitle">Todas las compras y ventas registradas. Filtra o edita cualquier operación.</p>
-
-            <div class="hist-filters">
-              <input type="date" id="hist-fecha" class="input" />
-              <input type="text" id="hist-cedula" class="input" placeholder="Buscar por cédula o nombre..." />
-              <select id="hist-tipo" class="input">
-                <option value="">Todos</option>
-                <option value="COMPRA">Solo compras</option>
-                <option value="VENTA">Solo ventas</option>
-              </select>
-              <button type="button" id="btn-filtrar-historial" class="btn btn-outline">Filtrar</button>
-              <button type="button" id="btn-limpiar-historial" class="btn btn-secondary">Limpiar</button>
+          <!-- ── Filtro fecha personalizada (oculto por defecto) ── -->
+          <div class="ux-date-row" id="hist-custom-dates" style="display:none">
+            <div class="ux-date-field">
+              <label class="ux-date-label">Desde</label>
+              <input type="date" id="hist-fecha-desde" class="ux-date-input" />
             </div>
+            <div class="ux-date-field">
+              <label class="ux-date-label">Hasta</label>
+              <input type="date" id="hist-fecha-hasta" class="ux-date-input" />
+            </div>
+            <button class="ux-apply-btn" onclick="hist_aplicarFechaCustom()">Aplicar</button>
+          </div>
 
-            <div class="hist-table-wrapper">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Tipo</th>
-                    <th>Productor / Cliente</th>
-                    <th>Producto</th>
-                    <th>Peso / Cant.</th>
-                    <th>Total</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="historial-body">
-                  <tr>
-                    <td colspan="8" class="table-empty">Cargando historial...</td>
-                  </tr>
-                </tbody>
-              </table>
+          <!-- ── Buscador ── -->
+          <div class="ux-search-row">
+            <div class="ux-search-wrap">
+              <i class="fi fi-rr-search ux-search-icon"></i>
+              <input type="text" id="hist-cedula" class="ux-search-input" placeholder="Buscar por nombre o cédula..." />
+              <button class="ux-search-clear" id="hist-search-clear" onclick="hist_limpiarBusqueda()"
+                style="display:none">
+                <i class="fi fi-rr-cross-small"></i>
+              </button>
             </div>
           </div>
+
+          <!-- ── Contador ── -->
+          <div class="ux-count-row">
+            <span id="hist-count-label" class="ux-count-label">— registros</span>
+            <button class="ux-icon-btn" onclick="limpiarFiltros()" title="Limpiar filtros">
+              <i class="fi fi-rr-refresh"></i>
+            </button>
+          </div>
+
+          <!-- ── Tabla (desktop) / Tarjetas (mobile) ── -->
+          <div class="hist-table-wrapper">
+            <table class="table hist-table-desktop">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Productor / Cliente</th>
+                  <th>Producto</th>
+                  <th>Peso / Cant.</th>
+                  <th>Total</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="historial-body">
+                <tr>
+                  <td colspan="8" class="table-empty">Cargando...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ── Paginación historial ── -->
+          <div class="ux-pagination" id="hist-pagination" style="display:none">
+            <button class="ux-page-btn" id="hist-prev" onclick="hist_paginar(-1)">
+              <i class="fi fi-rr-angle-left"></i>
+            </button>
+            <span class="ux-page-info" id="hist-page-info">1 / 1</span>
+            <button class="ux-page-btn" id="hist-next" onclick="hist_paginar(1)">
+              <i class="fi fi-rr-angle-right"></i>
+            </button>
+          </div>
+
         </section>
 
 
         <!-- ═══════════════════════════════ STOCK ═══════════════════════════════ -->
         <section id="section-stock" class="content-section">
-          <div style="padding:20px 0 8px">
-            <h2 style="font-size:1.1rem;font-weight:800;color:#111827;margin:0 0 4px">Stock disponible</h2>
-            <p style="font-size:.83rem;color:#6b7280;margin:0">Kilos disponibles por producto en tiempo real.</p>
+
+          <!-- Cabecera -->
+          <div class="ux-section-header">
+            <div>
+              <h2 class="ux-section-title">Stock</h2>
+              <p class="ux-section-sub">Movimientos de entrada y salida</p>
+            </div>
+            <button onclick="stk_op_cargar()" class="ux-icon-btn" title="Actualizar">
+              <i class="fi fi-rr-refresh"></i>
+            </button>
           </div>
 
-          <!-- KPI cards -->
-          <div id="stk_op_kpis"
-            style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+          <!-- Disponible: tarjetas por producto -->
+          <div id="stk_op_cards" class="stk-available-grid">
+            <p style="color:#9ca3af;font-size:.85rem;text-align:center;padding:20px 0;grid-column:1/-1">Cargando...</p>
           </div>
 
-          <!-- Tabla por producto -->
-          <div
-            style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <h3 style="font-size:.9rem;font-weight:700;margin:0;color:#166534">Disponibilidad por producto</h3>
-              <button onclick="stk_op_cargar()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;
-                               border-radius:8px;padding:6px 12px;font-size:.78rem;cursor:pointer;font-weight:600">
-                ↺ Actualizar
+          <!-- Separador -->
+          <div class="ux-divider">
+            <span>Movimientos</span>
+          </div>
+
+          <!-- Filtros: Tipo -->
+          <div class="ux-submenu-row">
+            <div class="ux-pills" id="stk-pills">
+              <button class="ux-pill active" data-stab="disponible">
+                <i class="fi fi-rr-apps"></i> Todos
+              </button>
+              <button class="ux-pill" data-stab="entrada">
+                <i class="fi fi-rr-arrow-down"></i> Entradas
+              </button>
+              <button class="ux-pill" data-stab="salida">
+                <i class="fi fi-rr-arrow-up"></i> Salidas
               </button>
             </div>
-            <div id="stk_op_cards" style="display:flex;flex-direction:column;gap:10px">
-              <p style="color:#9ca3af;font-size:.85rem;text-align:center;padding:20px 0">Cargando...</p>
+
+            <!-- Filtros: Período -->
+            <div class="ux-pills" id="stk-pills-periodo">
+              <button class="ux-pill active" data-speriodo="todo">Todos</button>
+              <button class="ux-pill" data-speriodo="semana">Esta semana</button>
+              <button class="ux-pill" data-speriodo="mes">Mes</button>
+              <button class="ux-pill" data-speriodo="anio">Año</button>
+              <button class="ux-pill" data-speriodo="custom">
+                <i class="fi fi-rr-calendar"></i>
+              </button>
             </div>
           </div>
 
-          <!-- Últimos movimientos (solo lectura) -->
-          <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-            <h3 style="font-size:.9rem;font-weight:700;margin:0 0 12px;color:#166534">Últimos movimientos</h3>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:.82rem">
-                <thead>
-                  <tr style="background:#f0fdf4">
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Fecha</th>
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Tipo</th>
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Producto</th>
-                    <th
-                      style="padding:8px 10px;text-align:right;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Kilos</th>
-                    <th
-                      style="padding:8px 10px;text-align:left;color:#166534;font-size:.72rem;text-transform:uppercase">
-                      Referencia</th>
-                  </tr>
-                </thead>
-                <tbody id="stk_op_movs_tbody">
-                  <tr>
-                    <td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Cargando...</td>
-                  </tr>
-                </tbody>
-              </table>
+          <!-- Fechas custom -->
+          <div class="ux-date-row" id="stk-custom-dates" style="display:none">
+            <div class="ux-date-field">
+              <label class="ux-date-label">Desde</label>
+              <input type="date" id="stk-fecha-desde" class="ux-date-input" />
             </div>
+            <div class="ux-date-field">
+              <label class="ux-date-label">Hasta</label>
+              <input type="date" id="stk-fecha-hasta" class="ux-date-input" />
+            </div>
+            <button class="ux-apply-btn" onclick="stk_aplicarFechaCustom()">Aplicar</button>
           </div>
+
+          <!-- Contador -->
+          <div class="ux-count-row">
+            <span id="stk-count-label" class="ux-count-label">— movimientos</span>
+          </div>
+
+          <!-- Tabla → tarjetas (mismo patrón que historial) -->
+          <div class="hist-table-wrapper">
+            <table class="table hist-table-desktop stk-mov-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Producto</th>
+                  <th>Kilos</th>
+                  <th>Origen</th>
+                </tr>
+              </thead>
+              <tbody id="stk-mov-tbody">
+                <tr>
+                  <td colspan="5" class="table-empty">Cargando...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div class="ux-pagination" id="stk-pagination" style="display:none">
+            <button class="ux-page-btn" id="stk-prev" onclick="stk_paginar(-1)">
+              <i class="fi fi-rr-angle-left"></i>
+            </button>
+            <span class="ux-page-info" id="stk-page-info">1 / 1</span>
+            <button class="ux-page-btn" id="stk-next" onclick="stk_paginar(1)">
+              <i class="fi fi-rr-angle-right"></i>
+            </button>
+          </div>
+
         </section>
 
       </main>
@@ -702,29 +786,28 @@
      NAVEGACIÓN INFERIOR — MOBILE
      Solo visible en pantallas ≤ 768px (CSS lo controla)
      ================================================ -->
-  <nav class="mobile-nav" role="navigation" aria-label="Navegación principal">
-    <div class="mobile-nav-inner">
-
+  <nav class="mobile-nav" id="mobile-nav" role="navigation" aria-label="Navegación principal">
+    <!-- Página 1: Inicio, Compra, Venta, Rutas -->
+    <div class="mobile-nav-page" id="mnav-page-0">
       <button class="mobile-nav-item active" id="mnav-dashboard">
         <div class="mobile-nav-pill"><i class="fi fi-rr-home"></i></div>
         <span class="mobile-nav-label">Inicio</span>
       </button>
-
       <button class="mobile-nav-item" id="mnav-compra">
         <div class="mobile-nav-pill"><i class="fi fi-rr-barcode"></i></div>
         <span class="mobile-nav-label">Compra</span>
       </button>
-
       <button class="mobile-nav-item" id="mnav-venta">
         <div class="mobile-nav-pill"><i class="fi fi-rr-stats"></i></div>
         <span class="mobile-nav-label">Venta</span>
       </button>
-
       <button class="mobile-nav-item" id="mnav-rutas">
         <div class="mobile-nav-pill"><i class="fi fi-rr-truck-side"></i></div>
         <span class="mobile-nav-label">Rutas</span>
       </button>
-
+    </div>
+    <!-- Página 2: Stock, Historial, Perfil -->
+    <div class="mobile-nav-page" id="mnav-page-1">
       <button class="mobile-nav-item" id="mnav-stock">
         <div class="mobile-nav-pill"><i class="fi fi-rr-boxes"></i></div>
         <span class="mobile-nav-label">Stock</span>
@@ -733,11 +816,15 @@
         <div class="mobile-nav-pill"><i class="fi fi-rr-list"></i></div>
         <span class="mobile-nav-label">Historial</span>
       </button>
-
       <button class="mobile-nav-item" id="mnav-perfil">
         <div class="mobile-nav-pill"><i class="fi fi-rr-user"></i></div>
         <span class="mobile-nav-label">Perfil</span>
       </button>
+    </div>
+    <!-- Dots indicadores de página — debajo de los ítems -->
+    <div class="mobile-nav-dots" id="mnav-dots" aria-hidden="true">
+      <span class="mobile-nav-dot active" data-page="0"></span>
+      <span class="mobile-nav-dot" data-page="1"></span>
     </div>
   </nav>
 
@@ -1168,11 +1255,11 @@
   </style>
 
   <!-- Módulos offline globales -->
-   <script src="../js/auth-guard.js"></script> 
-  <script src="../js/agro-db.js?v=3"></script>
-  <script src="../js/agro-sync.js?v=3"></script>
+  <script src="../js/auth-guard.js"></script>
+  <script src="../js/agro-db.js?v=4"></script>
+  <script src="../js/agro-sync.js?v=6"></script>
   <script src="../js/agro-ux.js"></script>
-  <script src="vendedor.js?v=6"></script>
+  <script src="./vendedor.js?v=22"></script>
   <script src="/frontend/js/app-install.js"></script>
 
   <script>
@@ -1182,11 +1269,10 @@
       if (typeof openDrawer === "function") openDrawer();
     });
 
-    /* ── Navegación móvil inferior ─────────────── */
+    /* ── Navegación móvil inferior — CARRUSEL ───── */
     (function initMobileNav() {
       const mobileItems = document.querySelectorAll(".mobile-nav-item");
 
-      // Mapa: id del botón → sección + título
       const navMap = {
         "mnav-dashboard": { section: "section-dashboard", title: "Inicio" },
         "mnav-compra": { section: "section-escanear", title: "Registrar compra" },
@@ -1202,58 +1288,96 @@
           const config = navMap[item.id];
           if (!config) return;
 
-          // Perfil → abrir drawer
           if (!config.section) {
             if (typeof openDrawer === "function") openDrawer();
             return;
           }
 
-          // Marcar activo en la barra móvil
           mobileItems.forEach(i => i.classList.remove("active"));
           item.classList.add("active");
 
-          // Marcar activo en el sidebar (mantiene sincronía con vendedor.js)
           document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
           const sidebarLink = document.querySelector(`.nav-item[href="#${config.section}"]`);
           if (sidebarLink) sidebarLink.classList.add("active");
 
-          // Cambiar sección visible
           document.querySelectorAll(".content-section").forEach(s => s.classList.remove("active"));
           const target = document.getElementById(config.section);
           if (target) target.classList.add("active");
 
-          // Actualizar título del topbar
           const topbarTitle = document.getElementById("topbar-title");
           if (topbarTitle) topbarTitle.textContent = config.title;
 
-          // Cargar datos si hace falta
-          if (config.section === "section-historial" && typeof cargarHistorial === "function") {
-            cargarHistorial();
-          }
-          if (config.section === "section-dashboard" && typeof cargarDashboard === "function") {
-            cargarDashboard();
-          }
+          if (config.section === "section-historial" && typeof cargarHistorial === "function") cargarHistorial();
+          if (config.section === "section-dashboard" && typeof cargarDashboard === "function") cargarDashboard();
         });
       });
 
-      // Sincronizar estado inicial: si ya hay una sección activa, reflejarla en la barra
       function syncInitialState() {
         const activeSection = document.querySelector(".content-section.active");
         if (!activeSection) return;
         const id = activeSection.id;
         mobileItems.forEach(item => {
           const config = navMap[item.id];
-          if (config && config.section === id) {
-            item.classList.add("active");
-          }
+          if (config && config.section === id) item.classList.add("active");
         });
       }
-      // Esperar a que el DOM esté completamente listo
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", syncInitialState);
       } else {
         syncInitialState();
       }
+    })();
+
+    /* ── Carrusel de páginas en la nav móvil ──────── */
+    (function initMobileCarousel() {
+      const nav = document.getElementById('mobile-nav');
+      const pages = Array.from(document.querySelectorAll('.mobile-nav-page'));
+      const dots = Array.from(document.querySelectorAll('.mobile-nav-dot'));
+      if (!nav || pages.length === 0) return;
+
+      let currentPage = 0;
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      function goToPage(idx) {
+        if (idx < 0 || idx >= pages.length) return;
+        currentPage = idx;
+        pages.forEach((p, i) => {
+          p.classList.toggle('active', i === idx);
+        });
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+
+      // Dot click
+      dots.forEach(dot => {
+        dot.addEventListener('click', () => goToPage(+dot.dataset.page));
+      });
+
+      // Swipe touch
+      nav.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      nav.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return; // no es swipe horizontal
+        if (dx < 0) goToPage(currentPage + 1); // swipe izquierda → siguiente
+        else goToPage(currentPage - 1); // swipe derecha → anterior
+      }, { passive: true });
+
+      // Al activar un ítem de la página 2, auto-ir a esa página
+      document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const page = item.closest('.mobile-nav-page');
+          if (!page) return;
+          const idx = pages.indexOf(page);
+          if (idx !== currentPage) goToPage(idx);
+        });
+      });
+
+      goToPage(0);
     })();
   </script>
   <!-- FIX v9: Registro Service Worker -->

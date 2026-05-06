@@ -8,10 +8,7 @@ import { parse } from 'csv-parse/sync';
 
 import { Usuario, TipoUsuario } from '../users/entities/usuario.entity';
 import { Permission } from '../../common/enums/permissions.enum';
-import {
-  UsuarioCsvRowDto,
-  UploadUsuariosResult,
-} from './upload-usuarios.dto';
+import { UsuarioCsvRowDto, UploadUsuariosResult } from './upload-usuarios.dto';
 
 /**
  * UploadUsuariosService
@@ -120,7 +117,10 @@ export class UploadUsuariosService {
     try {
       // ── Verificar email único en esta asociación ──────────────────────────
       const emailExiste = await queryRunner.manager.findOne(Usuario, {
-        where: { email: dto.email.toLowerCase().trim(), asociacion_id: asociacionId },
+        where: {
+          email: dto.email.toLowerCase().trim(),
+          asociacion_id: asociacionId,
+        },
       });
       if (emailExiste) {
         throw new Error(
@@ -188,6 +188,28 @@ export class UploadUsuariosService {
   // ─────────────────────────────────────────────────────────────────────────
   private _parsearCSV(buffer: Buffer): Record<string, string>[] {
     try {
+      // ── Detectar si es Excel por magic bytes ──────────────────────────────
+      // XLSX: comienza con PK (50 4B) — es un ZIP
+      // XLS:  comienza con D0 CF 11 E0
+      const esXlsx = buffer[0] === 0x50 && buffer[1] === 0x4b;
+      const esXls = buffer[0] === 0xd0 && buffer[1] === 0xcf;
+
+      if (esXlsx || esXls) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const XLSX = require('xlsx') as typeof import('xlsx');
+        const wb = XLSX.read(buffer, {
+          type: 'buffer',
+          cellText: true,
+          raw: false,
+        });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csvStr = XLSX.utils.sheet_to_csv(ws, {
+          blankrows: false,
+          rawNumbers: false,
+        });
+        buffer = Buffer.from(csvStr, 'utf-8');
+      }
+
       const registros = parse(buffer, {
         columns: true,
         skip_empty_lines: true,
@@ -201,7 +223,7 @@ export class UploadUsuariosService {
       return registros;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error desconocido';
-      throw new BadRequestException(`Error al parsear el CSV: ${msg}`);
+      throw new BadRequestException(`Error al parsear el archivo: ${msg}`);
     }
   }
 }

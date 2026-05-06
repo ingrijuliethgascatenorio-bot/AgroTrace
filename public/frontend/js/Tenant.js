@@ -10,9 +10,25 @@
  * 'localhost'           → 'dev' (modo desarrollo)
  */
 function obtenerSubdominio() {
-  const partes = window.location.hostname.split('.');
-  if (partes.length >= 3) return partes[0];
-  return 'dev'; // localhost / desarrollo
+  const host = window.location.hostname;
+
+  // 👉 Caso localhost
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return 'dev';
+  }
+
+  // 👉 Caso ngrok (IMPORTANTE)
+  if (host.includes('ngrok-free.dev')) {
+    return 'dev';
+  }
+
+  // 👉 Caso producción real con subdominio
+  const partes = host.split('.');
+  if (partes.length >= 3) {
+    return partes[0];
+  }
+
+  return 'dev';
 }
 
 /**

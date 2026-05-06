@@ -57,8 +57,12 @@ function fechaHoyColombia() {
 }
 
 // app.js - AgroTrace
-const API_URL = 'http://localhost:3000/api';
-const STATIC_URL = 'http://localhost:3000';
+// Detección automática de entorno: localhost → dev, cualquier otro host → producción/ngrok
+const _BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : ' https://irregular-sycamore-qualified.ngrok-free.dev';
+const API_URL    = `${_BASE_URL}/api`;
+const STATIC_URL = _BASE_URL;
 
 // ── Obtener usuario autenticado desde JWT / localStorage ───
 function obtenerUsuarioDesdeToken() {

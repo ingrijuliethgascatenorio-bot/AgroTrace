@@ -112,6 +112,17 @@ export class AuthService {
       permisos: usuario.permisos,
       asociacion_id: usuario.asociacion_id,
     };
-    return this.jwtService.sign(payload);
+
+    // FIX OFFLINE: OPERARIO y PRODUCTOR trabajan en fincas sin internet
+    // durante días/semanas. Con JWT de 1 día quedan bloqueados en campo.
+    // ADMIN siempre tiene internet (oficina) — mantiene 1 día.
+    const rolSinInternet = ['OPERARIO', 'PRODUCTOR'].includes(
+      usuario.tipo_usuario,
+    );
+    const expiresIn = rolSinInternet
+      ? 60 * 60 * 24 * 30 // 30 días para OPERARIO y PRODUCTOR
+      : 60 * 60 * 24 * 1; // 1 día solo para ADMIN
+
+    return this.jwtService.sign(payload, { expiresIn });
   }
 }

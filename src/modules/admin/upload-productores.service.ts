@@ -1,4 +1,4 @@
-// src/modules/admin/services/upload-productores.service.ts
+// src/modules/admin/upload-productores.service.ts
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { validate } from 'class-validator';
@@ -11,20 +11,20 @@ import { Usuario, TipoUsuario } from '../users/entities/usuario.entity';
 import { Productor } from '../productor/productores.entity';
 import {
   ProductorCsvRowDto,
+  ProductorUpdateCsvRowDto,
   UploadProductoresResult,
+  UploadProductoresUpdateResult,
 } from './upload-productores.dto';
 import { Permission } from '../../common/enums/permissions.enum';
 
 /**
  * UploadProductoresService
  *
- * Carga masiva de productores desde un CSV.
- * - Cada fila se procesa en su propia transacción para que un error
- *   en una fila no aborte las demás.
- * - Usa QueryRunner para control explícito de transacciones.
- * - Hashea passwords con bcrypt (costo 10).
- * - Valida email único + cédula única POR ASOCIACIÓN.
- * - Genera QR automáticamente.
+ * procesarCSV()              → Carga masiva COMPLETA: crea usuario + productor + QR.
+ * actualizarFincaUbicacion() → Recibe cedula + finca + ubicacion.
+ *                              - Si el productor YA existe → actualiza finca y ubicacion.
+ *                              - Si el productor NO existe → lo CREA con QR usando la cédula.
+ *                              El usuario debe existir previamente en la tabla usuario.
  */
 @Injectable()
 export class UploadProductoresService {
@@ -33,11 +33,12 @@ export class UploadProductoresService {
   constructor(private readonly dataSource: DataSource) {}
 
   // ─────────────────────────────────────────────────────────────────────────
+  //  CREACIÓN MASIVA COMPLETA (usuario + productor + QR)
+  // ─────────────────────────────────────────────────────────────────────────
   async procesarCSV(
     buffer: Buffer,
     asociacionId: number,
   ): Promise<UploadProductoresResult> {
-    // 1. Parsear CSV
     const filas = this._parsearCSV(buffer);
 
     if (filas.length === 0) {
@@ -45,7 +46,6 @@ export class UploadProductoresService {
         'El CSV está vacío o no tiene datos válidos.',
       );
     }
-
     if (filas.length > 500) {
       throw new BadRequestException(
         'El CSV supera el límite de 500 filas por carga. Divídelo en archivos más pequeños.',
@@ -54,9 +54,8 @@ export class UploadProductoresService {
 
     const resultado: UploadProductoresResult = { creados: 0, errores: [] };
 
-    // 2. Procesar cada fila de forma independiente
     for (let i = 0; i < filas.length; i++) {
-      const numeroFila = i + 2; // +2 porque la fila 1 es el encabezado
+      const numeroFila = i + 2;
       const fila = filas[i];
 
       try {
@@ -65,7 +64,6 @@ export class UploadProductoresService {
       } catch (error) {
         const mensaje =
           error instanceof Error ? error.message : 'Error desconocido';
-
         resultado.errores.push({
           fila: numeroFila,
           datos: {
@@ -76,7 +74,6 @@ export class UploadProductoresService {
           },
           error: mensaje,
         });
-
         this.logger.warn(`Fila ${numeroFila} omitida: ${mensaje}`);
       }
     }
@@ -90,14 +87,132 @@ export class UploadProductoresService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Procesa UNA fila en su propia transacción
+  //  ACTUALIZAR O CREAR finca + ubicacion + QR
+  //
+  //  Flujo por fila:
+  //    1. Busca el usuario por cédula (debe existir en tabla usuario)
+  //    2. Si ya tiene fila en productor → actualiza finca y ubicacion + regenera QR
+  //    3. Si NO tiene fila en productor → la CREA con finca, ubicacion y QR
+  // ─────────────────────────────────────────────────────────────────────────
+  async actualizarFincaUbicacion(
+    buffer: Buffer,
+    asociacionId: number,
+  ): Promise<UploadProductoresUpdateResult> {
+    const filas = this._parsearCSV(buffer);
+
+    if (filas.length === 0) {
+      throw new BadRequestException(
+        'El CSV está vacío o no tiene datos válidos.',
+      );
+    }
+    if (filas.length > 500) {
+      throw new BadRequestException(
+        'El CSV supera el límite de 500 filas por carga.',
+      );
+    }
+
+    const resultado: UploadProductoresUpdateResult = {
+      actualizados: 0,
+      errores: [],
+    };
+
+    for (let i = 0; i < filas.length; i++) {
+      const numeroFila = i + 2;
+      const fila = filas[i];
+
+      try {
+        // 1. Validar DTO
+        const dto = plainToInstance(ProductorUpdateCsvRowDto, fila);
+        const erroresValidacion = await validate(dto, { whitelist: true });
+
+        if (erroresValidacion.length > 0) {
+          const mensajes = erroresValidacion
+            .map((e) => Object.values(e.constraints || {}).join(', '))
+            .join(' | ');
+          throw new Error(`Validación fallida: ${mensajes}`);
+        }
+
+        // 2. Buscar usuario por cédula en esta asociación
+        const usuario = await this.dataSource.manager.findOne(Usuario, {
+          where: { cedula: dto.cedula, asociacion_id: asociacionId },
+        });
+
+        if (!usuario) {
+          throw new Error(
+            `No existe usuario con cédula "${dto.cedula}" en esta asociación.`,
+          );
+        }
+
+        // 3. Generar QR con la cédula
+        const codigo_qr = await QRCode.toDataURL(dto.cedula, {
+          errorCorrectionLevel: 'H',
+          margin: 2,
+          width: 300,
+        });
+
+        // 4. Buscar si ya tiene fila en productor
+        const productorExistente = await this.dataSource.manager.findOne(
+          Productor,
+          {
+            where: { id_usuario: usuario.id_usuario },
+          },
+        );
+
+        if (productorExistente) {
+          // ── Ya existe → actualizar finca, ubicacion y QR ───────────────────
+          await this.dataSource.manager.update(
+            Productor,
+            { id_productor: productorExistente.id_productor },
+            {
+              ...(dto.finca?.trim() && { finca: dto.finca.trim() }),
+              ...(dto.ubicacion?.trim() && { ubicacion: dto.ubicacion.trim() }),
+              codigo_qr,
+            },
+          );
+          this.logger.log(`Productor actualizado — cédula ${dto.cedula}`);
+        } else {
+          // ── No existe → CREAR fila en productor con QR ────────────────────
+          const nuevoProductor = this.dataSource.manager.create(Productor, {
+            finca: dto.finca?.trim() || null,
+            ubicacion: dto.ubicacion?.trim() || null,
+            estado: 'ACTIVO',
+            codigo_qr,
+            id_usuario: usuario.id_usuario,
+            asociacion_id: asociacionId,
+          });
+          await this.dataSource.manager.save(Productor, nuevoProductor);
+          this.logger.log(`Productor creado — cédula ${dto.cedula}`);
+        }
+
+        resultado.actualizados++;
+      } catch (error) {
+        const mensaje =
+          error instanceof Error ? error.message : 'Error desconocido';
+        resultado.errores.push({
+          fila: numeroFila,
+          cedula: String(fila.cedula ?? ''),
+          error: mensaje,
+        });
+        this.logger.warn(`Fila ${numeroFila} omitida: ${mensaje}`);
+      }
+    }
+
+    this.logger.log(
+      `Actualización masiva asociación #${asociacionId}: ` +
+        `${resultado.actualizados} procesados, ${resultado.errores.length} errores`,
+    );
+
+    return resultado;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Procesa UNA fila de creación COMPLETA en su propia transacción
   // ─────────────────────────────────────────────────────────────────────────
   private async _procesarFila(
     filaRaw: Record<string, string>,
     asociacionId: number,
     numeroFila: number,
   ): Promise<void> {
-    // 2a. Transformar y validar con class-validator
     const dto = plainToInstance(ProductorCsvRowDto, filaRaw);
     const erroresValidacion = await validate(dto, {
       whitelist: true,
@@ -111,13 +226,12 @@ export class UploadProductoresService {
       throw new Error(`Validación fallida: ${mensajes}`);
     }
 
-    // 2b. Transacción por fila
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // ── Verificar email único en esta asociación ──────────────────────────
+      // Verificar email único
       const emailExiste = await queryRunner.manager.findOne(Usuario, {
         where: { email: dto.email, asociacion_id: asociacionId },
       });
@@ -127,26 +241,25 @@ export class UploadProductoresService {
         );
       }
 
-      // ── Verificar cédula única en esta asociación ─────────────────────────
-      const cedulaExisteEnUsuario = await queryRunner.manager.findOne(Usuario, {
+      // Verificar cédula única
+      const cedulaExiste = await queryRunner.manager.findOne(Usuario, {
         where: { cedula: dto.cedula, asociacion_id: asociacionId },
       });
-      if (cedulaExisteEnUsuario) {
+      if (cedulaExiste) {
         throw new Error(
           `La cédula "${dto.cedula}" ya está registrada en esta asociación.`,
         );
       }
 
-      // ── Crear Usuario ─────────────────────────────────────────────────────
+      // Crear Usuario
       const passwordHash = await bcrypt.hash(dto.password, 10);
-
       const usuario = queryRunner.manager.create(Usuario, {
         nombre: dto.nombre.trim(),
         apellido: dto.apellido.trim(),
         email: dto.email.toLowerCase().trim(),
         password: passwordHash,
         telefono: dto.telefono?.trim() || null,
-        cedula: dto.cedula, // ya limpia por @Transform
+        cedula: dto.cedula,
         tipo_usuario: TipoUsuario.PRODUCTOR,
         activo: true,
         permisos: [Permission.COMPRAS, Permission.PRODUCTORES],
@@ -155,7 +268,7 @@ export class UploadProductoresService {
 
       const usuarioGuardado = await queryRunner.manager.save(Usuario, usuario);
 
-      // ── Crear Productor ───────────────────────────────────────────────────
+      // Crear Productor
       const productor = queryRunner.manager.create(Productor, {
         finca: dto.finca?.trim() || null,
         ubicacion: dto.ubicacion?.trim() || null,
@@ -170,7 +283,7 @@ export class UploadProductoresService {
         productor,
       );
 
-      // ── Generar QR (basado en la cédula) ──────────────────────────────────
+      // Generar QR con la cédula
       const codigo_qr = await QRCode.toDataURL(dto.cedula, {
         errorCorrectionLevel: 'H',
         margin: 2,
@@ -186,23 +299,42 @@ export class UploadProductoresService {
       await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw error; // se propaga al loop principal
+      throw error;
     } finally {
       await queryRunner.release();
     }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Parsear CSV a array de objetos planos
+  //  Parsear CSV / Excel a array de objetos planos
   // ─────────────────────────────────────────────────────────────────────────
   private _parsearCSV(buffer: Buffer): Record<string, string>[] {
     try {
+      const esXlsx = buffer[0] === 0x50 && buffer[1] === 0x4b;
+      const esXls = buffer[0] === 0xd0 && buffer[1] === 0xcf;
+
+      if (esXlsx || esXls) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const XLSX = require('xlsx') as typeof import('xlsx');
+        const wb = XLSX.read(buffer, {
+          type: 'buffer',
+          cellText: true,
+          raw: false,
+        });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csvStr = XLSX.utils.sheet_to_csv(ws, {
+          blankrows: false,
+          rawNumbers: false,
+        });
+        buffer = Buffer.from(csvStr, 'utf-8');
+      }
+
       const registros = parse(buffer, {
-        columns: true, // primera fila = nombres de columnas
+        columns: true,
         skip_empty_lines: true,
         trim: true,
-        bom: true, // maneja archivos exportados desde Excel (UTF-8 BOM)
-        cast: false, // todo como string, validamos con class-validator
+        bom: true,
+        cast: false,
         relax_quotes: true,
         relax_column_count: true,
       }) as Record<string, string>[];
@@ -210,7 +342,7 @@ export class UploadProductoresService {
       return registros;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error desconocido';
-      throw new BadRequestException(`Error al parsear el CSV: ${msg}`);
+      throw new BadRequestException(`Error al parsear el archivo: ${msg}`);
     }
   }
 }

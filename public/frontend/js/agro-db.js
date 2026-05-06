@@ -5,7 +5,7 @@
 
 const AgroDB = (() => {
   const DB_NAME = 'agrotrace_db';
-  const DB_VER  = 4; // 🔥 subimos versión para incluir nuevas stores
+  const DB_VER  = 5; // subimos versión para incluir store productores
   let _db = null;
 
   // ─────────────────────────────
@@ -44,17 +44,24 @@ const AgroDB = (() => {
           s.createIndex('timestamp', 'timestamp');
         }
 
-        // 🔥 RUTAS OFFLINE (PRODUCTOR REAL)
+        // 🔥 RUTAS OFFLINE
         if (!db.objectStoreNames.contains('rutas')) {
           db.createObjectStore('rutas', {
             keyPath: 'id'
           });
         }
 
-        // 🔥 QR CACHE (NO DEPENDER DE RED)
+        // 🔥 QR CACHE
         if (!db.objectStoreNames.contains('qr_cache')) {
           db.createObjectStore('qr_cache', {
             keyPath: 'rutaId'
+          });
+        }
+
+        // 🔥 PRODUCTORES OFFLINE — clave = cédula como string
+        if (!db.objectStoreNames.contains('productores')) {
+          db.createObjectStore('productores', {
+            keyPath: 'cedula'
           });
         }
       };
@@ -186,6 +193,33 @@ const AgroDB = (() => {
   }
 
   // ─────────────────────────────
+  // PRODUCTORES OFFLINE
+  // Clave: cédula (string). Guarda el objeto completo del productor
+  // para que buscarProductorPorCedula funcione sin red.
+  // ─────────────────────────────
+  async function guardarProductorOffline(productor) {
+    // Normalizar la clave: siempre string, extraer de las dos rutas posibles
+    const cedula = String(
+      productor.cedula || productor.usuario?.cedula || productor.id_productor || ''
+    ).trim();
+    if (!cedula) return; // no guardamos sin clave
+    return _tx('productores', 'readwrite', s =>
+      s.put({ ...productor, cedula, _ts: Date.now() })
+    );
+  }
+
+  async function obtenerProductorOffline(cedula) {
+    const db = await abrir();
+    return new Promise(resolve => {
+      const req = db.transaction('productores', 'readonly')
+        .objectStore('productores')
+        .get(String(cedula).trim());
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => resolve(null);
+    });
+  }
+
+  // ─────────────────────────────
   // RUTAS OFFLINE (CRÍTICO PRODUCTOR)
   // ─────────────────────────────
   const guardarRutaOffline = (ruta) =>
@@ -239,7 +273,10 @@ const AgroDB = (() => {
     obtenerRutasOffline,
 
     guardarQRCache,
-    obtenerQRCache
+    obtenerQRCache,
+
+    guardarProductorOffline,
+    obtenerProductorOffline,
   };
 })();
 
