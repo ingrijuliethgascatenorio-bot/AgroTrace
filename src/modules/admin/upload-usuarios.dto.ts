@@ -48,14 +48,12 @@ export class UsuarioCsvRowDto {
   })
   telefono?: string;
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'cedula es requerida' })
   @IsString()
   @MaxLength(20)
   @Matches(/^\d+$/, { message: 'cedula solo puede contener números' })
-  @Transform(({ value }) =>
-    value ? String(value).replace(/\D/g, '') : undefined,
-  )
-  cedula?: string;
+  @Transform(({ value }) => (value ? String(value).replace(/\D/g, '') : value))
+  cedula: string;
 
   @IsNotEmpty({ message: 'tipo_usuario es requerido' })
   @IsEnum(TipoUsuario, {

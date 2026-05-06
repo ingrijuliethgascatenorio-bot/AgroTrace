@@ -107,6 +107,23 @@
     }
 
     #ing_tbody td[data-label="Total"] {
-        font-size: .9rem;
+        font-size: 1rem;
+    }
+
+    /* Letras más grandes para campesinos adultos */
+    .ing-kpi-card {
+        padding: 20px 16px;
+    }
+
+    .ing-kpi-label {
+        font-size: 13px;
+    }
+
+    .ing-kpi-value {
+        font-size: 1.65rem;
+    }
+
+    .ing-kpi-sub {
+        font-size: 13px;
     }
 }

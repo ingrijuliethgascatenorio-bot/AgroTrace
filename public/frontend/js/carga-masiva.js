@@ -1,19 +1,20 @@
 // ════════════════════════════════════════════════════════════════════════════
 //  CARGA MASIVA — AgroTrace
 //
-//  Endpoints del backend (sin cambios):
-//    POST /api/admin/upload-usuarios      → carga masiva de usuarios
-//    POST /api/admin/upload-productores   → carga masiva de productores
-//    POST /api/admin/upload-comerciantes  → carga masiva de comerciantes
+//  Endpoints del backend:
+//    POST /api/admin/upload-usuarios             → carga masiva de usuarios
+//    POST /api/admin/upload-productores          → carga masiva de productores
+//    POST /api/admin/upload-productores-update   → actualiza finca/ubicacion
+//    POST /api/admin/upload-comerciantes         → carga masiva de comerciantes
 //
-//  Reciben:   multipart/form-data  campo: "file"  (CSV, max 2 MB)
+//  Reciben:   multipart/form-data  campo: "file"  (CSV o Excel, max 5 MB)
 //  Requieren: Authorization: Bearer <token>
-//  Responden: { ok: true, data: { creados: number, errores: [{fila, datos, error}] } }
+//  Responden: { ok: true, data: { creados|actualizados: number, errores: [...] } }
 //
-//  NOVEDADES v2:
-//    · Validación estricta en el FRONTEND antes de enviar (una sola función)
-//    · Soporte CSV (.csv) y Excel (.xlsx / .xls) — Excel se convierte a CSV en memoria
-//    · Plantillas descargables (CSV y Excel) para cada módulo
+//  NOVEDADES v3:
+//    · Módulo productores_update: actualiza finca y ubicacion por cédula
+//    · cm_enviarCSV mapea data.actualizados además de data.creados
+//    · cm_renderResultado muestra "actualizados" cuando corresponde
 // ════════════════════════════════════════════════════════════════════════════
 
 'use strict';
@@ -23,39 +24,21 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 const CM_REGLAS = {
-    // Solo letras con tildes/ñ y espacios internos. Sin dígitos ni símbolos.
     nombre:    /^[A-ZÁÉÍÓÚÜÑa-záéíóúüñ][A-ZÁÉÍÓÚÜÑa-záéíóúüñ ]{0,58}[A-ZÁÉÍÓÚÜÑa-záéíóúüñ]$/,
-    // Email estándar
     email:     /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
-    // Cédula colombiana: 5–12 dígitos
     cedula:    /^\d{5,12}$/,
-    // Teléfono colombiano: 10 dígitos, inicia en 3 o 6 (con prefijo +57 opcional)
-    telefono:  /^(\+?57)?[36]\d{8}$/,
-    // Password segura: mín 8 chars, 1 mayúscula, 1 número, 1 símbolo especial
+    telefono:  /^(\+?57)?[36]\d{9}$/,
     password:  /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/,
-    // Finca: letras, números, espacios, guiones
     finca:     /^[A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9][A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9 \-]{0,78}$/,
-    // Ubicación: letras, números, espacios, comas, guiones, puntos
     ubicacion: /^[A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9][A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9 ,.\-]{0,118}$/,
-    // Nombre de comerciante/empresa: letras, números, espacios, &, guiones, puntos
     nombre_com:/^[A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9][A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9 &.\-]{0,98}$/,
-    // Dirección: letras, números, #, guiones, puntos, comas
     direccion: /^[A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9#][A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9 #,.\-]{0,118}$/,
 };
 
-// Roles válidos para usuarios
 const CM_ROLES = ['ADMIN', 'OPERARIO', 'PRODUCTOR'];
 
 // ════════════════════════════════════════════════════════════════════════════
 //  ESQUEMAS DE COLUMNAS — uno por módulo
-//
-//  Cada campo:
-//    key      → nombre exacto de columna en CSV/Excel
-//    label    → etiqueta legible para mensajes de error
-//    regla    → clave de CM_REGLAS | 'enum'
-//    enum     → valores permitidos (cuando regla === 'enum')
-//    noEmail  → true: rechaza si contiene '@'  (nombres/apellidos)
-//    noNum    → true: rechaza si contiene dígito (nombres/apellidos)
 // ════════════════════════════════════════════════════════════════════════════
 
 const CM_ESQUEMAS = {
@@ -64,7 +47,7 @@ const CM_ESQUEMAS = {
         { key: 'apellido',     label: 'Apellido',        regla: 'nombre',   noEmail: true, noNum: true },
         { key: 'email',        label: 'Correo',          regla: 'email'   },
         { key: 'password',     label: 'Contraseña',      regla: 'password' },
-        { key: 'telefono',     label: 'Teléfono',        regla: 'telefono' },
+        { key: 'telefono',     label: 'Teléfono',        regla: 'telefono', optional: true },
         { key: 'cedula',       label: 'Cédula',          regla: 'cedula'  },
         { key: 'tipo_usuario', label: 'Tipo de usuario', regla: 'enum', enum: CM_ROLES },
     ],
@@ -73,10 +56,16 @@ const CM_ESQUEMAS = {
         { key: 'apellido',  label: 'Apellido',  regla: 'nombre',   noEmail: true, noNum: true },
         { key: 'email',     label: 'Correo',    regla: 'email'   },
         { key: 'password',  label: 'Contraseña',regla: 'password' },
-        { key: 'telefono',  label: 'Teléfono',  regla: 'telefono' },
+        { key: 'telefono',  label: 'Teléfono',  regla: 'telefono', optional: true },
         { key: 'cedula',    label: 'Cédula',    regla: 'cedula'  },
         { key: 'finca',     label: 'Finca',     regla: 'finca'   },
         { key: 'ubicacion', label: 'Ubicación', regla: 'ubicacion'},
+    ],
+    // ── Módulo de actualización: solo cédula, finca y ubicacion ──────────────
+    productores_update: [
+        { key: 'cedula',    label: 'Cédula',    regla: 'cedula'   },
+        { key: 'finca',     label: 'Finca',     regla: 'finca',    optional: true },
+        { key: 'ubicacion', label: 'Ubicación', regla: 'ubicacion',optional: true },
     ],
     comerciantes: [
         { key: 'nombre',    label: 'Nombre',    regla: 'nombre_com' },
@@ -88,16 +77,12 @@ const CM_ESQUEMAS = {
 
 // ════════════════════════════════════════════════════════════════════════════
 //  ▶  FUNCIÓN CENTRAL DE VALIDACIÓN  ◀
-//
-//  Una sola función para todos los módulos.
-//  Recibe: filas parseadas [{_n, col: val, ...}] + esquema del módulo.
-//  Devuelve: array de strings con todos los errores. Vacío = todo OK.
 // ════════════════════════════════════════════════════════════════════════════
 
 function cm_validar(filas, esquema) {
     const errores = [];
 
-    // — Paso 1: detectar cédulas duplicadas dentro del archivo —
+    // Paso 1: cédulas duplicadas dentro del archivo
     const cedulasSeen = new Map();
     filas.forEach(fila => {
         const ced = String(fila.cedula ?? '').trim();
@@ -109,20 +94,19 @@ function cm_validar(filas, esquema) {
         }
     });
 
-    // — Paso 2: validar cada fila campo por campo —
+    // Paso 2: validar cada fila campo por campo
     filas.forEach(fila => {
         const n = fila._n;
 
         for (const campo of esquema) {
-            const val = String(fila[campo.key] ?? '').trim();
+            const val = String(fila[campo.key] ?? '').trim().replace(/^['"]+|['"]+$/g, '').trim();
 
-            // Obligatoriedad
             if (!val) {
+                if (campo.optional) continue;
                 errores.push(`Fila ${n} · ${campo.label}: campo vacío.`);
                 continue;
             }
 
-            // Protecciones específicas para nombre y apellido
             if (campo.noEmail && val.includes('@')) {
                 errores.push(`Fila ${n} · ${campo.label}: no puede ser un correo ("${val}"). Escribe solo el nombre.`);
                 continue;
@@ -132,7 +116,6 @@ function cm_validar(filas, esquema) {
                 continue;
             }
 
-            // Enum (lista cerrada)
             if (campo.regla === 'enum') {
                 if (!campo.enum.includes(val.toUpperCase())) {
                     errores.push(`Fila ${n} · ${campo.label}: "${val}" no es válido. Permitidos: ${campo.enum.join(', ')}.`);
@@ -140,7 +123,6 @@ function cm_validar(filas, esquema) {
                 continue;
             }
 
-            // Regex
             const re = CM_REGLAS[campo.regla];
             if (re && !re.test(val)) {
                 errores.push(`Fila ${n} · ${campo.label}: "${val}" — ${_cm_ayuda(campo.regla)}`);
@@ -151,7 +133,6 @@ function cm_validar(filas, esquema) {
     return errores;
 }
 
-/** Mensajes de ayuda por regla */
 function _cm_ayuda(regla) {
     return ({
         nombre:    'solo letras y espacios (ej: Maria Fernanda).',
@@ -167,10 +148,9 @@ function _cm_ayuda(regla) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  PARSERS — CSV y Excel → filas con _n (número de fila original)
+//  PARSERS — CSV y Excel → filas con _n
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Parsea texto CSV (soporta coma y punto y coma). Retorna {filas, encabezados, error}. */
 function _cm_parsearCSV(texto) {
     const sep   = (texto.split('\n')[0] || '').indexOf(';') !== -1 ? ';' : ',';
     const lines = texto.split(/\r?\n/).filter(l => l.trim());
@@ -181,7 +161,7 @@ function _cm_parsearCSV(texto) {
 
     for (let i = 1; i < lines.length; i++) {
         const cols = _cm_splitLinea(lines[i], sep);
-        if (cols.every(c => !c.trim())) continue; // fila en blanco
+        if (cols.every(c => !c.trim())) continue;
         const obj = { _n: i + 1 };
         encabezados.forEach((h, idx) => { obj[h] = (cols[idx] ?? '').trim(); });
         filas.push(obj);
@@ -189,7 +169,6 @@ function _cm_parsearCSV(texto) {
     return { filas, encabezados, error: null };
 }
 
-/** Divide línea CSV respetando campos entre comillas dobles. */
 function _cm_splitLinea(line, sep) {
     const res = []; let cur = ''; let q = false;
     for (let i = 0; i < line.length; i++) {
@@ -202,18 +181,14 @@ function _cm_splitLinea(line, sep) {
     return res;
 }
 
-/**
- * Convierte un archivo Excel a un File CSV usando SheetJS.
- * Retorna Promise<{csvFile: File|null, error: string|null}>
- */
 function _cm_excelACSV(archivo) {
     return new Promise(resolve => {
         const reader = new FileReader();
         reader.onload = e => {
             try {
-                const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellText: true, raw: false });
                 const ws  = wb.Sheets[wb.SheetNames[0]];
-                const csv = XLSX.utils.sheet_to_csv(ws, { blankrows: false });
+                const csv = XLSX.utils.sheet_to_csv(ws, { blankrows: false, rawNumbers: false });
                 const csvFile = new File(
                     [csv],
                     archivo.name.replace(/\.(xlsx|xls)$/i, '.csv'),
@@ -263,6 +238,17 @@ const CM_PLANTILLAS = {
             ['ubicacion', 'Letras, números, comas y guiones.',               'Vereda El Centro, Florencia'],
         ],
     },
+    // ── Plantilla de actualización ───────────────────────────────────────────
+    productores_update: {
+        encabezados: ['cedula','finca','ubicacion'],
+        ejemplo:     ['10345678','Finca El Paraíso','Vereda El Centro, Florencia, Caquetá'],
+        instrucciones: [
+            ['Campo',     'Regla',                                   'Ejemplo'],
+            ['cedula',    'Solo dígitos, entre 5 y 12 caracteres.',  '10345678'],
+            ['finca',     'Letras, números y guiones.',              'Finca El Paraíso'],
+            ['ubicacion', 'Letras, números, comas y guiones.',       'Vereda El Centro, Florencia, Caquetá'],
+        ],
+    },
     comerciantes: {
         encabezados: ['nombre','telefono','direccion','email'],
         ejemplo:     ['Comercializadora El Buen Precio','3154567890','Cra 5 #12-34, Florencia','comercio@correo.com'],
@@ -276,7 +262,6 @@ const CM_PLANTILLAS = {
     },
 };
 
-/** Descarga la plantilla en formato CSV. */
 function cm_descargarPlantillaCSV(modulo) {
     const p = CM_PLANTILLAS[modulo];
     if (!p) return;
@@ -290,21 +275,18 @@ function cm_descargarPlantillaCSV(modulo) {
     URL.revokeObjectURL(a.href);
 }
 
-/** Descarga la plantilla en formato Excel (.xlsx) con hoja de instrucciones. */
 function cm_descargarPlantillaExcel(modulo) {
     if (!window.XLSX) { _cm_cargarXLSX(() => cm_descargarPlantillaExcel(modulo)); return; }
     const p = CM_PLANTILLAS[modulo];
     if (!p) return;
     const wb = XLSX.utils.book_new();
 
-    // Hoja 1 — Datos (encabezado + fila de ejemplo)
     const wsDatos = XLSX.utils.aoa_to_sheet([p.encabezados, p.ejemplo]);
     wsDatos['!cols'] = p.encabezados.map((h, i) => ({
         wch: Math.max(h.length, String(p.ejemplo[i] ?? '').length, 14),
     }));
     XLSX.utils.book_append_sheet(wb, wsDatos, 'Datos');
 
-    // Hoja 2 — Instrucciones
     const wsInstr = XLSX.utils.aoa_to_sheet(p.instrucciones);
     wsInstr['!cols'] = [{ wch: 14 }, { wch: 46 }, { wch: 32 }];
     XLSX.utils.book_append_sheet(wb, wsInstr, 'Instrucciones');
@@ -313,10 +295,9 @@ function cm_descargarPlantillaExcel(modulo) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  UI — utilidades compartidas (igual que la versión original)
+//  UI — utilidades compartidas
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Muestra / oculta el cuerpo de una card de carga masiva. */
 function cm_toggle(bodyId, chevronId) {
     const body    = document.getElementById(bodyId);
     const chevron = document.getElementById(chevronId);
@@ -328,7 +309,6 @@ function cm_toggle(bodyId, chevronId) {
     if (chevron) chevron.classList.toggle('open', abriendo);
 }
 
-/** Actualiza el label del input file al seleccionar un archivo. */
 function cm_onFileChange(input, spanId, labelId) {
     const span  = document.getElementById(spanId);
     const label = document.getElementById(labelId);
@@ -349,7 +329,6 @@ function cm_onFileChange(input, spanId, labelId) {
             else            label.classList.add('is-invalid');
         }
 
-        // Pre-cargar SheetJS si es Excel (para no tener retraso al subir)
         if (esExcel && !window.XLSX) _cm_cargarXLSX();
     } else {
         span.textContent = 'Seleccionar archivo .csv o .xlsx';
@@ -357,16 +336,16 @@ function cm_onFileChange(input, spanId, labelId) {
     }
 }
 
-/** Renderiza el resultado del backend en el contenedor (igual que versión original). */
-function cm_renderResultado(containerId, creados, errores) {
+function cm_renderResultado(containerId, creados, errores, esUpdate = false) {
     const container = document.getElementById(containerId);
     if (!container) return;
     let html = '';
 
     if (creados > 0) {
+        const verbo = esUpdate ? 'actualizado' : 'creado';
         html += `<div class="cm-ok">
             <i class="fi fi-rr-check"></i>
-            ${creados} registro${creados !== 1 ? 's' : ''} creado${creados !== 1 ? 's' : ''} correctamente.
+            ${creados} registro${creados !== 1 ? 's' : ''} ${verbo}${creados !== 1 ? 's' : ''} correctamente.
         </div>`;
     }
     if (errores && errores.length > 0) {
@@ -381,35 +360,22 @@ function cm_renderResultado(containerId, creados, errores) {
         html += '</div>';
     }
     if (creados === 0 && (!errores || errores.length === 0)) {
-        html = '<div class="cm-ok">Proceso completado. No se crearon nuevos registros.</div>';
+        const msg = esUpdate ? 'No se actualizó ningún registro.' : 'No se crearon nuevos registros.';
+        html = `<div class="cm-ok">Proceso completado. ${msg}</div>`;
     }
     container.innerHTML = html;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  NÚCLEO — validar en frontend y enviar al backend como multipart/form-data
+//  NÚCLEO — validar en frontend y enviar al backend
 // ════════════════════════════════════════════════════════════════════════════
 
-/**
- * Valida el archivo localmente y, si pasa, lo sube al backend.
- * Soporta CSV y Excel. El Excel se convierte a CSV en memoria antes de enviarse.
- *
- * @param {object} opts
- *   inputId   {string}    id del <input type="file">
- *   btnId     {string}    id del botón de subida
- *   loaderId  {string}    id del spinner loader
- *   resultId  {string}    id del div de resultados
- *   endpoint  {string}    ruta relativa, ej: '/admin/upload-usuarios'
- *   modulo    {string}    clave de CM_ESQUEMAS para validar
- *   onSuccess {Function}  callback() tras creación exitosa
- */
 async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modulo, onSuccess }) {
     const inputEl   = document.getElementById(inputId);
     const btnEl     = document.getElementById(btnId);
     const loaderEl  = document.getElementById(loaderId);
     const resultEl  = document.getElementById(resultId);
 
-    // — Verificar que hay archivo —
     if (!inputEl?.files?.length) {
         resultEl.innerHTML = _cm_htmlError('Selecciona un archivo CSV o Excel primero.');
         return;
@@ -424,13 +390,11 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
         return;
     }
 
-    // — Bloquear UI —
     btnEl.disabled         = true;
     loaderEl.style.display = 'flex';
     resultEl.innerHTML     = '';
 
     try {
-        // — Obtener File CSV (convirtiendo si es Excel) —
         let csvFile;
 
         if (esExcel) {
@@ -445,15 +409,14 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
             csvFile = archivo;
         }
 
-        // — Parsear CSV para validar en el frontend —
         const textoCSV = await csvFile.text();
         const { filas, encabezados, error: parseError } = _cm_parsearCSV(textoCSV);
 
-        if (parseError)   { resultEl.innerHTML = _cm_htmlError(parseError); return; }
-        if (!filas.length){ resultEl.innerHTML = _cm_htmlError('El archivo está vacío o no tiene filas de datos.'); return; }
+        if (parseError)    { resultEl.innerHTML = _cm_htmlError(parseError); return; }
+        if (!filas.length) { resultEl.innerHTML = _cm_htmlError('El archivo está vacío o no tiene filas de datos.'); return; }
 
-        // — Verificar columnas requeridas —
         const esquema        = CM_ESQUEMAS[modulo] || [];
+        // Verificar que existan TODAS las columnas del esquema (opcionales o no)
         const colsRequeridas = esquema.map(c => c.key);
         const colsFaltantes  = colsRequeridas.filter(c => !encabezados.includes(c));
 
@@ -465,7 +428,6 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
             return;
         }
 
-        // — VALIDACIÓN ESTRICTA (una sola función para todos los módulos) —
         const erroresFrontend = cm_validar(filas, esquema);
 
         if (erroresFrontend.length) {
@@ -473,7 +435,6 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
             return;
         }
 
-        // — Todo válido: enviar al backend como multipart/form-data —
         const token    = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
         const formData = new FormData();
         formData.append('file', csvFile);
@@ -481,7 +442,6 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
         const res = await fetch(`${API_URL}${endpoint}`, {
             method:  'POST',
             headers: { Authorization: `Bearer ${token}` },
-            // ⚠️ NO poner Content-Type: fetch lo establece solo con el boundary correcto
             body:    formData,
         });
 
@@ -495,14 +455,17 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
             return;
         }
 
-        // — Mostrar resultado del backend —
-        const data    = json.data || json;
-        const creados = typeof data.creados === 'number' ? data.creados : 0;
-        const errores = Array.isArray(data.errores) ? data.errores : [];
+        const data     = json.data || json;
+        // Soporta tanto data.creados (crear) como data.actualizados (update)
+        const cantidad = typeof data.creados     === 'number' ? data.creados
+                       : typeof data.actualizados === 'number' ? data.actualizados
+                       : 0;
+        const errores  = Array.isArray(data.errores) ? data.errores : [];
+        const esUpdate = modulo === 'productores_update';
 
-        cm_renderResultado(resultId, creados, errores);
+        cm_renderResultado(resultId, cantidad, errores, esUpdate);
 
-        if (creados > 0 && typeof onSuccess === 'function') onSuccess(creados);
+        if (cantidad > 0 && typeof onSuccess === 'function') onSuccess(cantidad);
 
     } catch (err) {
         resultEl.innerHTML = _cm_htmlError(`Error de red: ${err.message}`);
@@ -513,11 +476,10 @@ async function cm_enviarCSV({ inputId, btnId, loaderId, resultId, endpoint, modu
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  FUNCIONES PÚBLICAS — una por módulo (misma firma que la versión original)
+//  FUNCIONES PÚBLICAS — una por módulo
 // ════════════════════════════════════════════════════════════════════════════
 
-// Endpoint: POST /api/admin/upload-usuarios
-// CSV/Excel: nombre,apellido,email,password,telefono,cedula,tipo_usuario
+// POST /api/admin/upload-usuarios
 function cm_subirUsuarios() {
     cm_enviarCSV({
         inputId:  'cm_usr_file',
@@ -530,9 +492,7 @@ function cm_subirUsuarios() {
     });
 }
 
-// Endpoint: POST /api/admin/upload-productores
-// CSV/Excel: nombre,apellido,email,password,telefono,cedula,finca,ubicacion
-// Crea: Usuario + Productor + QR automáticamente
+// POST /api/admin/upload-productores  (crea usuario + productor + QR)
 function cm_subirProductores() {
     cm_enviarCSV({
         inputId:  'cm_prod_file',
@@ -545,8 +505,20 @@ function cm_subirProductores() {
     });
 }
 
-// Endpoint: POST /api/admin/upload-comerciantes
-// CSV/Excel: nombre,telefono,direccion,email
+// POST /api/admin/upload-productores-update  (actualiza finca y ubicacion por cédula)
+function cm_actualizarProductores() {
+    cm_enviarCSV({
+        inputId:  'cm_prd_upd_file',
+        btnId:    'cm_prd_upd_btn',
+        loaderId: 'cm_prd_upd_loader',
+        resultId: 'cm_prd_upd_result',
+        endpoint: '/admin/upload-productores-update',
+        modulo:   'productores_update',
+        onSuccess: () => prd_cargar(),
+    });
+}
+
+// POST /api/admin/upload-comerciantes
 function cm_subirComerciantes() {
     cm_enviarCSV({
         inputId:  'cm_com_file',
@@ -589,7 +561,6 @@ function _cm_htmlErroresLista(errores, totalFilas) {
         </div>`;
 }
 
-/** Carga SheetJS dinámicamente solo si no está disponible. */
 function _cm_cargarXLSX(cb) {
     if (window.XLSX) { cb && cb(); return; }
     const s  = document.createElement('script');
@@ -599,7 +570,6 @@ function _cm_cargarXLSX(cb) {
     document.head.appendChild(s);
 }
 
-/** Fecha actual en formato YYYY-MM-DD hora Colombia. */
 function _cm_hoy() {
     return new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit',

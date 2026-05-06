@@ -6,7 +6,10 @@
 
 const ING = (() => {
 
-  const API = '/api/productor-dashboard';
+  const _BASE_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : ' https://irregular-sycamore-qualified.ngrok-free.dev';
+  const API = `${_BASE_URL}/api/productor-dashboard`;
 
   let _periodo  = 'mes';   // semana | mes | anio | todo
   let _entregas = [];      // cache del período actual
@@ -174,9 +177,9 @@ const ING = (() => {
       <tr>
         <td data-label="Fecha" style="white-space:nowrap;font-size:.83rem;color:#6b7280">${fmtFecha(e.fecha)}</td>
         <td data-label="Producto" style="font-weight:500">${e.producto ?? '—'}</td>
-        <td data-label="Kilos" style="text-align:right;font-weight:600">${_kg(e.peso)}</td>
-        <td data-label="Precio/kg" style="text-align:right;font-size:.85rem;color:#6b7280">${e.precio_unitario != null ? _cop(e.precio_unitario) + '/kg' : '—'}</td>
-        <td data-label="Total" style="text-align:right;font-weight:700;color:#16a34a">${e.total != null ? _cop(e.total) : '—'}</td>
+        <td data-label="Kilos" style="text-align:left;font-weight:600">${_kg(e.peso)}</td>
+        <td data-label="Precio/kg" style="text-align:left;font-size:.85rem;color:#6b7280">${e.precio_unitario != null ? _cop(e.precio_unitario) + '/kg' : '—'}</td>
+        <td data-label="Total" style="text-align:left;font-weight:700;color:#16a34a">${e.total != null ? _cop(e.total) : '—'}</td>
         <td data-label="Estado">${badge(e)}</td>
       </tr>`).join('');
   }

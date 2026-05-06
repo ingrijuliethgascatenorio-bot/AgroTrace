@@ -1,4 +1,7 @@
-const API_BASE = "/api"; // FIX v9: ruta relativa — funciona en local y produccion
+const _BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : ' https://irregular-sycamore-qualified.ngrok-free.dev';
+const API_BASE = `${_BASE_URL}/api`;
 
 // ── Guard: solo OPERARIO entra a vendedor.html ────────────────────────────────
 // auth-guard.js debe cargarse ANTES que vendedor.js en el HTML:
@@ -311,6 +314,9 @@ async function cargarDashboard() {
 
     historialCompleto = [...entregasRuta, ...historialSinDuplicados];
 
+    // FIX OFFLINE QR: cachear productores afiliados en segundo plano
+    _cachearProductoresDeHistorial(historialCompleto);
+
     // 4. Calcular métricas
     const compras = historialCompleto.filter(r => (r.tipo || "").toUpperCase() === "COMPRA");
     const ventas  = historialCompleto.filter(r => (r.tipo || "").toUpperCase() === "VENTA");
@@ -401,7 +407,9 @@ function renderUltimasOps(registros) {
     return;
   }
 
-  tbody.innerHTML = registros.map(r => {
+  const agrupados = agruparComprasPorProductor(registros);
+
+  tbody.innerHTML = agrupados.map(r => {
     const esCompra = (r.tipo || "").toUpperCase() === "COMPRA";
     const fecha = formatFecha(r.fecha || r.fecha_venta || r.fecha_compra || r.createdAt);
     const tipo = `<span class="badge ${esCompra ? "badge-compra" : "badge-venta"}">${esCompra ? "Compra" : "Venta"}</span>`;
@@ -410,14 +418,34 @@ function renderUltimasOps(registros) {
       ? (r.nombre_productor || r.nombre_productor_externo || (r.id_productor ? `Prod. #${r.id_productor}` : "—"))
       : (r.nombre || r.cliente || r.nombre_comerciante || "Cliente general");
 
-    const producto = r.nombre_producto || r.producto || "—";
+    // Producto: lista de pills si hay múltiples
+    let producto;
+    if (esCompra && r._agrupado && r._productos && r._productos.length > 1) {
+      producto = r._productos.map(p =>
+        `<span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;
+          border-radius:99px;padding:1px 7px;font-size:.7rem;font-weight:600;color:#166534;margin:1px">${p.nombre}</span>`
+      ).join('');
+    } else if (esCompra && r._agrupado) {
+      producto = r._productos?.[0]?.nombre || '—';
+    } else {
+      producto = r.nombre_producto || r.producto || "—";
+    }
 
-    const pesoRaw = esCompra
-      ? parseFloat(r.peso_kg || r.cantidad || r.kilos || 0)
-      : parseFloat(r.cantidad_kg || r.cantidad || r.kilos || 0);
-    const pesoStr = pesoRaw > 0 ? pesoRaw.toFixed(2) + " kg" : "—";
+    // Peso: total del grupo
+    let pesoStr;
+    if (esCompra && r._agrupado) {
+      const total = r._peso_total || 0;
+      pesoStr = total > 0
+        ? `${total.toFixed(2)} kg${r._productos?.length > 1 ? ` <span style="font-size:.7rem;color:#6b7280">(${r._productos.length} prod.)</span>` : ''}`
+        : "—";
+    } else {
+      const pesoRaw = esCompra
+        ? parseFloat(r.peso_kg || r.cantidad || r.kilos || 0)
+        : parseFloat(r.cantidad_kg || r.cantidad || r.kilos || 0);
+      pesoStr = pesoRaw > 0 ? pesoRaw.toFixed(2) + " kg" : "—";
+    }
 
-    // Indicador visual si es entrega de ruta activa (precio pendiente)
+    // Indicador visual si es entrega de ruta activa
     const rutaTag = r._de_ruta_activa
       ? `<span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:99px;padding:1px 6px;font-weight:700;margin-left:4px">Ruta #${r.ruta_id}</span>`
       : "";
@@ -808,9 +836,57 @@ function llenarDatosProductor(productor) {
   if (rowTipo) rowTipo.style.display = 'none';
 }
 
+/**
+ * Guarda un productor en el caché local para uso offline.
+ * Doble caché: localStorage (instantáneo) + IndexedDB (persistente).
+ */
+function _prod_guardarCache(productor) {
+  try {
+    const cedula = (productor.cedula || productor.usuario?.cedula || '').toString().trim();
+    if (!cedula) return;
+    localStorage.setItem(`cache_op_prod_${cedula}`, JSON.stringify(productor));
+    let idx = [];
+    try { idx = JSON.parse(localStorage.getItem('cache_op_prod_idx') || '[]'); } catch(_) {}
+    if (!idx.includes(cedula)) { idx.push(cedula); localStorage.setItem('cache_op_prod_idx', JSON.stringify(idx)); }
+  } catch(_) {}
+  // También en IndexedDB para mayor persistencia
+  AgroDB.guardarProductorOffline(productor).catch(() => {});
+}
+
+function _prod_buscarCacheLocal(cedula) {
+  try {
+    const raw = localStorage.getItem(`cache_op_prod_${cedula.toString().trim()}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch(_) { return null; }
+}
+
 async function buscarProductorPorCedula(cedula) {
   if (!cedula) { showAlert("Ingresa una cédula para buscar al productor."); return; }
   clearAlert();
+
+  // ── SIN INTERNET: buscar en localStorage primero, luego IndexedDB ──────────
+  if (!navigator.onLine) {
+    // 1. Intento rápido: localStorage
+    const cachedLocal = _prod_buscarCacheLocal(cedula);
+    if (cachedLocal) {
+      llenarDatosProductor(cachedLocal);
+      showAlert("Productor cargado desde caché (sin conexión).", "success");
+      return;
+    }
+    // 2. Intento secundario: IndexedDB
+    try {
+      const cachedIDB = await AgroDB.obtenerProductorOffline(cedula);
+      if (cachedIDB) {
+        llenarDatosProductor(cachedIDB);
+        showAlert("Productor cargado desde caché (sin conexión).", "success");
+        return;
+      }
+    } catch(_) {}
+    showAlert("Sin conexión. Este productor no ha sido visto antes en este dispositivo. Conéctate al menos una vez para cachear sus datos.", "error");
+    return;
+  }
+
+  // ── CON INTERNET: consulta al servidor + guardar en ambos cachés ──────────
   try {
     const data = await fetchWithAuth(
       `${API_BASE}/operario/productor/${encodeURIComponent(cedula)}`
@@ -818,8 +894,24 @@ async function buscarProductorPorCedula(cedula) {
     const productor = data.productor || data;
     if (!productor) { showAlert("No se encontró productor con esa cédula."); return; }
     llenarDatosProductor(productor);
+    _prod_guardarCache(productor); // persiste para uso offline futuro
     showAlert("Productor encontrado correctamente.", "success");
   } catch (error) {
+    // Red falló: intentar ambos cachés antes de mostrar error
+    const cachedLocal = _prod_buscarCacheLocal(cedula);
+    if (cachedLocal) {
+      llenarDatosProductor(cachedLocal);
+      showAlert("Productor cargado desde caché (error de red).", "success");
+      return;
+    }
+    try {
+      const cachedIDB = await AgroDB.obtenerProductorOffline(cedula);
+      if (cachedIDB) {
+        llenarDatosProductor(cachedIDB);
+        showAlert("Productor cargado desde caché (error de red).", "success");
+        return;
+      }
+    } catch(_) {}
     showAlert(`Error al buscar productor: ${error.message}`);
   }
 }
@@ -1264,8 +1356,86 @@ function showToastRegistro(tipo) {
 }
 
 // =============================================
-// 9. REGISTRAR COMPRA — adaptado al backend
+// REFRESH SILENCIOSO — sin recargar la página
+// Se llama tras cualquier acción (compra, venta,
+// cerrar ruta, editar, sincronizar).
+// Actualiza solo lo que cambió, en paralelo.
 // =============================================
+
+/**
+ * Actualiza el historial, dashboard y (si hay ruta activa) la tabla de
+ * entregas — todo en paralelo, sin recargar la página ni parpadear la UI.
+ *
+ * @param {object} opts
+ *   vincular  {boolean} — llamar vincular-pendientes antes de cargar entregas
+ *   entregas  {boolean} — refrescar tabla de entregas de la ruta activa
+ *   dashboard {boolean} — refrescar métricas y últimas ops
+ *   historial {boolean} — refrescar historial completo
+ *   rutas     {boolean} — refrescar historial de rutas cerradas (ligero)
+ */
+async function _refrescarTrasAccion({
+  vincular  = false,
+  entregas  = true,
+  dashboard = true,
+  historial = false,
+  rutas     = false,
+} = {}) {
+  const tareas = [];
+
+  // 1. Vincular entregas pendientes a la ruta activa
+  if (vincular && rutaActiva?.id_ruta && !rutaActiva._offline) {
+    tareas.push(
+      fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
+        method: 'POST'
+      }).catch(() => {})
+    );
+  }
+
+  // 2. Refrescar tabla de entregas de la ruta activa (en sección Rutas)
+  if (entregas && rutaActiva?.id_ruta && !rutaActiva._offline) {
+    // Esperar el vincular antes de cargar (si aplica)
+    if (vincular) {
+      try {
+        await fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
+          method: 'POST'
+        });
+      } catch(_) {}
+    }
+    tareas.push(rut_cargarEntregas(rutaActiva.id_ruta).catch(() => {}));
+  }
+
+  // 3. Refrescar dashboard (métricas + últimas ops)
+  if (dashboard) {
+    tareas.push(cargarDashboard().catch(() => {}));
+  }
+
+  // 4. Refrescar historial de operaciones
+  if (historial) {
+    tareas.push(cargarHistorial().catch(() => {}));
+  }
+
+  // 5. Refrescar historial de rutas cerradas (sin rut_cargarRutas completo)
+  if (rutas) {
+    tareas.push(
+      fetchWithAuth(`${API_BASE}/rutas`)
+        .then(data => {
+          const lista = Array.isArray(data) ? data : (data.data || []);
+          // Actualizar rutaActiva si cambió (ej: cerrar ruta)
+          const activa = lista.find(r => r.estado === 'ABIERTA') || null;
+          if (!rutaActiva || activa?.id_ruta !== rutaActiva?.id_ruta) {
+            rutaActiva = activa;
+            rut_actualizarPanel();
+          }
+          rut_renderHistorial(lista);
+        })
+        .catch(() => {})
+    );
+  }
+
+  await Promise.allSettled(tareas);
+}
+
+
 async function registrarEntrega(event) {
   event.preventDefault();
   clearAlert();
@@ -1363,12 +1533,8 @@ async function registrarEntrega(event) {
       }
       if (exitosasC > 0) {
         showToastRegistro("compra");
-        if (rutaActiva) {
-          fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
-            method: 'POST'
-          }).catch(() => {});
-          rut_cargarRutas();
-        }
+        // Actualizar silenciosamente: vincular + entregas + dashboard, en paralelo
+        _refrescarTrasAccion({ vincular: true, entregas: true, dashboard: true }).catch(() => {});
       }
     }
 
@@ -1394,7 +1560,6 @@ async function registrarEntrega(event) {
       if (el) { el.textContent = "—"; el.classList.add("vacio"); }
     });
 
-    cargarDashboard();
   } catch (error) {
     const msg = error.message || 'Error desconocido';
     showAlert(`Error al registrar la compra: ${msg}`, "error");
@@ -1434,42 +1599,42 @@ async function registrarVenta(event) {
   btn.textContent = "Registrando...";
 
   try {
-    const payloadsVenta = filasVenta.map(fila => ({
+    // ── UN SOLO payload con TODOS los productos — genera 1 venta y 1 factura ──
+    const payloadVenta = {
       id_comerciante: currentCliente?.id_comerciante ?? null,
       cliente: currentCliente?.nombre || "Sin comerciante",
       id_usuario: perfilData?.id_usuario || perfilData?.id || null,
       nombre_operario: perfilData ? [perfilData.nombre, perfilData.apellido].filter(Boolean).join(' ') || null : null,
-      detalles: [{
+      detalles: filasVenta.map(fila => ({
         id_producto: parseInt(fila.productoId, 10),
         cantidad: parseFloat(fila.cantidad),
         precio_unitario: parseFloat(fila.precio),
-      }],
-    }));
+      })),
+    };
 
     if (!navigator.onLine) {
-      for (const p of payloadsVenta) await AgroSync.encolarVenta(p);
+      await AgroSync.encolarVenta(payloadVenta);
       showToastRegistro("venta");
     } else {
       let ultimaVentaId = null;
       let exitosasV = 0;
 
-      for (const p of payloadsVenta) {
-        try {
-          const respuesta = await fetchWithAuth(`${API_BASE}/operario/registrar-venta`, {
-            method: "POST",
-            body: JSON.stringify(p)
-          });
-          // Guardar el id de la ultima venta registrada para la factura
-          if (respuesta) {
-            ultimaVentaId = respuesta.id_venta || respuesta.id || respuesta.data?.id_venta || null;
-          }
-          exitosasV++;
-        } catch (err) {
-          if (!navigator.onLine || err.name === "TypeError") {
-            await AgroSync.encolarVenta(p);
-          } else {
-            throw err;
-          }
+      try {
+        const respuesta = await fetchWithAuth(`${API_BASE}/operario/registrar-venta`, {
+          method: "POST",
+          body: JSON.stringify(payloadVenta)
+        });
+        // Guardar el id de la venta registrada para la factura
+        if (respuesta) {
+          ultimaVentaId = respuesta.id_venta || respuesta.id || respuesta.data?.id_venta || null;
+        }
+        exitosasV = 1;
+      } catch (err) {
+        if (!navigator.onLine || err.name === "TypeError") {
+          await AgroSync.encolarVenta(payloadVenta);
+          showAlert("Sin conexión. Venta guardada localmente.", "success", "alert-venta");
+        } else {
+          throw err;
         }
       }
 
@@ -1497,7 +1662,8 @@ async function registrarVenta(event) {
         filasVenta = [];
         renderFilas("venta");
         limpiarFormCliente();
-        setTimeout(() => cargarDashboard(), 600);
+        // Actualizar dashboard silenciosamente (sin recargar)
+        _refrescarTrasAccion({ vincular: false, entregas: false, dashboard: true }).catch(() => {});
 
         // Mostrar toast de éxito
         showToastRegistro("venta");
@@ -1512,7 +1678,7 @@ async function registrarVenta(event) {
     filasVenta = [];
     renderFilas("venta");
     limpiarFormCliente();
-    setTimeout(() => cargarDashboard(), 600);
+    _refrescarTrasAccion({ vincular: false, entregas: false, dashboard: true }).catch(() => {});
 
   } catch (error) {
     showAlert(`Error al registrar la venta: ${error.message}`, "error", "alert-venta");
@@ -1871,6 +2037,35 @@ async function enviarFacturaPorCorreo() {
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// CACHE MASIVO DE PRODUCTORES
+// Extrae productores afiliados de cualquier lista de registros
+// y los guarda en localStorage + IndexedDB para uso offline con QR.
+// Corre en segundo plano con setTimeout — nunca bloquea la UI.
+// ─────────────────────────────────────────────────────────
+function _cachearProductoresDeHistorial(registros) {
+  if (!Array.isArray(registros)) return;
+  setTimeout(() => {
+    const vistos = new Set();
+    for (const r of registros) {
+      const cedula = r.cedula_productor || r.cedula;
+      if (!cedula) continue;
+      const key = String(cedula);
+      if (vistos.has(key)) continue;
+      vistos.add(key);
+      if (_prod_buscarCacheLocal(key)) continue; // ya en caché, no reescribir
+      const nombre = r.nombre_productor || r.nombre || '';
+      if (!nombre) continue; // sin nombre no sirve
+      _prod_guardarCache({
+        cedula:    key,
+        nombre,
+        finca:     r.finca || r.ubicacion || r.direccion || '',
+        direccion: r.direccion || '',
+      });
+    }
+  }, 0);
+}
+
 // =============================================
 // 11. HISTORIAL
 // =============================================
@@ -1937,6 +2132,8 @@ async function cargarHistorial() {
     renderHistorial(historialCompleto);
     // FIX OFFLINE: persistir historial para consulta sin conexión
     try { localStorage.setItem('cache_op_historial', JSON.stringify(historialCompleto.slice(0, 200))); } catch(_) {}
+    // FIX OFFLINE QR: cachear productores afiliados en segundo plano
+    _cachearProductoresDeHistorial(todos);
   } catch (error) {
     // FIX OFFLINE: mostrar historial cacheado si no hay red
     const cached = localStorage.getItem('cache_op_historial');
@@ -1950,11 +2147,93 @@ async function cargarHistorial() {
     }
     if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Sin conexión — ${error.message}</td></tr>`;
   }
+  // Aplicar filtros UX después de cargar el historial
+  _hist_page = 0;
+  hist_aplicarFiltros();
+}
+
+/**
+ * Agrupa compras del mismo productor en la misma fecha en un único objeto.
+ * Las ventas se dejan tal cual (ya vienen agrupadas por venta).
+ * Devuelve un array mixto de registros agrupados para renderizar.
+ */
+function agruparComprasPorProductor(registros) {
+  const resultado = [];
+  // Map: clave "productor_fecha" → índice en resultado
+  const mapaCompras = new Map();
+
+  for (const r of registros) {
+    const esCompra = (r.tipo || "").toUpperCase() === "COMPRA";
+
+    if (!esCompra) {
+      // Las ventas van directo sin agrupar
+      resultado.push({ ...r, _agrupado: false });
+      continue;
+    }
+
+    // Clave de agrupación: productor + fecha (día)
+    const nombreProductor = r.nombre_productor || r.nombre_productor_externo || r.cedula_productor || (r.id_productor ? `prod_${r.id_productor}` : 'sin_prod');
+    const fechaStr = (r.fecha || r.fecha_compra || r.createdAt || '').split('T')[0];
+    const clave = `${nombreProductor}__${fechaStr}`;
+
+    if (mapaCompras.has(clave)) {
+      // Ya existe un grupo — agregar este producto al array de productos
+      const grupo = resultado[mapaCompras.get(clave)];
+      const peso = parseFloat(r.peso_kg || r.cantidad || r.kilos || 0);
+      const precioU = parseFloat(r.precio_unitario || 0);
+      const subtotal = parseFloat(r.total || 0) || (peso * precioU);
+
+      grupo._productos.push({
+        nombre:   r.nombre_producto || r.producto || '—',
+        peso_kg:  peso,
+        precio_u: precioU,
+        subtotal: subtotal,
+        idx_original: r._idx_original,
+        estado_liquidacion: r.estado_liquidacion,
+        ruta_id: r.ruta_id,
+      });
+      grupo._peso_total += peso;
+      grupo._total_suma += subtotal;
+
+      // El estado del grupo es el "peor" estado (si alguno está pendiente, todo pendiente)
+      const liqGrupo = grupo.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
+      const liqNuevo = r.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
+      if (liqNuevo === 'PENDIENTE_LIQUIDACION') grupo.estado_liquidacion = 'PENDIENTE_LIQUIDACION';
+      else if (liqNuevo === 'LIQUIDADO' && liqGrupo === 'PAGADO') grupo.estado_liquidacion = 'LIQUIDADO';
+
+    } else {
+      // Primer registro de este productor en esta fecha
+      const peso = parseFloat(r.peso_kg || r.cantidad || r.kilos || 0);
+      const precioU = parseFloat(r.precio_unitario || 0);
+      const subtotal = parseFloat(r.total || 0) || (peso * precioU);
+
+      const grupo = {
+        ...r,
+        _agrupado: true,
+        _peso_total: peso,
+        _total_suma: subtotal,
+        _productos: [{
+          nombre:   r.nombre_producto || r.producto || '—',
+          peso_kg:  peso,
+          precio_u: precioU,
+          subtotal: subtotal,
+          idx_original: r._idx_original,
+          estado_liquidacion: r.estado_liquidacion,
+          ruta_id: r.ruta_id,
+        }],
+      };
+      mapaCompras.set(clave, resultado.length);
+      resultado.push(grupo);
+    }
+  }
+
+  return resultado;
 }
 
 /**
  * Dibuja la tabla del historial.
  * El índice `idx` se pasa al botón Editar para localizar el registro en el array global.
+ * Las compras del mismo productor en la misma fecha se agrupan en una sola fila.
  */
 // =============================================
 // 11. HISTORIAL — corregido
@@ -1968,7 +2247,11 @@ function renderHistorial(registros) {
     return;
   }
 
-  tbody.innerHTML = registros.map((r, idx) => {
+  // Marcar índice original antes de agrupar para poder abrir el modal de edición
+  const conIndice = registros.map((r, idx) => ({ ...r, _idx_original: idx }));
+  const agrupados = agruparComprasPorProductor(conIndice);
+
+  tbody.innerHTML = agrupados.map((r) => {
     const esCompra = (r.tipo || "").toUpperCase() === "COMPRA";
     const badgeClass = esCompra ? "badge-compra" : "badge-venta";
     const badgeTexto = esCompra ? "Compra" : "Venta";
@@ -1978,24 +2261,52 @@ function renderHistorial(registros) {
       ? (r.nombre_productor || r.nombre_productor_externo || (r.id_productor ? `Prod. #${r.id_productor}` : "Sin productor"))
       : (r.nombre || r.cliente || r.nombre_comerciante || "Cliente general");
 
-    const producto = r.nombre_producto || r.producto || "—";
+    // ── Columna Producto ──────────────────────────────────────────
+    let productoCol;
+    if (esCompra && r._agrupado && r._productos && r._productos.length > 1) {
+      // Múltiples productos: mostrar lista compacta con pills
+      const pillsHTML = r._productos.map(p =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;
+          border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:600;color:#166534;margin:2px 2px 2px 0;white-space:nowrap">
+          ${p.nombre}
+          <span style="color:#6b7280;font-weight:400">${p.peso_kg > 0 ? p.peso_kg.toFixed(2) + ' kg' : ''}</span>
+        </span>`
+      ).join('');
+      productoCol = `<div style="display:flex;flex-wrap:wrap;gap:2px;align-items:center">${pillsHTML}</div>`;
+    } else if (esCompra && r._agrupado && r._productos?.length === 1) {
+      productoCol = r._productos[0].nombre;
+    } else {
+      // Venta o compra sin agrupar
+      productoCol = r.nombre_producto || r.producto || "—";
+    }
 
-    const pesoRaw = esCompra
-      ? parseFloat(r.peso_kg || r.cantidad || r.kilos || 0)
-      : parseFloat(r.cantidad_kg || r.cantidad || r.kilos || 0);
-    const volumen = pesoRaw > 0 ? pesoRaw.toFixed(2) + " kg" : "—";
+    // ── Columna Peso / Cantidad ───────────────────────────────────
+    let volumen;
+    if (esCompra && r._agrupado) {
+      const total = r._peso_total || 0;
+      volumen = total > 0 ? total.toFixed(2) + " kg" : "—";
+      if (r._productos && r._productos.length > 1) {
+        volumen = `<strong>${total.toFixed(2)} kg</strong><br><span style="font-size:.72rem;color:#6b7280">${r._productos.length} productos</span>`;
+      }
+    } else {
+      const pesoRaw = esCompra
+        ? parseFloat(r.peso_kg || r.cantidad || r.kilos || 0)
+        : parseFloat(r.cantidad_kg || r.cantidad || r.kilos || 0);
+      volumen = pesoRaw > 0 ? pesoRaw.toFixed(2) + " kg" : "—";
+    }
 
-    // ── Total: null = pendiente de liquidación ──────────────────
+    // ── Columna Total ─────────────────────────────────────────────
     let totalCol;
     if (!esCompra) {
       totalCol = `<strong>${formatMoneda(r.total)}</strong>`;
-    } else if (r.total != null && Number(r.total) > 0) {
-      totalCol = `<strong>${formatMoneda(r.total)}</strong>`;
     } else {
-      // Entrega vinculada a ruta — precio pendiente
+      // Para compras agrupadas usar la suma calculada
+      const totalNum = r._agrupado ? r._total_suma : (parseFloat(r.total) || 0);
       const liq = r.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
-      if (liq === 'LIQUIDADO' || liq === 'PAGADO') {
-        totalCol = `<strong>${formatMoneda(r.total)}</strong>`;
+      if (totalNum > 0) {
+        totalCol = `<strong>${formatMoneda(totalNum)}</strong>`;
+      } else if (liq === 'LIQUIDADO' || liq === 'PAGADO') {
+        totalCol = `<strong>${formatMoneda(totalNum)}</strong>`;
       } else {
         totalCol = `<span style="color:#d97706;font-size:.8rem;font-weight:600">
           Pendiente${r.ruta_id ? '<br><span style="font-size:.72rem;color:#9ca3af">Ruta #' + r.ruta_id + '</span>' : ''}
@@ -2003,7 +2314,7 @@ function renderHistorial(registros) {
       }
     }
 
-    // ── Badge estado liquidación (solo compras) ─────────────────
+    // ── Columna Estado (solo compras) ─────────────────────────────
     let estadoCol = '';
     if (esCompra) {
       const liq = r.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
@@ -2017,20 +2328,23 @@ function renderHistorial(registros) {
       estadoCol = `<span style="${liqColor};border-radius:99px;padding:2px 8px;font-size:.7rem;font-weight:700">${liqLabel}</span>`;
     }
 
+    // ── Columna Acciones ──────────────────────────────────────────
+    // Para grupos con múltiples productos, el botón edita el primer registro
+    const idxEditar = r._idx_original ?? (r._productos?.[0]?.idx_original ?? 0);
+    const accionCol = `<button class="btn btn-secondary btn-editar-op"
+      onclick="abrirModalEdicion(${idxEditar})"
+      title="Editar esta operación">Editar</button>`;
+
     return `
       <tr>
         <td data-label="Fecha">${fecha}</td>
         <td data-label="Tipo"><span class="badge ${badgeClass}">${badgeTexto}</span></td>
         <td data-label="Productor / Cliente">${quien}</td>
-        <td data-label="Producto">${producto}</td>
+        <td data-label="Producto">${productoCol}</td>
         <td data-label="Peso / Cant.">${volumen}</td>
         <td data-label="Total">${totalCol}</td>
         <td data-label="Estado">${estadoCol}</td>
-        <td data-label="Acciones">
-          <button class="btn btn-secondary btn-editar-op"
-            onclick="abrirModalEdicion(${idx})"
-            title="Editar esta operación">Editar</button>
-        </td>
+        <td data-label="Acciones">${accionCol}</td>
       </tr>`;
   }).join("");
 }
@@ -2088,7 +2402,7 @@ function abrirModalEdicion(idx) {
   if (!operacion) return;
 
   operacionEnEdicion = operacion;
-  const esCompra = operacion.tipo === "COMPRA";
+  const esCompra = (operacion.tipo || "").toUpperCase() === "COMPRA";
 
   // Título
   document.getElementById("modal-titulo").textContent = esCompra ? "Editar Compra" : "Editar Venta";
@@ -2165,7 +2479,7 @@ async function guardarEdicionOperacion() {
   btn.textContent = "Guardando...";
 
   try {
-    const esCompra = operacionEnEdicion.tipo === "COMPRA";
+    const esCompra = (operacionEnEdicion.tipo || "").toUpperCase() === "COMPRA";
     const fecha = document.getElementById("modal-fecha").value;
 
     const productosPayload = filasEdicion.map(f => ({
@@ -2204,7 +2518,10 @@ async function guardarEdicionOperacion() {
     });
 
     showDrawerAlert("Operación actualizada correctamente.", "success", "modal-alert");
-    setTimeout(() => { cerrarModalEdicion(); cargarHistorial(); cargarDashboard(); }, 1500);
+    setTimeout(() => {
+      cerrarModalEdicion();
+      _refrescarTrasAccion({ vincular: false, entregas: true, dashboard: true, historial: true }).catch(() => {});
+    }, 1500);
   } catch (error) {
     showDrawerAlert(`Error: ${error.message}`, "error", "modal-alert");
   } finally {
@@ -2673,6 +2990,11 @@ async function rut_cargarRutas() {
     // Ruta activa = la más reciente que esté ABIERTA
     rutaActiva = rutas.find(r => r.estado === 'ABIERTA') || null;
 
+    // Si hay ruta activa real en servidor, limpiar la offline guardada localmente
+    if (rutaActiva && !rutaActiva._offline) {
+      localStorage.removeItem('cache_ruta_offline_activa');
+    }
+
     // Si hay ruta activa, vincular automaticamente entregas sin ruta
     if (rutaActiva) {
       fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
@@ -2682,24 +3004,45 @@ async function rut_cargarRutas() {
 
     rut_actualizarPanel();
     rut_renderHistorial(rutas);
-    // FIX OFFLINE: persistir rutas en IndexedDB para uso sin conexión
+    // Persistir rutas en IndexedDB para uso sin conexión
     try {
       for (const r of rutas) {
         await AgroDB.guardarRutaOffline(r);
       }
     } catch(_) {}
 
-    // Si hay ruta activa, cargar sus entregas
+    // Si hay ruta activa del servidor, cargar sus entregas
     if (rutaActiva) {
       rut_cargarEntregas(rutaActiva.id_ruta);
     } else {
-      document.getElementById('rut-entregas-tbody').innerHTML =
-        '<tr><td colspan="3" style="text-align:center;padding:20px;color:#9ca3af">Sin ruta activa</td></tr>';
-      document.getElementById('rut-entregas-subtitle').textContent = 'Inicia una ruta para ver las entregas';
+      const tbody = document.getElementById('rut-entregas-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Sin ruta activa</td></tr>';
+      const sub = document.getElementById('rut-entregas-subtitle');
+      if (sub) sub.textContent = 'Inicia una ruta para ver las entregas';
     }
   } catch (e) {
     console.warn('[RUTAS] Error cargando:', e.message);
-    // FIX OFFLINE: mostrar rutas del caché de IndexedDB
+
+    // OFFLINE FALLBACK 1: ruta creada offline y guardada en localStorage
+    try {
+      const rawOffline = localStorage.getItem('cache_ruta_offline_activa');
+      if (rawOffline) {
+        const rutaOffline = JSON.parse(rawOffline);
+        if (rutaOffline && rutaOffline.estado === 'ABIERTA') {
+          rutaActiva = rutaOffline;
+          rut_actualizarPanel();
+          // Tabla de entregas vacía (las entregas offline se guardan en IndexedDB como compras pendientes)
+          const tbody = document.getElementById('rut-entregas-tbody');
+          if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Ruta offline — las entregas se mostrarán al reconectarte.</td></tr>';
+          const sub = document.getElementById('rut-entregas-subtitle');
+          if (sub) sub.textContent = 'Ruta sin conexión activa';
+          console.warn('[OFFLINE] Ruta desde localStorage:', rutaOffline.id_ruta);
+          return;
+        }
+      }
+    } catch(_) {}
+
+    // OFFLINE FALLBACK 2: rutas del caché de IndexedDB
     try {
       const rutasOffline = await AgroDB.obtenerRutasOffline();
       if (rutasOffline && rutasOffline.length) {
@@ -2707,6 +3050,10 @@ async function rut_cargarRutas() {
         rut_actualizarPanel();
         rut_renderHistorial(rutasOffline);
         console.warn('[OFFLINE] Rutas desde IndexedDB:', rutasOffline.length);
+        if (rutaActiva) {
+          const tbody = document.getElementById('rut-entregas-tbody');
+          if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Ruta offline — las entregas se mostrarán al reconectarte.</td></tr>';
+        }
       }
     } catch(_) {}
   }
@@ -2716,17 +3063,20 @@ function rut_actualizarPanel() {
   const panel = document.getElementById('rut-estado-panel');
   const btnNueva = document.getElementById('btn-nueva-ruta');
   const btnCerrar = document.getElementById('btn-cerrar-ruta');
-  const cardActiva = document.getElementById('rut-card-activa');   // tarjeta ruta activa
-  const cardEntregas = document.getElementById('rut-card-entregas'); // entregas de la ruta
+  const cardActiva = document.getElementById('rut-card-activa');
+  const cardEntregas = document.getElementById('rut-card-entregas');
   if (!panel) return;
 
   const sinRuta = document.getElementById('rut-sin-ruta');
 
+  // Asegurarse de que el modal de cierre esté oculto al actualizar el panel
+  const modalCierre = document.getElementById('rut-modal-cierre');
+  if (modalCierre && !rutaActiva) modalCierre.style.display = 'none';
+
   if (rutaActiva) {
-    // Mostrar tarjetas, ocultar bloque "iniciar"
-    if (cardActiva) cardActiva.style.display = '';
-    if (cardEntregas) cardEntregas.style.display = '';
-    if (sinRuta) sinRuta.style.display = 'none';
+    if (cardActiva)   cardActiva.style.display   = '';
+    if (cardEntregas) cardEntregas.style.display  = '';
+    if (sinRuta)      sinRuta.style.display        = 'none';
     panel.innerHTML = `
       <div style="background:#d1fae5;border-radius:10px;padding:14px 16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -2742,58 +3092,131 @@ function rut_actualizarPanel() {
           Al terminar el recorrido, cierra la ruta con el flete.
         </p>
       </div>`;
-    if (btnNueva) btnNueva.style.display = 'none';
+    if (btnNueva)  btnNueva.style.display  = 'none';
     if (btnCerrar) btnCerrar.style.display = 'block';
   } else {
-    // Sin ruta activa — ocultar tarjetas completamente, mostrar solo botón iniciar
-    if (cardActiva) cardActiva.style.display = 'none';
-    if (cardEntregas) cardEntregas.style.display = 'none';
-    if (sinRuta) sinRuta.style.display = '';
-    if (btnCerrar) btnCerrar.style.display = 'none';
-    if (btnNueva) btnNueva.style.display = '';
-    if (panel) panel.innerHTML = '';  // limpiar panel vacío
+    // Sin ruta activa: ocultar tarjetas, ocultar botón cerrar, ocultar modal
+    if (cardActiva)   cardActiva.style.display   = 'none';
+    if (cardEntregas) cardEntregas.style.display  = 'none';
+    if (sinRuta)      sinRuta.style.display        = '';
+    if (btnCerrar)   btnCerrar.style.display       = 'none';
+    if (btnNueva)    btnNueva.style.display         = '';
+    if (panel)       panel.innerHTML               = '';
+    if (modalCierre) modalCierre.style.display     = 'none';
   }
+}
+
+// ── Estado de paginación para entregas de ruta activa ──────────────────────
+let _rut_ent_todas = [];
+let _rut_ent_page  = 0;
+const RUT_ENT_PER_PAGE = 8;
+
+function rut_ent_renderPagina() {
+  const tbody = document.getElementById('rut-entregas-tbody');
+  if (!tbody) return;
+
+  const total    = _rut_ent_todas.length;
+  const totalPag = Math.max(1, Math.ceil(total / RUT_ENT_PER_PAGE));
+  if (_rut_ent_page >= totalPag) _rut_ent_page = totalPag - 1;
+  const slice = _rut_ent_todas.slice(
+    _rut_ent_page * RUT_ENT_PER_PAGE,
+    (_rut_ent_page + 1) * RUT_ENT_PER_PAGE
+  );
+
+  // La ruta está abierta → precio y subtotal SIEMPRE son "Pendiente"
+  // (se calculan al cerrar la ruta con el flete, nunca antes)
+  tbody.innerHTML = slice.map(e => `
+    <tr style="border-bottom:1px solid #f3f4f6">
+      <td data-label="Productor" style="padding:8px;font-size:.88rem;font-weight:600">
+        ${e.nombre_productor || e.nombre_productor_externo || ('Prod. #' + e.id_productor)}
+      </td>
+      <td data-label="Producto" style="padding:8px;font-size:.88rem">
+        ${e.nombre_producto || ('Prod. #' + e.id_producto)}
+      </td>
+      <td data-label="Kg" style="padding:8px;text-align:left;font-weight:700;font-size:.88rem;color:#166534">
+        ${Number(e.peso_kg || 0).toFixed(2)} kg
+      </td>
+      <td data-label="Precio/kg" style="padding:8px;text-align:left;font-size:.82rem">
+        <span style="color:#d97706;font-weight:600;font-size:.78rem">Pendiente<br>
+          <span style="color:#9ca3af;font-size:.7rem;font-weight:400">Se calcula al cerrar</span>
+        </span>
+      </td>
+      <td data-label="Subtotal" style="padding:8px;text-align:left;font-size:.82rem">
+        <span style="color:#d97706;font-weight:600;font-size:.78rem">—</span>
+      </td>
+    </tr>`).join('');
+
+  // Paginación
+  const pag  = document.getElementById('rut-ent-pagination');
+  const info = document.getElementById('rut-ent-info');
+  const prev = document.getElementById('rut-ent-prev');
+  const next = document.getElementById('rut-ent-next');
+  if (pag)  pag.style.display  = totalPag > 1 ? 'flex' : 'none';
+  if (info) info.textContent   = `Página ${_rut_ent_page + 1} de ${totalPag}`;
+  if (prev) prev.disabled      = _rut_ent_page === 0;
+  if (next) next.disabled      = _rut_ent_page >= totalPag - 1;
+}
+
+function rut_ent_paginar(dir) {
+  _rut_ent_page += dir;
+  rut_ent_renderPagina();
 }
 
 async function rut_cargarEntregas(id_ruta) {
   const subtitle = document.getElementById('rut-entregas-subtitle');
-  const tbody = document.getElementById('rut-entregas-tbody');
+  const tbody    = document.getElementById('rut-entregas-tbody');
   if (!tbody) return;
 
   try {
-    const data = await fetchWithAuth(`${API_BASE}/rutas/${id_ruta}/entregas`);
+    const data    = await fetchWithAuth(`${API_BASE}/rutas/${id_ruta}/entregas`);
     const entregas = Array.isArray(data) ? data : (data.data || []);
 
-    // Actualizar total kg para el preview de precio al cerrar ruta
+    // Acumular kg totales para preview de precio al cerrar ruta
     rutaActivaKgTotal = entregas.reduce((sum, e) => sum + Number(e.peso_kg || 0), 0);
 
-    if (subtitle) subtitle.textContent = `${entregas.length} entrega${entregas.length !== 1 ? 's' : ''} registradas`;
+    if (subtitle) subtitle.textContent =
+      `${entregas.length} entrega${entregas.length !== 1 ? 's' : ''} registradas — ${rutaActivaKgTotal.toFixed(2)} kg totales`;
 
     if (!entregas.length) {
       if (subtitle) subtitle.textContent = 'Sin entregas registradas en esta ruta';
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#9ca3af">Registra compras para verlas aquí</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Registra compras para verlas aquí</td></tr>';
+      const pag = document.getElementById('rut-ent-pagination');
+      if (pag) pag.style.display = 'none';
       return;
     }
 
-    const fmtP = n => n != null ? '$' + Number(n).toLocaleString('es-CO') : 'Pendiente';
-    tbody.innerHTML = entregas.map(e => `
-      <tr style="border-bottom:1px solid #f3f4f6">
-        <td style="padding:8px;font-size:.82rem">${e.nombre_productor || ('Productor #' + e.id_productor)}</td>
-        <td style="padding:8px;font-size:.82rem">${e.nombre_producto || ('Prod. #' + e.id_producto)}</td>
-        <td style="padding:8px;text-align:center;font-weight:700">${Number(e.peso_kg).toFixed(2)} kg</td>
-        <td style="padding:8px;text-align:right;color:#15803d">${e.precio_unitario != null ? fmtP(e.precio_unitario) + '/kg' : 'Pendiente'}</td>
-        <td style="padding:8px;text-align:right;font-weight:700">${e.total != null ? fmtP(e.total) : '—'}</td>
-      </tr>`).join('');
+    _rut_ent_todas = entregas;
+    _rut_ent_page  = 0;
+    rut_ent_renderPagina();
+
+    // FIX OFFLINE QR: cachear cada productor afiliado de la ruta
+    // para que su QR funcione sin internet en la próxima salida
+    for (const e of entregas) {
+      if (!e.cedula_productor) continue;
+      if (_prod_buscarCacheLocal(e.cedula_productor)) continue;
+      _prod_guardarCache({
+        cedula:    String(e.cedula_productor),
+        nombre:    e.nombre_productor || '',
+        finca:     e.finca || e.ubicacion || '',
+        direccion: e.direccion || '',
+        ...(e.productor || {}),
+      });
+    }
+
   } catch (e) {
     console.warn('[RUTAS] Error cargando entregas:', e.message);
   }
 }
 
 function rut_renderHistorial(rutas) {
+  // Alimentar estado UX de paginacion (fusionado del wrapper)
+  _rut_todas = (rutas || []).filter(r => r.estado === 'CERRADA');
+  rut_aplicarFiltro();
+
   const tbody = document.getElementById('rut-historial-tbody');
   if (!tbody) return;
 
-  const cerradas = rutas.filter(r => r.estado === 'CERRADA');
+  const cerradas = _rut_todas;
   if (!cerradas.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">Sin rutas cerradas</td></tr>';
     return;
@@ -2804,13 +3227,13 @@ function rut_renderHistorial(rutas) {
     <tr style="border-bottom:1px solid #f3f4f6;cursor:pointer"
         onclick="rut_verEntregasRuta(${r.id_ruta}, '${r.fecha || ''}')">
       <td data-label="FECHA" style="padding:8px;font-size:.85em;color:#6b7280">${r.fecha || '—'}</td>
-      <td data-label="ENTREGA" style="padding:8px;text-align:center">${r.n_entregas ?? '—'}</td>
-      <td data-label="KILOS" style="padding:8px;text-align:right">${r.total_kilos != null ? Number(r.total_kilos).toLocaleString('es-CO') + ' kg' : '—'}</td>
-      <td data-label="PRECIO" style="padding:8px;text-align:right;font-weight:700;color:#15803d">${r.precio_final_kg != null ? fmt(r.precio_final_kg) + '/kg' : '—'}</td>
-      <td data-label="ESTADO" style="padding:8px;text-align:center">
+      <td data-label="ENTREGA" style="padding:8px;text-align:left">${r.n_entregas ?? '—'}</td>
+      <td data-label="KILOS" style="padding:8px;text-align:left">${r.total_kilos != null ? Number(r.total_kilos).toLocaleString('es-CO') + ' kg' : '—'}</td>
+      <td data-label="PRECIO" style="padding:8px;text-align:left;font-weight:700;color:#15803d">${r.precio_final_kg != null ? fmt(r.precio_final_kg) + '/kg' : '—'}</td>
+      <td data-label="ESTADO" style="padding:8px;text-align:left">
         <span style="font-size:.75rem;padding:2px 8px;border-radius:99px;background:#d1fae5;color:#065f46;font-weight:700">CERRADA</span>
       </td>
-      <td data-label="DETALLE" style="padding:8px;text-align:center">
+      <td data-label="DETALLE" style="padding:8px;text-align:left">
         <button style="font-size:.75rem;padding:3px 8px;border-radius:6px;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;cursor:pointer"
                 onclick="event.stopPropagation();rut_verEntregasRuta(${r.id_ruta}, '${r.fecha || ''}')">
           Ver entregas
@@ -2949,11 +3372,74 @@ async function rut_verEntregasRuta(id_ruta, fecha) {
 
 async function rut_crearRuta() {
   if (!confirm('¿Iniciar una nueva ruta de recolección para hoy?')) return;
+
+  // ── SIN INTERNET: crear ruta local en IndexedDB y localStorage ─────────────
+  if (!navigator.onLine) {
+    const rutaOfflineId = 'OFFLINE-' + Date.now();
+    const rutaOffline = {
+      id:          rutaOfflineId,   // clave IndexedDB
+      id_ruta:     rutaOfflineId,   // usado por toda la UI
+      estado:      'ABIERTA',
+      fecha:       new Date().toISOString().split('T')[0],
+      n_entregas:  0,
+      _offline:    true,
+      timestamp:   Date.now()
+    };
+    await AgroDB.guardarRutaOffline(rutaOffline);
+    // Persistir también en localStorage para que rut_cargarRutas lo encuentre
+    try { localStorage.setItem('cache_ruta_offline_activa', JSON.stringify(rutaOffline)); } catch(_) {}
+
+    rutaActiva = rutaOffline;
+    rut_actualizarPanel();
+    // Mostrar panel de entregas vacío
+    const tbody = document.getElementById('rut-entregas-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Sin entregas aún — registra compras para vincularlas.</td></tr>';
+    const pag = document.getElementById('rut-ent-pagination');
+    if (pag) pag.style.display = 'none';
+    showAlert('Ruta iniciada sin conexión. Se sincronizará al recuperar señal.', 'success');
+
+    // Cuando recupere red: crear en servidor y vincular
+    window.addEventListener('online', async function _syncRuta() {
+      window.removeEventListener('online', _syncRuta);
+      try {
+        await fetchWithAuth(`${API_BASE}/rutas`, { method: 'POST', body: JSON.stringify({}) });
+        localStorage.removeItem('cache_ruta_offline_activa');
+        await rut_cargarRutas();
+        if (rutaActiva && !rutaActiva._offline) {
+          await fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
+            method: 'POST'
+          }).catch(() => {});
+          rut_cargarEntregas(rutaActiva.id_ruta);
+          showAlert('Ruta sincronizada con el servidor. Compras vinculadas.', 'success');
+        }
+      } catch(e) { console.warn('[RUTA OFFLINE SYNC]', e.message); }
+    }, { once: true });
+    return;
+  }
+
+  // ── CON INTERNET: flujo normal ────────────────────────────────────────────
   showAlert('Creando ruta...', 'success');
   try {
     await fetchWithAuth(`${API_BASE}/rutas`, { method: 'POST', body: JSON.stringify({}) });
     await rut_cargarRutas();
-    showAlert('Ruta iniciada. Ahora registra las entregas normalmente.', 'success');
+    if (rutaActiva) {
+      try {
+        const res = await fetchWithAuth(`${API_BASE}/rutas/${rutaActiva.id_ruta}/vincular-pendientes`, {
+          method: 'POST'
+        });
+        const vinculadas = res?.vinculadas ?? res?.count ?? 0;
+        if (vinculadas > 0) {
+          showAlert(`Ruta iniciada. ${vinculadas} compra(s) previas vinculadas automáticamente.`, 'success');
+        } else {
+          showAlert('Ruta iniciada. Ahora registra las entregas normalmente.', 'success');
+        }
+        rut_cargarEntregas(rutaActiva.id_ruta);
+      } catch (_) {
+        showAlert('Ruta iniciada. Ahora registra las entregas normalmente.', 'success');
+      }
+    } else {
+      showAlert('Ruta iniciada. Ahora registra las entregas normalmente.', 'success');
+    }
   } catch (e) {
     showAlert('Error al crear ruta: ' + e.message, 'error');
   }
@@ -3071,8 +3557,11 @@ async function rut_confirmarCierre() {
       Precio final: <strong style="color:#15803d;font-size:1.1rem">${fmt(r.precio_final_kg)}/kg</strong><br>
       <em style="font-size:.78rem">${calc.formula || ''}</em>`;
 
-    // Recargar datos
-    await rut_cargarRutas();
+    // Actualizar UI localmente de inmediato — sin esperar el fetch
+    rutaActiva = null;
+    rut_actualizarPanel();
+    // Refrescar historial de rutas y dashboard en background
+    _refrescarTrasAccion({ vincular: false, entregas: false, dashboard: true, rutas: true }).catch(() => {});
 
     setTimeout(() => rut_cerrarModal(), 4000);
   } catch (e) {
@@ -3136,6 +3625,14 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+// ── AUTO-REFRESH DE RUTAS EN SEGUNDO PLANO ────────────────────────────────────
+// Cada 30s refresca silenciosamente la ruta activa y sus entregas
+// para que el operario vea cambios sin recargar la página.
+setInterval(() => {
+  if (!navigator.onLine) return;
+  rut_cargarRutas().catch(() => {});
+}, 30_000);
 
 // Recargar historial cuando AgroSync sincronice datos offline
 window.addEventListener("agrotrace:sincronizado", () => {
@@ -3209,21 +3706,25 @@ function stk_op_renderCards() {
     const label = kilos <= 0 ? ' Sin stock' : kilos < 50 ? ' Stock bajo' : ' Disponible';
 
     return '<div style="background:' + bg + ';border-radius:12px;padding:16px;text-align:center">'
-      + '<div style="font-size:.78rem;color:' + color + ';font-weight:700;text-transform:uppercase;margin-bottom:6px">' + (s.producto || '—') + '</div>'
-      + '<div style="font-size:2rem;font-weight:800;color:' + color + '">' + fmt(kilos) + '</div>'
-      + '<div style="font-size:.75rem;color:' + color + ';margin-top:2px">kg disponibles</div>'
-      + '<div style="font-size:.72rem;margin-top:6px;font-weight:600;color:' + color + '">' + label + '</div>'
+      + '<div style="font-size:.95rem;color:' + color + ';font-weight:700;text-transform:uppercase;margin-bottom:6px">' + (s.producto || '—') + '</div>'
+      + '<div style="font-size:2.4rem;font-weight:800;color:' + color + '">' + fmt(kilos) + '</div>'
+      + '<div style="font-size:.9rem;color:' + color + ';margin-top:2px;font-weight:600">kg disponibles</div>'
+      + '<div style="font-size:.82rem;margin-top:6px;font-weight:700;color:' + color + '">' + label + '</div>'
       + '</div>';
   }).join('');
 }
 
 async function stk_op_cargarMovimientos() {
-  const tbody = document.getElementById('stk_op_tbody');
-  if (!tbody) return;
-
   try {
     const movs = await fetchWithAuth(`${API_BASE}/stock/movimientos`);
-    const lista = Array.isArray(movs) ? movs.slice(0, 20) : [];
+    // Alimentar estado UX para pills/filtros (fusionado del wrapper)
+    _stk_movs_todos = Array.isArray(movs) ? movs : [];
+    stk_aplicarFiltro();
+
+    // Tabla legacy (primeros 20)
+    const tbody = document.getElementById('stk_op_tbody');
+    if (!tbody) return;
+    const lista = _stk_movs_todos.slice(0, 20);
 
     if (!lista.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Sin movimientos recientes</td></tr>';
@@ -3236,15 +3737,18 @@ async function stk_op_cargarMovimientos() {
     tbody.innerHTML = lista.map(m => {
       var entrada = m.tipo === 'ENTRADA';
       return '<tr style="border-bottom:1px solid #f3f4f6">'
-        + '<td data-label="FECHA" style="padding:8px 10px;font-size:.8rem;color:#6b7280">' + fmtF(m.fecha) + '</td>'
-        + '<td data-label="TIPO" style="padding:8px 10px"><span style="background:' + (entrada ? '#d1fae5' : '#fee2e2') + ';color:' + (entrada ? '#065f46' : '#dc2626') + ';border-radius:99px;padding:2px 8px;font-size:.7rem;font-weight:700">' + (entrada ? 'Entrada' : 'Salida') + '</span></td>'
-        + '<td data-label="PRODUCTO" style="padding:8px 10px;font-weight:600">' + (m.producto || '—') + '</td>'
-        + '<td data-label="KILOS" style="padding:8px 10px;text-align:right;font-weight:700;color:' + (entrada ? '#16a34a' : '#dc2626') + '">' + (entrada ? '+' : '-') + fmt(m.kilos) + '</td>'
-        + '<td data-label="ORIGEN" style="padding:8px 10px;font-size:.78rem;color:#6b7280">' + (m.referencia_tipo || '—') + ' #' + (m.referencia_id || '—') + '</td>'
+        + '<td data-label="FECHA" style="padding:10px 10px;font-size:.88rem;color:#6b7280">' + fmtF(m.fecha) + '</td>'
+        + '<td data-label="TIPO" style="padding:10px 10px"><span style="background:' + (entrada ? '#d1fae5' : '#fee2e2') + ';color:' + (entrada ? '#065f46' : '#dc2626') + ';border-radius:99px;padding:3px 10px;font-size:.8rem;font-weight:700">' + (entrada ? 'Entrada' : 'Salida') + '</span></td>'
+        + '<td data-label="PRODUCTO" style="padding:10px 10px;font-weight:700;font-size:.9rem">' + (m.producto || '—') + '</td>'
+        + '<td data-label="KILOS" style="padding:10px 10px;text-align:right;font-weight:800;font-size:.95rem;color:' + (entrada ? '#16a34a' : '#dc2626') + '">' + (entrada ? '+' : '-') + fmt(m.kilos) + '</td>'
+        + '<td data-label="ORIGEN" style="padding:10px 10px;font-size:.85rem;color:#6b7280">' + (m.referencia_tipo || '—') + ' #' + (m.referencia_id || '—') + '</td>'
         + '</tr>';
     }).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Error al cargar movimientos</td></tr>';
+    const tbodyErr = document.getElementById('stk_op_tbody');
+    if (tbodyErr) tbodyErr.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">Error al cargar movimientos</td></tr>';
+    const grid = document.getElementById('stk-mov-cards');
+    if (grid) grid.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px 0">Error al cargar movimientos</p>';
   }
 }
 
@@ -3253,3 +3757,414 @@ setInterval(function () {
   var sec = document.getElementById('section-stock');
   if (sec && sec.classList.contains('active')) stk_op_cargar();
 }, 30000);
+
+// ══════════════════════════════════════════════════════════════
+// UX MÓDULOS — Historial · Rutas · Stock (Mobile-first)
+// ══════════════════════════════════════════════════════════════
+
+// ────────────────────────────────────────
+// HISTORIAL — estado
+// ────────────────────────────────────────
+let _hist_filtrado = [];
+let _hist_page = 0;
+const HIST_PER_PAGE = 12;
+
+let _hist_tipo = '';
+let _hist_periodo = 'todo';
+let _hist_desde = null;
+let _hist_hasta = null;
+let _hist_busqueda = '';
+
+// Inicializar pills del historial
+function hist_initPills() {
+  // Pills tipo
+  document.querySelectorAll('#hist-pills-tipo .ux-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#hist-pills-tipo .ux-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _hist_tipo = btn.dataset.tipo;
+      _hist_page = 0;
+      hist_aplicarFiltros();
+    });
+  });
+
+  // Pills período
+  document.querySelectorAll('#hist-pills-periodo .ux-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#hist-pills-periodo .ux-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _hist_periodo = btn.dataset.periodo;
+      const customEl = document.getElementById('hist-custom-dates');
+      if (customEl) customEl.style.display = _hist_periodo === 'custom' ? 'flex' : 'none';
+      if (_hist_periodo !== 'custom') {
+        _hist_desde = null;
+        _hist_hasta = null;
+        _hist_page = 0;
+        hist_aplicarFiltros();
+      }
+    });
+  });
+
+  // Buscador
+  const searchInput = document.getElementById('hist-cedula');
+  const clearBtn = document.getElementById('hist-search-clear');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      _hist_busqueda = searchInput.value.trim().toLowerCase();
+      if (clearBtn) clearBtn.style.display = _hist_busqueda ? 'flex' : 'none';
+      _hist_page = 0;
+      hist_aplicarFiltros();
+    });
+  }
+}
+
+function hist_limpiarBusqueda() {
+  const inp = document.getElementById('hist-cedula');
+  const btn = document.getElementById('hist-search-clear');
+  if (inp) inp.value = '';
+  if (btn) btn.style.display = 'none';
+  _hist_busqueda = '';
+  _hist_page = 0;
+  hist_aplicarFiltros();
+}
+
+function hist_aplicarFechaCustom() {
+  _hist_desde = document.getElementById('hist-fecha-desde')?.value || null;
+  _hist_hasta = document.getElementById('hist-fecha-hasta')?.value || null;
+  _hist_page = 0;
+  hist_aplicarFiltros();
+}
+
+function hist_getFechaRango() {
+  const hoy = new Date();
+  hoy.setHours(23, 59, 59, 999);
+  if (_hist_periodo === 'todo') return { desde: null, hasta: null };
+  if (_hist_periodo === 'custom') return { desde: _hist_desde, hasta: _hist_hasta };
+  const desde = new Date();
+  desde.setHours(0, 0, 0, 0);
+  if (_hist_periodo === 'semana') desde.setDate(hoy.getDate() - 6);
+  if (_hist_periodo === 'mes') desde.setDate(1);
+  if (_hist_periodo === 'anio') { desde.setMonth(0); desde.setDate(1); }
+  return { desde: desde.toISOString().split('T')[0], hasta: hoy.toISOString().split('T')[0] };
+}
+
+function hist_aplicarFiltros() {
+  let datos = historialCompleto || [];
+
+  // Filtro tipo
+  if (_hist_tipo) datos = datos.filter(r => (r.tipo || '').toUpperCase() === _hist_tipo);
+
+  // Filtro período
+  const { desde, hasta } = hist_getFechaRango();
+  if (desde || hasta) {
+    datos = datos.filter(r => {
+      const f = (r.fecha || r.fecha_venta || r.fecha_compra || r.createdAt || '').split('T')[0];
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  }
+
+  // Filtro búsqueda
+  if (_hist_busqueda) {
+    datos = datos.filter(r =>
+      (r.cedula_productor || r.cedula || '').toLowerCase().includes(_hist_busqueda) ||
+      (r.nombre_productor || r.nombre_productor_externo || r.nombre || r.cliente || r.nombre_comerciante || '').toLowerCase().includes(_hist_busqueda)
+    );
+  }
+
+  _hist_filtrado = datos;
+  const label = document.getElementById('hist-count-label');
+  if (label) label.textContent = `${datos.length} registro${datos.length !== 1 ? 's' : ''}`;
+  hist_renderPagina();
+}
+
+function hist_renderPagina() {
+  const total = _hist_filtrado.length;
+  const totalPag = Math.max(1, Math.ceil(total / HIST_PER_PAGE));
+  if (_hist_page >= totalPag) _hist_page = totalPag - 1;
+  const slice = _hist_filtrado.slice(_hist_page * HIST_PER_PAGE, (_hist_page + 1) * HIST_PER_PAGE);
+
+  // Reutilizar renderHistorial existente
+  renderHistorial(slice);
+
+  // Paginación
+  const pag = document.getElementById('hist-pagination');
+  const info = document.getElementById('hist-page-info');
+  const prev = document.getElementById('hist-prev');
+  const next = document.getElementById('hist-next');
+  if (pag) pag.style.display = totalPag > 1 ? 'flex' : 'none';
+  if (info) info.textContent = `${_hist_page + 1} / ${totalPag}`;
+  if (prev) prev.disabled = _hist_page === 0;
+  if (next) next.disabled = _hist_page >= totalPag - 1;
+}
+
+function hist_paginar(dir) {
+  _hist_page += dir;
+  hist_renderPagina();
+  document.getElementById('section-historial')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// renderHistorial no necesita wrapper (eliminado)
+
+// ────────────────────────────────────────
+// RUTAS — paginación + tarjetas + filtro
+// ────────────────────────────────────────
+let _rut_todas = [];
+let _rut_filtradas = [];
+let _rut_page = 0;
+let _rut_periodo = 'todo';
+const RUT_PER_PAGE = 12;
+
+function rut_initPills() {
+  document.querySelectorAll('#rut-pills-periodo .ux-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#rut-pills-periodo .ux-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _rut_periodo = btn.dataset.rperiodo;
+      _rut_page = 0;
+      rut_aplicarFiltro();
+    });
+  });
+}
+
+function rut_getFechaRango() {
+  const hoy = new Date(); hoy.setHours(23,59,59,999);
+  if (_rut_periodo === 'todo') return { desde: null, hasta: null };
+  const desde = new Date(); desde.setHours(0,0,0,0);
+  if (_rut_periodo === 'semana') desde.setDate(hoy.getDate() - 6);
+  if (_rut_periodo === 'mes')    { desde.setDate(1); }
+  if (_rut_periodo === 'anio')   { desde.setMonth(0); desde.setDate(1); }
+  return { desde: desde.toISOString().split('T')[0], hasta: hoy.toISOString().split('T')[0] };
+}
+
+function rut_aplicarFiltro() {
+  const { desde, hasta } = rut_getFechaRango();
+  _rut_filtradas = _rut_todas.filter(r => {
+    if (!desde && !hasta) return true;
+    const f = (r.fecha || '').split('T')[0];
+    if (desde && f < desde) return false;
+    if (hasta && f > hasta) return false;
+    return true;
+  });
+  _rut_page = 0;
+  rut_renderPagina();
+}
+
+function rut_renderPagina() {
+  const total = _rut_filtradas.length;
+  const totalPag = Math.max(1, Math.ceil(total / RUT_PER_PAGE));
+  if (_rut_page >= totalPag) _rut_page = totalPag - 1;
+  const slice = _rut_filtradas.slice(_rut_page * RUT_PER_PAGE, (_rut_page + 1) * RUT_PER_PAGE);
+
+  // Contador
+  const countLabel = document.getElementById('rut-count-label');
+  if (countLabel) countLabel.textContent = `${total} ruta${total !== 1 ? 's' : ''}`;
+
+  // Tbody con data-label (mismo patrón que historial)
+  const tbody = document.getElementById('rut-historial-tbody');
+  if (tbody) {
+    if (!slice.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Sin rutas en este período</td></tr>';
+    } else {
+      const fmt = n => n != null ? '$' + Number(n).toLocaleString('es-CO') : '—';
+      const fmtKg = n => n != null ? Number(n).toLocaleString('es-CO') + ' kg' : '—';
+      tbody.innerHTML = slice.map(r => `
+        <tr style="cursor:pointer" onclick="rut_verEntregasRuta(${r.id_ruta},'${r.fecha||''}')">
+          <td data-label="Fecha">${r.fecha || '—'}</td>
+          <td data-label="Entregas">${r.n_entregas ?? '—'}</td>
+          <td data-label="Kg totales"><strong style="color:#15803d">${fmtKg(r.total_kilos)}</strong></td>
+          <td data-label="Precio/kg">${r.precio_final_kg != null ? '<strong>' + fmt(r.precio_final_kg) + '/kg</strong>' : '<span style="color:#d97706;font-size:.8rem;font-weight:600">Pendiente</span>'}</td>
+          <td data-label="Estado"><span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">CERRADA</span></td>
+          <td data-label="Acciones">
+            <button class="btn btn-secondary" style="font-size:.75rem;padding:4px 12px"
+              onclick="event.stopPropagation();rut_verEntregasRuta(${r.id_ruta},'${r.fecha||''}')">Ver</button>
+          </td>
+        </tr>`).join('');
+    }
+  }
+
+  // Paginación
+  const pag = document.getElementById('rut-pagination');
+  const info = document.getElementById('rut-page-info');
+  const prev = document.getElementById('rut-prev');
+  const next = document.getElementById('rut-next');
+  if (pag) pag.style.display = totalPag > 1 ? 'flex' : 'none';
+  if (info) info.textContent = `${_rut_page + 1} / ${totalPag}`;
+  if (prev) prev.disabled = _rut_page === 0;
+  if (next) next.disabled = _rut_page >= totalPag - 1;
+}
+
+function rut_paginar(dir) {
+  _rut_page += dir;
+  rut_renderPagina();
+}
+
+// rut_renderHistorial wrapper eliminado
+
+// ────────────────────────────────────────
+// STOCK — submenu + paginación
+// ────────────────────────────────────────
+let _stk_movs_todos = [];
+let _stk_movs_filtrados = [];
+let _stk_page = 0;
+let _stk_tab = 'disponible'; // 'disponible' | 'entrada' | 'salida'
+let _stk_periodo = 'todo';
+let _stk_desde = null;
+let _stk_hasta = null;
+const STK_PER_PAGE = 12;
+
+function stk_initPills() {
+  // Pills tipo (Todos/Entradas/Salidas)
+  document.querySelectorAll('#stk-pills .ux-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#stk-pills .ux-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _stk_tab = btn.dataset.stab;
+      _stk_page = 0;
+      stk_aplicarFiltro();
+    });
+  });
+
+  // Pills período
+  document.querySelectorAll('#stk-pills-periodo .ux-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#stk-pills-periodo .ux-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _stk_periodo = btn.dataset.speriodo;
+      const customEl = document.getElementById('stk-custom-dates');
+      if (customEl) customEl.style.display = _stk_periodo === 'custom' ? 'flex' : 'none';
+      if (_stk_periodo !== 'custom') {
+        _stk_desde = null; _stk_hasta = null;
+        _stk_page = 0;
+        stk_aplicarFiltro();
+      }
+    });
+  });
+}
+
+function stk_aplicarFechaCustom() {
+  _stk_desde = document.getElementById('stk-fecha-desde')?.value || null;
+  _stk_hasta = document.getElementById('stk-fecha-hasta')?.value || null;
+  _stk_page = 0;
+  stk_aplicarFiltro();
+}
+
+function stk_aplicarFiltro() {
+  // 'disponible' en el nuevo diseño = mostrar todos los movimientos
+  let datos = _stk_tab === 'disponible'
+    ? _stk_movs_todos.slice()
+    : _stk_movs_todos.filter(m =>
+        _stk_tab === 'entrada' ? m.tipo === 'ENTRADA' : m.tipo !== 'ENTRADA'
+      );
+
+  // Período
+  const hoy = new Date(); hoy.setHours(23,59,59,999);
+  let desde = null, hasta = null;
+  if (_stk_periodo === 'custom') { desde = _stk_desde; hasta = _stk_hasta; }
+  else if (_stk_periodo !== 'todo') {
+    const d = new Date(); d.setHours(0,0,0,0);
+    if (_stk_periodo === 'semana') d.setDate(hoy.getDate() - 6);
+    if (_stk_periodo === 'mes')    d.setDate(1);
+    if (_stk_periodo === 'anio')   { d.setMonth(0); d.setDate(1); }
+    desde = d.toISOString().split('T')[0];
+    hasta = hoy.toISOString().split('T')[0];
+  }
+  if (desde || hasta) {
+    datos = datos.filter(m => {
+      const f = (m.fecha || '').split('T')[0];
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  }
+
+  _stk_movs_filtrados = datos;
+  const label = document.getElementById('stk-count-label');
+  if (label) label.textContent = `${datos.length} movimiento${datos.length !== 1 ? 's' : ''}`;
+  stk_renderPagina();
+}
+
+function stk_renderPagina() {
+  const total = _stk_movs_filtrados.length;
+  const totalPag = Math.max(1, Math.ceil(total / STK_PER_PAGE));
+  if (_stk_page >= totalPag) _stk_page = totalPag - 1;
+  const slice = _stk_movs_filtrados.slice(_stk_page * STK_PER_PAGE, (_stk_page + 1) * STK_PER_PAGE);
+
+  const tbody = document.getElementById('stk-mov-tbody');
+  if (tbody) {
+    const fmtF = f => f ? new Date(f).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const fmtK = n => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(Number(n ?? 0));
+    if (!slice.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin movimientos en este período</td></tr>';
+    } else {
+      tbody.innerHTML = slice.map(m => {
+        const entrada = m.tipo === 'ENTRADA';
+        const tipoBadge = entrada
+          ? '<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">Entrada</span>'
+          : '<span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">Salida</span>';
+        const kgColor = entrada ? '#16a34a' : '#dc2626';
+        const kgPrefix = entrada ? '+' : '-';
+        return `<tr>
+          <td data-label="Fecha">${fmtF(m.fecha)}</td>
+          <td data-label="Tipo">${tipoBadge}</td>
+          <td data-label="Producto">${m.producto || '—'}</td>
+          <td data-label="Kilos"><strong style="color:${kgColor}">${kgPrefix}${fmtK(m.kilos)} kg</strong></td>
+          <td data-label="Origen">${m.referencia_tipo || '—'} #${m.referencia_id || '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  const pag = document.getElementById('stk-pagination');
+  const info = document.getElementById('stk-page-info');
+  const prev = document.getElementById('stk-prev');
+  const next = document.getElementById('stk-next');
+  if (pag) pag.style.display = totalPag > 1 ? 'flex' : 'none';
+  if (info) info.textContent = `${_stk_page + 1} / ${totalPag}`;
+  if (prev) prev.disabled = _stk_page === 0;
+  if (next) next.disabled = _stk_page >= totalPag - 1;
+}
+
+function stk_paginar(dir) {
+  _stk_page += dir;
+  stk_renderPagina();
+}
+
+// stk_op_cargarMovimientos wrapper eliminado
+
+// ────────────────────────────────────────
+// INIT — arrancar todos los pills al cargar
+// ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Pequeño delay para que el DOM esté listo
+  setTimeout(() => {
+    hist_initPills();
+    rut_initPills();
+    stk_initPills();
+  }, 300);
+});
+
+// NOTA: el post-procesado de hist_aplicarFiltros fue movido
+// directamente al final de cargarHistorial() para evitar recursión infinita.
+
+// ─────────────────────────────────────────────────────────
+// LISTENER SYNC — al terminar AgroSync, refrescar la vista
+// de la ruta activa sin que el operario recargue la app.
+// ─────────────────────────────────────────────────────────
+window.addEventListener('agrotrace:synced', async (e) => {
+  const { comprasOk = 0, ventasOk = 0 } = e.detail || {};
+  if (comprasOk + ventasOk === 0) return;
+
+  try {
+    await _refrescarTrasAccion({
+      vincular:  comprasOk > 0,
+      entregas:  comprasOk > 0,
+      dashboard: true,
+      historial: false,
+      rutas:     false,
+    });
+  } catch (err) {
+    console.warn('[SYNC LISTENER] Error al refrescar vista:', err);
+  }
+});

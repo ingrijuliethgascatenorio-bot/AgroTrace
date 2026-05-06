@@ -33,11 +33,19 @@ export class TenantMiddleware implements NestMiddleware {
     const host = req.hostname; // ej: 'asoc1.agrotrace.com' o 'localhost'
 
     // ── Modo desarrollo: sin subdominio → saltar ──────────────
-    if (host === 'localhost' || host === '127.0.0.1') {
-      // En desarrollo puedes forzar un tenant por variable de entorno
+    // ── Modo desarrollo / ngrok ───────────────────────────────
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.includes('ngrok-free.dev')
+    ) {
       const devTenantId = parseInt(process.env.DEV_TENANT_ID || '1', 10);
+
       (req as any).asociacionId = devTenantId;
       (req as any).subdominio = 'dev';
+
+      console.log(`Modo DEV activo para host: ${host}`);
+
       return next();
     }
 

@@ -566,10 +566,10 @@ body {
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 20px;
 }
 
@@ -598,7 +598,7 @@ body {
 
 /* Número principal */
 .dash-card-num {
-  font-size: 3rem;
+  font-size: 3.2rem;
   font-weight: 900;
   color: white;
   margin: 0;
@@ -609,7 +609,7 @@ body {
 
 /* Variante tamaño reducido para texto largo (ej. fechas) */
 .dash-card-num-sm {
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   letter-spacing: -0.5px;
   font-weight: 800;
   line-height: 1.2;
@@ -617,11 +617,11 @@ body {
 
 /* Descripción */
 .dash-card-desc {
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
   margin: 6px 0 0;
-  font-weight: 500;
-  line-height: 1.3;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 /* ── Variantes de color + imagen por tarjeta ── */
@@ -1966,26 +1966,76 @@ select.input {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 72px;
   background: var(--white);
   border-top: 1px solid var(--gray-200);
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
   z-index: 200;
-  padding: 7px 20px;
+  padding: 0;
+  /* altura = items (68px) + dots (22px) + padding (4px) */
+  height: 94px;
+  overflow: hidden;
+  flex-direction: column;
 }
 
-
-/* Contenedor interno centrado */
-.mobile-nav-inner {
-  display: flex;
+/* ── Página: muestra los ítems en fila ──────── */
+.mobile-nav-page {
+  display: none;
+  /* oculto por defecto */
+  flex-direction: row;
   align-items: center;
   justify-content: space-around;
-  height: 100%;
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
+  height: 68px;
+  padding: 0 4px;
+  /* entrada con slide */
+  animation: mnavPageIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Cada ítem de navegación */
+.mobile-nav-page.active {
+  display: flex;
+}
+
+@keyframes mnavPageIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Dots ───────────────────────────────────── */
+.mobile-nav-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+  padding-bottom: 4px;
+}
+
+.mobile-nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-300, #d1d5db);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, width 0.2s ease;
+  border: none;
+  padding: 0;
+}
+
+.mobile-nav-dot.active {
+  background: var(--green);
+  transform: scale(1.2);
+  width: 20px;
+  border-radius: 4px;
+}
+
+/* ── Cada ítem ───────────────────────────────── */
 .mobile-nav-item {
   display: flex;
   flex-direction: column;
@@ -1996,15 +2046,14 @@ select.input {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 6px 2px 4px;
+  padding: 6px 4px;
   position: relative;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  gap: 6px;
-  padding: 12px 20px;
+  gap: 3px;
 }
 
-/* Nombre debajo del ícono */
+/* ── Label ───────────────────────────────────── */
 .mobile-nav-label {
   font-size: 0.6rem;
   font-weight: 600;
@@ -2019,7 +2068,7 @@ select.input {
   font-weight: 700;
 }
 
-/* Círculo contenedor del ícono */
+/* ── Pill / ícono ────────────────────────────── */
 .mobile-nav-pill {
   width: 40px;
   height: 40px;
@@ -2034,7 +2083,6 @@ select.input {
   padding: 10px 4px;
 }
 
-/* Ícono dentro del círculo */
 .mobile-nav-pill .fi {
   font-size: 1.2rem;
   color: var(--gray-400);
@@ -2045,7 +2093,7 @@ select.input {
   justify-content: center;
 }
 
-/* ── Estado ACTIVO ────────────────────────────── */
+/* ── Estado ACTIVO ───────────────────────────── */
 .mobile-nav-item.active .mobile-nav-pill {
   background: var(--green-light);
   border-color: var(--green);
@@ -2057,8 +2105,7 @@ select.input {
   color: var(--green-dark);
 }
 
-/* ── Animación de selección ───────────────────── */
-/* Onda que se expande y desvanece al activar */
+/* Onda ripple al activar */
 .mobile-nav-item.active .mobile-nav-pill::after {
   content: "";
   position: absolute;
@@ -2081,7 +2128,7 @@ select.input {
   }
 }
 
-/* ── Hover (en dispositivos con puntero fino) ─── */
+/* ── Hover (desktop) ─────────────────────────── */
 @media (hover: hover) {
   .mobile-nav-item:not(.active):hover .mobile-nav-pill {
     background: var(--green-hover);
@@ -2093,7 +2140,7 @@ select.input {
   }
 }
 
-/* ── Feedback táctil al presionar ─────────────── */
+/* ── Feedback táctil ─────────────────────────── */
 .mobile-nav-item:active .mobile-nav-pill {
   transform: scale(0.93);
 }
@@ -2140,7 +2187,7 @@ select.input {
 
   /* Dar espacio al contenido para que no quede oculto detrás de la nav */
   .content {
-    padding: 16px 14px 90px;
+    padding: 16px 14px 100px;
   }
 
   /* Topbar sin margen de sidebar */
@@ -2153,9 +2200,38 @@ select.input {
     display: none;
   }
 
-  /* Drawer ocupa ancho completo en mobile */
+  /* Drawer ocupa ancho completo en mobile
+     y deja espacio para la barra inferior (72px)
+     para que el botón cerrar sesión no quede tapado */
   .drawer {
     max-width: 100%;
+    height: calc(100vh - 72px);
+    padding-bottom: 16px;
+  }
+
+  /* Perfil — header en columna centrada en móvil */
+  .drawer-user-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 16px;
+    gap: 12px;
+  }
+
+  .drawer-user-info {
+    width: 100%;
+  }
+
+  .drawer-user-name {
+    font-size: 1.05rem;
+  }
+
+  .drawer-user-role {
+    margin-bottom: 4px;
+  }
+
+  .drawer-user-email {
+    font-size: 0.78rem;
   }
 
   /* Hero */
@@ -2178,11 +2254,23 @@ select.input {
   }
 
   .dash-card-hero {
-    min-height: 150px;
+    min-height: 155px;
   }
 
   .dash-card-num {
-    font-size: 2.4rem;
+    font-size: 2.6rem;
+  }
+
+  .dash-card-num-sm {
+    font-size: 1.5rem;
+  }
+
+  .dash-card-desc {
+    font-size: 0.85rem;
+  }
+
+  .dash-card-badge {
+    font-size: 0.72rem;
   }
 }
 
@@ -2240,12 +2328,16 @@ select.input {
   }
 
   .dash-card-num {
-    font-size: 2rem;
+    font-size: 2.2rem;
   }
 
   .dash-card-hero {
-    min-height: 130px;
+    min-height: 135px;
     padding: 16px 14px 14px;
+  }
+
+  .dash-card-desc {
+    font-size: 0.8rem;
   }
 
   .producto-fila-body .form-row {
@@ -2290,6 +2382,59 @@ select.input {
   .ultimas-ops-card .table thead th:nth-child(3),
   .ultimas-ops-card .table tbody td:nth-child(3) {
     display: none;
+  }
+
+  /* 1. Ocultar el thead original */
+  .rut-det-table thead {
+    display: none;
+  }
+
+  /* 2. Cada fila se convierte en una "tarjeta" */
+  .rut-det-table tr {
+    display: block;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  /* 3. Cada celda se convierte en una línea con etiqueta a la izquierda */
+  .rut-det-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 5px;
+    border-bottom: 1px solid #f0fdf4;
+    /* Verde muy claro */
+    text-align: right;
+    font-size: 0.9rem;
+  }
+
+  .rut-det-table td:last-child {
+    border-bottom: none;
+  }
+
+  /* 4. Inyección de las etiquetas usando data-label */
+  .rut-det-table td::before {
+    content: attr(data-label);
+    /* Toma el nombre del atributo en el HTML */
+    font-weight: 700;
+    color: #166534;
+    /* El verde que usas en tu thead */
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    margin-right: 15px;
+    text-align: left;
+  }
+
+  /* Ajuste para que los totales resalten en móvil */
+  .rut-det-table td[data-label="Subtotal"] {
+    font-weight: bold;
+    color: #059669;
+    font-size: 1rem;
   }
 }
 
@@ -2340,6 +2485,7 @@ select.input {
   border-radius: var(--radius-md);
   border: 1px solid var(--gray-200);
 }
+
 /* =============================================
    TABLAS RESPONSIVAS — VENDEDOR (ADAPTADO)
 ============================================= */
@@ -2350,147 +2496,792 @@ select.input {
   -webkit-overflow-scrolling: touch;
 }
 
-/* 📱 MODO TARJETAS */
+/* 📱 MODO TARJETAS — ≤ 640px
+   Todas las tablas se convierten en tarjetas apiladas.
+   El label viene del atributo data-label de cada <td>.
+   ============================================= */
 @media (max-width: 640px) {
 
-  /* Oculta encabezado */
-  .table thead {
+  /* ── Ocultar encabezado de tabla ── */
+  .table thead,
+  table thead {
     display: none;
   }
 
-  /* Cada fila = tarjeta */
-  .table tbody tr {
+  /* ── Cada fila = tarjeta ── */
+  .table tbody tr,
+  table tbody tr {
     display: block;
     background: #fff;
     border: 1px solid #e5e7eb;
-    border-radius: 10px;
+    border-radius: 12px;
     margin-bottom: 12px;
-    padding: 12px 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
 
-  /* Cada celda */
-  .table tbody td {
+  /* ── Cada celda: label a la izquierda, valor a la derecha ── */
+  .table tbody td,
+  table tbody td {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 8px;
-    padding: 6px 0;
+    padding: 7px 0;
     border-bottom: 1px solid #f1f5f9;
-    font-size: 0.82rem;
+    font-size: 0.92rem;
   }
 
-  .table tbody td:last-child {
+  .table tbody td:last-child,
+  table tbody td:last-child {
     border-bottom: none;
   }
 
-  /* Etiquetas (data-label) */
-  .table tbody td::before {
+  /* ── Label automático desde data-label ── */
+  .table tbody td::before,
+  table tbody td::before {
     content: attr(data-label);
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 800;
     color: #6b7280;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.04em;
     flex-shrink: 0;
-    min-width: 95px;
+    min-width: 100px;
   }
 
-  /* Columna acciones */
+  /* ── Celda de acciones: alineada a la derecha ── */
   .table tbody td[data-label="Acciones"] {
     justify-content: flex-end;
     border-bottom: none;
     padding-top: 10px;
   }
 
-  /* Botón más compacto en móvil */
-  .btn-editar-op {
-    font-size: 0.75rem;
-    padding: 5px 10px;
+  .table tbody td[data-label="Acciones"]::before {
+    display: none;
   }
 
-  /* Estado vacío */
-  .table tbody td.empty-cell {
+  /* ── Celda vacía (colspan) ── */
+  .table tbody td.table-empty,
+  table tbody td.table-empty {
     display: block;
     text-align: center;
     border: none;
     padding: 20px;
+    font-style: italic;
+    color: #9ca3af;
   }
 
-  .table tbody td.empty-cell::before {
+  .table tbody td.table-empty::before,
+  table tbody td.table-empty::before {
     display: none;
   }
-table thead{
-display:none;
+
+  /* ── Botón editar compacto ── */
+  .btn-editar-op {
+    font-size: 0.82rem;
+    padding: 6px 12px;
+  }
+
+  /* ── Badge estado rutas ── */
+  .badge-cerrada {
+    font-size: .78rem;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: #d1fae5;
+    color: #065f46;
+    font-weight: 700;
+  }
+
+  /* ── Botón ver ruta ── */
+  .btn-ver-ruta {
+    font-size: .78rem;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    cursor: pointer;
+    transition: .2s;
+  }
+
+  .btn-ver-ruta:hover {
+    background: #dcfce7;
+  }
 }
 
-table tr{
-display:block;
-background:white;
-margin-bottom:14px;
-border-radius:12px;
-padding:14px;
-box-shadow:0 4px 12px rgba(0,0,0,0.08);
-border: 1px solid rgba(128, 128, 128, 0.507);
+/* ══════════════════════════════════════════════════════
+   UX MÓDULOS — Historial · Rutas · Stock (Mobile-first)
+   ══════════════════════════════════════════════════════ */
 
+/* ── Cabecera de sección ───────────────────────────── */
+.ux-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 4px 0;
 }
 
-table td{
-display:flex;
-justify-content:space-between;
-padding:6px 4px;
-border-bottom:1px solid #f3f4f6;
-font-size:14px;
+.ux-section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--gray-900);
+  margin: 0;
 }
 
-table td:last-child{
-border-bottom:none;
+.ux-section-sub {
+  font-size: .8rem;
+  color: var(--gray-400);
+  margin: 2px 0 0;
 }
 
-table td::before{
-content:attr(data-label);
-font-weight:600;
-color:#6b7280;
-font-size: 0.70rem;
-
-}.center{
-text-align:center;
+/* ── Pills submenu ─────────────────────────────────── */
+.ux-submenu-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.right{
-text-align:right;
+.ux-pills {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
 }
 
-.precio{
-font-weight:700;
-color:#15803d;
+.ux-pills::-webkit-scrollbar {
+  display: none;
 }
 
-/* BADGE ESTADO */
-
-.badge-cerrada{
-font-size:.75rem;
-padding:2px 10px;
-border-radius:999px;
-background:#d1fae5;
-color:#065f46;
-font-weight:700;
+.ux-pills.ux-pills-sm .ux-pill {
+  font-size: .72rem;
+  padding: 5px 12px;
 }
 
-/* BOTON */
-
-.btn-ver-ruta{
-font-size:.75rem;
-padding:4px 10px;
-border-radius:6px;
-background:#f0fdf4;
-color:#166534;
-border:1px solid #bbf7d0;
-cursor:pointer;
-transition:.2s;
+.ux-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 7px 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--gray-200);
+  background: #fff;
+  color: var(--gray-600);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+  font-family: inherit;
+  flex-shrink: 0;
 }
 
-.btn-ver-ruta:hover{
-background:#dcfce7;
+.ux-pill:hover {
+  border-color: var(--green);
+  color: var(--green-dark);
 }
+
+.ux-pill.active {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(27, 94, 32, .25);
+}
+
+/* ── Filtro fechas custom ──────────────────────────── */
+.ux-date-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.ux-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.ux-date-label {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.ux-date-input {
+  border: 1.5px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: .82rem;
+  font-family: inherit;
+  color: var(--gray-900);
+  background: #fff;
+  outline: none;
+  width: 100%;
+}
+
+.ux-date-input:focus {
+  border-color: var(--green);
+}
+
+.ux-apply-btn {
+  padding: 8px 18px;
+  background: var(--green-dark);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: .8rem;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
+/* ── Buscador ──────────────────────────────────────── */
+.ux-search-row {
+  margin-bottom: 10px;
+}
+
+.ux-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ux-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--gray-400);
+  font-size: .9rem;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.ux-search-input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 99px;
+  font-size: .83rem;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+  color: var(--gray-900);
+  transition: border-color .15s;
+}
+
+.ux-search-input:focus {
+  border-color: var(--green);
+}
+
+.ux-search-clear {
+  position: absolute;
+  right: 10px;
+  background: var(--gray-200);
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gray-600);
+  font-size: .8rem;
+}
+
+/* ── Contador / icono refresh ──────────────────────── */
+.ux-count-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ux-count-label {
+  font-size: .75rem;
+  color: var(--gray-400);
+  font-weight: 600;
+}
+
+.ux-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gray-500);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color .15s;
+}
+
+.ux-icon-btn:hover {
+  color: var(--green-dark);
+}
+
+/* ── Paginación ────────────────────────────────────── */
+.ux-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 0 8px;
+}
+
+.ux-page-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gray-200);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gray-700);
+  font-size: .9rem;
+  transition: all .15s;
+}
+
+.ux-page-btn:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green-dark);
+}
+
+.ux-page-btn:disabled {
+  opacity: .3;
+  cursor: not-allowed;
+}
+
+.ux-page-info {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--gray-700);
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ── Historial: tabla oculta en móvil (se usa tbody igual) ── */
+@media (max-width: 768px) {
+  .hist-table-desktop thead {
+    display: none;
+  }
+
+  .hist-table-desktop tr {
+    display: block;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--gray-200);
+  }
+
+  .hist-table-desktop td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    font-size: .92rem;
+    border: none;
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  .hist-table-desktop td:last-child {
+    border-bottom: none;
+  }
+
+  .hist-table-desktop td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: .75rem;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    flex-shrink: 0;
+    margin-right: 8px;
+    min-width: 110px;
+  }
+}
+
+/* ── Rutas: tarjetas 2×2 en móvil ─────────────────── */
+.rut-hist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.rut-cards-grid {
+  display: none;
+  /* visible solo en móvil */
+}
+
+.rut-table-wrap {
+  overflow-x: auto;
+}
+
+.rut-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1.5px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  position: relative;
+}
+
+.rut-card:active {
+  border-color: var(--green);
+  box-shadow: 0 2px 12px rgba(27, 94, 32, .15);
+}
+
+.rut-card-date {
+  font-size: .72rem;
+  color: var(--gray-400);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.rut-card-id {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--gray-900);
+}
+
+.rut-card-kg {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--green-dark);
+}
+
+.rut-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .75rem;
+  color: var(--gray-500);
+}
+
+.rut-card-badge {
+  font-size: .65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.rut-card-ver {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: .68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .rut-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .rut-table-wrap {
+    display: none;
+  }
+}
+
+/* ── Stock: grid disponible ────────────────────────── */
+.stk-available-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* ── Stock: tarjetas movimiento ────────────────────── */
+.stk-mov-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stk-mov-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--gray-200);
+}
+
+.stk-mov-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .9rem;
+  flex-shrink: 0;
+}
+
+.stk-mov-icon.entrada {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.stk-mov-icon.salida {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.stk-mov-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stk-mov-prod {
+  font-size: .83rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stk-mov-date {
+  font-size: .72rem;
+  color: var(--gray-400);
+  margin-top: 2px;
+}
+
+.stk-mov-kg {
+  font-size: .92rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.stk-mov-kg.entrada {
+  color: #16a34a;
+}
+
+.stk-mov-kg.salida {
+  color: #dc2626;
+}
+
+.stk-mov-tipo-indicator {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* ── Separador con texto ───────────────────────── */
+.ux-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 12px;
+  color: var(--gray-400);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.ux-divider::before,
+.ux-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--gray-200);
+}
+
+/* ── Stock: tabla-tarjeta movimientos (comparte estilos con historial) ── */
+@media (max-width: 768px) {
+  .stk-mov-table thead {
+    display: none;
+  }
+
+  .stk-mov-table tr {
+    display: block;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--gray-200);
+  }
+
+  .stk-mov-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    font-size: .92rem;
+    border: none;
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  .stk-mov-table td:last-child {
+    border-bottom: none;
+  }
+
+  .stk-mov-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 5rem;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    flex-shrink: 0;
+    margin-right: 8px;
+    min-width: 90px;
+  }
+}
+
+/* ── Rutas: tabla-tarjeta historial ─────────────── */
+@media (max-width: 768px) {
+  .rut-hist-table thead {
+    display: none;
+  }
+
+  .rut-hist-table tr {
+    display: block;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--gray-200);
+    cursor: pointer;
+  }
+
+  .rut-hist-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    font-size: .92rem;
+    border: none;
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  .rut-hist-table td:last-child {
+    border-bottom: none;
+  }
+
+  .rut-hist-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: .75rem;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    flex-shrink: 0;
+    margin-right: 8px;
+    min-width: 90px;
+  }
+}
+
+/* ── Ruta abierta: tabla de entregas activas ─────── */
+@media (max-width: 768px) {
+  .rut-open-table thead {
+    display: none;
+  }
+
+  .rut-open-table tr {
+    display: block;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border: 1px solid #bbf7d0;
+  }
+
+  .rut-open-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: .85rem;
+    border: none;
+    border-bottom: 1px solid #f0fdf4;
+  }
+
+  .rut-open-table td:last-child {
+    border-bottom: none;
+  }
+
+  .rut-open-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: .72rem;
+    color: #166534;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+    margin-right: 10px;
+  }
+
+  .rut-open-table td[data-label="Subtotal"] {
+    font-weight: 800;
+    color: #059669;
+    font-size: .95rem;
+  }
+}
+/* =============================================
+   RESPONSIVE — MUY MUY PEQUEÑO (≤380px)
+   Dashboard: 1 columna, tarjetas apiladas
+   ============================================= */
+@media (max-width: 380px) {
+  .dashboard-grid-new {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dash-card-hero {
+    min-height: 110px;
+    padding: 14px 14px 12px;
+  }
+
+  .dash-card-num {
+    font-size: 2rem;
+  }
 }

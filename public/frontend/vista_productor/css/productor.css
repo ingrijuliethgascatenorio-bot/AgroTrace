@@ -898,6 +898,7 @@ textarea {
 .badge-pagado {
     background: var(--primary-pale);
     color: #14532d;
+    font-size: 14px;
 }
 
 .badge-pendiente {
@@ -1545,37 +1546,24 @@ textarea {
 
 /* ── Cada botón del nav ── */
 .bn-item {
-    /* Ocupa espacio igual entre los 4 botones */
     flex: 1;
-
-    /* Icono arriba, texto abajo, centrado */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-
-    /* Tipografía */
-    font-size: .6em;
+    gap: 2px;
+    font-size: .58em;
     font-weight: 700;
     color: #9ca3af;
     letter-spacing: .2px;
-
-    /* Sin estilos de botón nativo */
     background: none;
     border: none;
     cursor: pointer;
-    padding: 6px 4px;
-    border-radius: 12px;
+    padding: 4px 2px;
+    border-radius: 10px;
     font-family: 'Inter', sans-serif;
-
-    /* Animación suave al cambiar estado */
     transition: color .2s ease, background .2s ease;
-
-    /* Quitar highlight azul en táctil */
     -webkit-tap-highlight-color: transparent;
-
-    /* Necesario para el indicador ::after */
     position: relative;
 }
 
@@ -1602,19 +1590,15 @@ textarea {
 
 .bn-item.active i {
     color: var(--primary);
-    transform: translateY(-10px);
-
-    width: 42px;
-    height: 42px;
-
+    transform: translateY(-6px);
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-
     background: white;
     border-radius: 50%;
-
-    box-shadow: 0 0 0 4px var(--primary);
+    box-shadow: 0 0 0 3px var(--primary);
 }
 
 /* Línea indicadora en el ícono activo 
@@ -1792,7 +1776,7 @@ textarea {
     /* Etiqueta generada por data-label */
     .prd-table tbody td::before {
         content: attr(data-label);
-        font-size: 0.68rem;
+        font-size: 0.88rem;
         font-weight: 800;
         color: var(--gray-500);
         text-transform: uppercase;
@@ -1821,6 +1805,24 @@ textarea {
     }
 }
 
+/* ── Fix columna Precio/kg en tarjetas móvil ── */
+@media (max-width: 640px) {
+
+    #inicio_tbody td[data-label="Precio/kg"],
+    #hist_tbody td[data-label="Precio/kg"],
+    #hist_tbody td[data-label="Precio / kg"] {
+        white-space: normal;
+    }
+
+    #inicio_tbody td[data-label="Precio/kg"] small,
+    #hist_tbody td[data-label="Precio/kg"] small {
+        font-size: .8rem;
+    }
+    .total{
+        font-size: 17px;
+    }
+}
+
 /* ══════════════════════════════════════════════
    MIS INGRESOS — responsive fixes
 ══════════════════════════════════════════════ */
@@ -1841,6 +1843,9 @@ textarea {
 
     .ing-kpi-value {
         font-size: 1.35rem;
+    }
+    .total{
+        font-size: 17px;
     }
 }
 
@@ -1944,13 +1949,112 @@ textarea {
     border-radius: 99px;
     white-space: nowrap;
 }
-.ing-badge--liq  { background: #dcfce7; color: #166534; }
-.ing-badge--pend { background: #fef3c7; color: #92400e; }
-.ing-badge--pago { background: #dbeafe; color: #1e40af; }
+
+.ing-badge--liq {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.ing-badge--pend {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.ing-badge--pago {
+    background: #dbeafe;
+    color: #1e40af;
+}
 
 /* Label chart */
 .ing-chart-label {
     font-size: 12px;
     color: #9ca3af;
     font-weight: 500;
+}
+
+/* ── Paginación historial ─────────────────────────── */
+.hist-pagination {
+    padding: 12px 16px 8px;
+    border-top: 1px solid var(--gray-100, #f3f4f6);
+}
+
+.hist-pag-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.hist-pag-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    background: #fff;
+    color: var(--gray-600, #4b5563);
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+    font-family: inherit;
+    line-height: 1;
+}
+
+.hist-pag-btn:hover:not(:disabled):not(.active) {
+    background: var(--gray-50, #f9fafb);
+    border-color: var(--gray-400, #9ca3af);
+}
+
+.hist-pag-btn.active {
+    background: var(--primary, #16a34a);
+    border-color: var(--primary, #16a34a);
+    color: #fff;
+    cursor: default;
+}
+
+.hist-pag-btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.hist-pag-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 36px;
+    color: var(--gray-400, #9ca3af);
+    font-size: .85rem;
+    user-select: none;
+}
+
+.hist-pag-info {
+    font-size: .75rem;
+    color: var(--gray-400, #9ca3af);
+    font-weight: 500;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .hist-pag-btn {
+        min-width: 32px;
+        height: 32px;
+        font-size: .78rem;
+    }
+
+    .hist-pag-info {
+        width: 100%;
+        text-align: center;
+        margin-left: 0;
+        margin-top: 4px;
+    }
+    .total{
+        font-size: 17px;
+    }
 }

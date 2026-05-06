@@ -1,5 +1,10 @@
 /* AgroTrace — login.js */
 
+const _BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://irregular-sycamore-qualified.ngrok-free.dev';
+const API = `${_BASE_URL}/api`;
+
 // ── Si ya hay sesión activa al cargar el login → redirigir a la vista correcta ──
 (function redirigirSiYaAutenticado() {
     const usuario = AuthGuard.obtenerUsuario();
@@ -33,7 +38,7 @@ form.addEventListener('submit', async function (e) {
     if (errEl) errEl.style.display = 'none';
 
     try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(`${API}/auth/login`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ email, password }),

@@ -537,8 +537,13 @@ document.addEventListener('DOMContentLoaded', function _patchAlert() {
 
     // Captura global de promesas sin manejar
     window.addEventListener('unhandledrejection', function (e) {
-        const guard = String(e.reason || '').includes('GUARD');
-        if (!guard) {
+        const reason = String(e.reason || '');
+        const guard  = reason.includes('GUARD');
+        // Ignorar errores de red/fetch que el AgroSync ya maneja internamente.
+        // Sin este filtro, cada fallo del auto-sync cada 30s muestra un toast
+        // falso de "Error no capturado" en productor y admin.
+        const esRed  = /failed to fetch|networkerror|network request failed/i.test(reason);
+        if (!guard && !esRed) {
             console.error('[AgroUX] Unhandled rejection:', e.reason);
             Toast.error(Err.friendly(e.reason), 'Error no capturado');
         }

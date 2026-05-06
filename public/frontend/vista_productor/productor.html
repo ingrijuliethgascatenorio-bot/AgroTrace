@@ -27,7 +27,7 @@
         })();
     </script>
 
-    <link rel="stylesheet" href="css/productor.css?v=2">
+    <link rel="stylesheet" href="css/productor.css?v=9.3">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css">
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css">
@@ -250,6 +250,7 @@
                                     <th>Fecha</th>
                                     <th>Producto</th>
                                     <th>Peso</th>
+                                    <th>Precio/kg</th>
                                     <th>Total</th>
                                     <th>Estado</th>
                                 </tr>
@@ -352,6 +353,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="hist-pagination" class="hist-pagination"></div>
                 </div>
 
             </section>
@@ -654,6 +656,10 @@
                 <i class="fi fi-rr-user"></i>
                 <span>Perfil</span>
             </button>
+            <button class="bn-item" data-section="mi-qr">
+                <i class="fi fi-rr-qrcode"></i>
+                <span>QR</span>
+            </button>
         </nav>
 
     </div>
@@ -667,12 +673,12 @@
     <!-- ══ MÓDULOS OFFLINE -->
     <script src="../js/auth-guard.js"></script>
     <script src="../js/agro-db.js"></script>
-    <script src="../js/agro-sync.js"></script>
+    <script src="../js/agro-sync.js?v=7"></script>
     <!-- Módulos offline globales (reemplaza cache.js, offline.js, sync.js) -->
     <script src="../js/agro-ux.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="js/ingresos.js?v=7"></script>
-    <script src="js/productor.js?v=7"></script>
+    <script src="js/productor.js?v=11.1"></script>
     <script>document.addEventListener("DOMContentLoaded", () => {
             if (window.ING) {
                 ING.init();
@@ -684,6 +690,40 @@
     <script>
         console.log('[HTML] JS cargado OK. Token:', localStorage.getItem('token') ? 'SI' : 'NO');
         console.log('[HTML] usuario raw:', localStorage.getItem('usuario'));
+    </script>
+    <script>
+        /* Scroll automático al ítem activo en bottom-nav */
+        (function () {
+            function centerActiveItem() {
+                var nav = document.getElementById("bottom_nav");
+                if (!nav) return;
+                var active = nav.querySelector(".bn-item.active");
+                if (!active) return;
+                var itemLeft = active.offsetLeft;
+                var itemWidth = active.offsetWidth;
+                var containerWidth = nav.offsetWidth;
+                nav.scrollLeft = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", centerActiveItem);
+            } else {
+                setTimeout(centerActiveItem, 100);
+            }
+
+            document.addEventListener("click", function (e) {
+                var item = e.target.closest(".bn-item");
+                if (!item) return;
+                var nav = document.getElementById("bottom_nav");
+                if (!nav) return;
+                setTimeout(function () {
+                    var itemLeft = item.offsetLeft;
+                    var itemWidth = item.offsetWidth;
+                    var containerWidth = nav.offsetWidth;
+                    nav.scrollLeft = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+                }, 60);
+            });
+        })();
     </script>
 
 

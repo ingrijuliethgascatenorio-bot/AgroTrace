@@ -19,17 +19,20 @@ import { Permission } from '../../common/enums/permissions.enum';
 import { Tenant } from '../../common/decorators/Tenant.descorador';
 
 import { UploadProductoresService } from './upload-productores.service';
-import { UploadProductoresResult } from './upload-productores.dto';
+import {
+  UploadProductoresResult,
+  UploadProductoresUpdateResult,
+} from './upload-productores.dto';
 
 import { UploadUsuariosService } from './upload-usuarios.service';
 import { UploadUsuariosResult } from './upload-usuarios.dto';
 
-/** Configuración reutilizable para el interceptor de archivos CSV */
+/** Configuración reutilizable para el interceptor de archivos CSV / Excel */
 const csvFileInterceptor = () =>
   FileInterceptor('file', {
     storage: memoryStorage(),
     limits: {
-      fileSize: 2 * 1024 * 1024, // 2 MB máximo
+      fileSize: 5 * 1024 * 1024, // 5 MB máximo
       files: 1,
     },
     fileFilter: (_req, file, cb) => {
@@ -37,17 +40,24 @@ const csvFileInterceptor = () =>
         'text/csv',
         'text/plain',
         'application/csv',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'application/vnd.ms-excel',
+        'application/octet-stream',
+        'application/zip',
       ].includes(file.mimetype);
 
-      const extValida = file.originalname.toLowerCase().endsWith('.csv');
+      const nombreLower = file.originalname.toLowerCase();
+      const extValida =
+        nombreLower.endsWith('.csv') ||
+        nombreLower.endsWith('.xlsx') ||
+        nombreLower.endsWith('.xls');
 
       if (mimeValido || extValida) {
         cb(null, true);
       } else {
         cb(
           new BadRequestException(
-            `Solo se aceptan archivos .csv. Tipo recibido: ${file.mimetype}`,
+            `Solo se aceptan archivos .csv, .xlsx o .xls. Tipo recibido: ${file.mimetype}`,
           ),
           false,
         );
@@ -58,13 +68,9 @@ const csvFileInterceptor = () =>
 /**
  * AdminController
  *
- * POST /admin/upload-productores  → carga masiva de productores (crea usuario + productor + QR)
- * POST /admin/upload-usuarios     → carga masiva de usuarios (ADMIN / OPERARIO / PRODUCTOR)
- *
- * Ambos endpoints:
- * - Requieren JWT válido
- * - Reciben multipart/form-data con campo "file" (CSV, max 2 MB)
- * - Responden: { ok: true, data: { creados: number, errores: [...] } }
+ * POST /admin/upload-productores         → carga masiva (crea usuario + productor + QR)
+ * POST /admin/upload-productores-update  → actualización masiva (solo finca y ubicacion)
+ * POST /admin/upload-usuarios            → carga masiva de usuarios
  */
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -94,6 +100,31 @@ export class AdminController {
       file.buffer,
       asociacionId,
     );
+
+    return { ok: true, data: resultado };
+  }
+
+  // ── POST /admin/upload-productores-update ──────────────────────────────
+  @Post('upload-productores-update')
+  @Permissions(Permission.PRODUCTORES)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(csvFileInterceptor())
+  async uploadProductoresUpdate(
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() asociacionId: number,
+  ): Promise<{ ok: boolean; data: UploadProductoresUpdateResult }> {
+    if (!file) {
+      throw new BadRequestException(
+        'No se recibió ningún archivo. ' +
+          'Asegúrate de enviar el campo "file" como multipart/form-data.',
+      );
+    }
+
+    const resultado =
+      await this.uploadProductoresService.actualizarFincaUbicacion(
+        file.buffer,
+        asociacionId,
+      );
 
     return { ok: true, data: resultado };
   }

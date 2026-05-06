@@ -1,4 +1,7 @@
-const API_URL = '/api'; // FIX: relativa — funciona en cualquier entorno
+const _BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://irregular-sycamore-qualified.ngrok-free.dev';
+const API_URL = `${_BASE_URL}/api`;
 
 // ── Guard: solo PRODUCTOR entra a productor.html ──────────────────────────────
 // auth-guard.js debe cargarse ANTES que productor.js en el HTML:
@@ -219,7 +222,7 @@ function getIdProductor() {
 
 //  1. INICIO — Resumen KPI
 async function cargarResumen() {
-    ['kpi_entregas', 'kpi_kg', 'kpi_dinero', '/* kpi_ultima removed */'].forEach(id => {
+    ['kpi_entregas', 'kpi_kg', 'kpi_dinero', 'kpi_ultima'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '...';
     });
@@ -278,7 +281,7 @@ async function cargarResumen() {
         animarNum('kpi_kg', Number(totalKg), ' kg');
         const elD = document.getElementById('kpi_dinero');
         if (elD) elD.textContent = fmtCOP(totalDinero);
-        const elU = document.getElementById('/* kpi_ultima removed */');
+        const elU = document.getElementById('kpi_ultima');
         if (elU) elU.textContent = ultimaEntrega ? fmtFecha(ultimaEntrega) : 'Sin entregas';
 
     } catch (e) {
@@ -299,7 +302,7 @@ async function cargarResumen() {
                     animarNum('kpi_kg', Math.round(totalKg), ' kg');
                     const elD = document.getElementById('kpi_dinero');
                     if (elD) elD.textContent = fmtCOP(totalDinero);
-                    const elU = document.getElementById('/* kpi_ultima removed */');
+                    const elU = document.getElementById('kpi_ultima');
                     if (elU) elU.textContent = ultimaEntrega ? fmtFecha(ultimaEntrega) : 'Sin entregas';
                     localStorage.setItem('cache_resumen', JSON.stringify({ total_entregas: totalEntregas, total_kg: totalKg, total_dinero: totalDinero, ultima_entrega: ultimaEntrega }));
                     return;
@@ -314,11 +317,11 @@ async function cargarResumen() {
             animarNum('kpi_kg', Number(d.total_kg || 0), ' kg');
             const elD = document.getElementById('kpi_dinero');
             if (elD) elD.textContent = fmtCOP(d.total_dinero);
-            const elU = document.getElementById('/* kpi_ultima removed */');
+            const elU = document.getElementById('kpi_ultima');
             if (elU) elU.textContent = d.ultima_entrega ? fmtFecha(d.ultima_entrega) : 'Sin entregas';
             return;
         }
-        ['kpi_entregas', 'kpi_kg', 'kpi_dinero', '/* kpi_ultima removed */'].forEach(id => {
+        ['kpi_entregas', 'kpi_kg', 'kpi_dinero', 'kpi_ultima'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '—';
         });
@@ -329,7 +332,7 @@ async function cargarResumen() {
 async function cargarPreviewEntregas() {
     const tbody = document.getElementById('inicio_tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Cargando...</td></tr>';
 
     // FIX OFFLINE: mostrar del caché si no hay red
     if (!navigator.onLine) {
@@ -337,18 +340,19 @@ async function cargarPreviewEntregas() {
         if (cache) {
             try {
                 const arr = JSON.parse(cache);
-                if (!arr.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Sin entregas registradas</td></tr>'; return; }
+                if (!arr.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Sin entregas registradas</td></tr>'; return; }
                 tbody.innerHTML = arr.map(e => `<tr>
                     <td data-label="Fecha" style="font-size:.82em;color:var(--color-text-secondary)">${fmtFecha(e.fecha)}</td>
                     <td data-label="Producto" style="font-weight:500">${e.producto}</td>
                     <td data-label="Peso">${fmtKg(e.peso)}</td>
-                    <td data-label="Total"><span style="font-weight:700;color:#166534">${fmtCOP(e.total)}</span></td>
+                    <td data-label="Precio/kg">${e.precio ? '<span style="font-weight:700">' + fmtCOP(e.precio) + '/kg</span>' : '<span style="color:#d97706;font-weight:600">Pendiente</span>'}</td>
+                    <td class="total" data-label="Total"><span style="font-weight:700;color:#166534">${fmtCOP(e.total)}</span></td>
                     <td data-label="Estado">${badgeEstado(e.estado)}</td>
                 </tr>`).join('');
                 return;
             } catch(_) {}
         }
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Sin datos guardados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Sin datos guardados</td></tr>';
         return;
     }
     try {
@@ -377,28 +381,28 @@ async function cargarPreviewEntregas() {
         localStorage.setItem('cache_preview', JSON.stringify(vista));
 
         if (!vista.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Aún no tienes entregas registradas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Aún no tienes entregas registradas</td></tr>';
             return;
         }
         tbody.innerHTML = vista.map(e => `<tr>
-            <td data-label="Fecha" style="font-size:.82em;color:var(--color-text-secondary);white-space:nowrap">${fmtFecha(e.fecha)}</td>
+            <td data-label="Fecha" style="font-size:.92em;color:var(--color-text-secondary);white-space:nowrap">${fmtFecha(e.fecha)}</td>
             <td data-label="Producto" style="font-weight:500">${e.producto}</td>
             <td data-label="Peso">${fmtKg(e.peso)}</td>
-            <td data-label="Total">
-                <span style="font-weight:700;color:#166534">${fmtCOP(e.total)}</span>
-                <small style="display:block;color:#9ca3af;font-size:.7rem">${fmtCOP(e.precio)}/kg neto</small>
-            </td>
+            <td data-label="Precio/kg">${e.precio ? '<span style="font-weight:700">' + fmtCOP(e.precio) + '/kg</span><br><small style="color:#9ca3af;font-size:.7rem">incluye descuentos</small>' : '<span style="color:#d97706;font-weight:600">Pendiente liquidación</span>'}</td>
+            <td class="total" data-label="Total"><span style="font-weight:700;color:#166534">${fmtCOP(e.total)}</span></td>
             <td data-label="Estado">${badgeEstado(e.estado)}</td>
         </tr>`).join('');
 
     } catch (err) {
         console.error('[AgroTrace] Error /historial (preview):', err.message);
         const cache = localStorage.getItem('cache_preview');
-        if (!cache) { tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Sin datos</td></tr>'; return; }
+        if (!cache) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Sin datos</td></tr>'; return; }
         const arr = JSON.parse(cache);
         tbody.innerHTML = arr.map(e => `<tr>
             <td>${fmtFecha(e.fecha)}</td><td>${e.producto}</td>
-            <td>${fmtKg(e.peso)}</td><td>${fmtCOP(e.total)}</td>
+            <td>${fmtKg(e.peso)}</td>
+            <td>${e.precio ? fmtCOP(e.precio) + '/kg' : '—'}</td>
+            <td class="total">${fmtCOP(e.total)}</td>
             <td>${badgeEstado(e.estado)}</td>
         </tr>`).join('');
     }
@@ -419,7 +423,7 @@ async function cargarHistorial(mes = '', anio = '') {
                 _historial = JSON.parse(cache);
                 if (countEl) countEl.textContent = `${_historial.length} registro${_historial.length !== 1 ? 's' : ''} (sin conexión)`;
                 if (!_historial.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No hay entregas guardadas</td></tr>'; return; }
-                _renderHistorialRows(tbody, _historial);
+                _renderHistorialRows(tbody, _historial, 1);
                 return;
             } catch(_) {}
         }
@@ -463,62 +467,11 @@ async function cargarHistorial(mes = '', anio = '') {
 
         if (!_historial.length) {
             tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No hay entregas</td></tr>';
+            var pagCont = document.getElementById('hist-pagination');
+            if (pagCont) pagCont.innerHTML = '';
             return;
         }
-        tbody.innerHTML = _historial.map(function (e, idx) {
-            var liq = e.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
-            var pend = (liq === 'PENDIENTE_LIQUIDACION');
-            var pagado = (liq === 'PAGADO' || e.estado_pago === 'PAGADO');
-
-            var precioTd = pend
-                ? '<span style="color:#d97706;font-weight:600"> Pendiente liquidación</span>'
-                : '<span style="font-weight:700">' + fmtCOP(e.precio) + '/kg</span><br><small style="color:#9ca3af;font-size:.7rem">incluye descuentos</small>';
-
-            var totalTd = pend
-                ? '<span style="color:#d97706">Pendiente</span>'
-                : '<strong style="color:#166534">' + fmtCOP(e.total) + '</strong>';
-
-            var liqBadge = pagado
-                ? '<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700"> Pagado</span>'
-                : liq === 'LIQUIDADO'
-                    ? '<span style="background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700">Liquidado</span>'
-                    : '<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700">Pendiente</span>';
-
-            // Botón: si hay comprobante → ver comprobante subido por admin
-            // Si liquidado sin comprobante → descargar recibo
-            // Si pendiente → nada
-            var accionTd;
-            if (e.comprobante_pago) {
-                var urlComp = e.comprobante_pago.startsWith('http')
-                    ? e.comprobante_pago
-                    : e.comprobante_pago;
-                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : window.location.origin + e.comprobante_pago;
-                accionTd = '<a href="' + urlComp + '" target="_blank" '
-                    + 'style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;'
-                    + 'padding:4px 10px;font-size:.75rem;font-weight:600;text-decoration:none">Ver comprobante</a>';
-            } else if (!pend) {
-                accionTd = '<button onclick="prd_descargarRecibo(' + idx + ')" '
-                    + 'style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;'
-                    + 'padding:4px 10px;font-size:.75rem;cursor:pointer;font-weight:600"> Recibo</button>';
-            } else {
-                accionTd = '<span style="color:#d1d5db;font-size:.75rem">—</span>';
-            }
-
-            var detBtn = '<button onclick="prd_det_abrir(' + idx + ')" '
-                + 'style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;'
-                + 'padding:4px 10px;font-size:.75rem;cursor:pointer;font-weight:600"><span><i class="fi fi-rr-eye"></i></span></button>';
-
-            return '<tr>'
-                + '<td data-label="Fecha">' + fmtFecha(e.fecha) + '</td>'
-                + '<td data-label="Producto">' + e.producto + '</td>'
-                + '<td data-label="Peso">' + fmtKg(e.peso) + '</td>'
-                + '<td data-label="Precio/kg">' + precioTd + '</td>'
-                + '<td data-label="Total">' + totalTd + '</td>'
-                + '<td data-label="Estado">' + liqBadge + '</td>'
-                + '<td data-label="Comprobante">' + accionTd + '</td>'
-                + '<td data-label="Detalle">' + detBtn + '</td>'
-                + '</tr>';
-        }).join('');
+        _renderHistorialRows(tbody, _historial, 1);
 
     } catch (err) {
         console.error('[AgroTrace] Error /historial:', err.message);
@@ -526,30 +479,129 @@ async function cargarHistorial(mes = '', anio = '') {
         if (!cache) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Sin datos</td></tr>'; return; }
         _historial = JSON.parse(cache);
         if (countEl) countEl.textContent = `${_historial.length} registro${_historial.length !== 1 ? 's' : ''}`;
-        tbody.innerHTML = _historial.map(function (e, idx) {
-            var liq = e.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
-            var pend = (liq === 'PENDIENTE_LIQUIDACION');
-            var accionTd;
-            if (e.comprobante_pago) {
-                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : e.comprobante_pago;
-                var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : window.location.origin + e.comprobante_pago;
-                accionTd = '<button onclick="compModal.abrir(\'' + urlComp + '\')" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:600;cursor:pointer">Ver comprobante</button>';
-            } else if (!pend) {
-                accionTd = '<button onclick="prd_descargarRecibo(' + idx + ')" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;font-weight:600"> Recibo</button>';
-            } else {
-                accionTd = '—';
-            }
-            return '<tr>'
-                + '<td data-label="Fecha">' + fmtFecha(e.fecha) + '</td>'
-                + '<td data-label="Producto">' + e.producto + '</td>'
-                + '<td data-label="Peso">' + fmtKg(e.peso) + '</td>'
-                + '<td data-label="Precio/kg">' + (pend ? 'Pendiente' : fmtCOP(e.precio) + '/kg') + '</td>'
-                + '<td data-label="Total">' + (pend ? 'Pendiente' : fmtCOP(e.total)) + '</td>'
-                + '<td data-label="Estado">' + (liq === 'PAGADO' || e.estado_pago === 'PAGADO' ? 'Pagado' : liq === 'LIQUIDADO' ? 'Liquidado' : 'Pendiente') + '</td>'
-                + '<td data-label="Comprobante">' + accionTd + '</td>'
-                + '</tr>';
-        }).join('');
+        _renderHistorialRows(tbody, _historial, 1);
     }
+}
+
+// ── Paginación del historial ───────────────────────────
+const HIST_POR_PAGINA = 10;
+var _histPaginaActual = 1;
+
+function _buildHistorialRow(e, idx) {
+    var liq = e.estado_liquidacion || 'PENDIENTE_LIQUIDACION';
+    var pend = (liq === 'PENDIENTE_LIQUIDACION');
+    var pagado = (liq === 'PAGADO' || e.estado_pago === 'PAGADO');
+
+    var precioTd = pend
+        ? '<span style="color:#d97706;font-weight:600"> Pendiente liquidación</span>'
+        : '<span style="font-weight:700">' + fmtCOP(e.precio) + '/kg</span><br><small style="color:#9ca3af;font-size:.7rem">incluye descuentos</small>';
+
+    var totalTd = pend
+        ? '<span style="color:#d97706">Pendiente</span>'
+        : '<strong style="color:#166534">' + fmtCOP(e.total) + '</strong>';
+
+    var liqBadge = pagado
+        ? '<span style="background:#d1fae5;color:#065f46;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700"> Pagado</span>'
+        : liq === 'LIQUIDADO'
+            ? '<span style="background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700">Liquidado</span>'
+            : '<span style="background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700">Pendiente</span>';
+
+    var accionTd;
+    if (e.comprobante_pago) {
+        var urlComp = e.comprobante_pago.startsWith('http') ? e.comprobante_pago : window.location.origin + e.comprobante_pago;
+        accionTd = '<a href="' + urlComp + '" target="_blank" '
+            + 'style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;'
+            + 'padding:4px 10px;font-size:.75rem;font-weight:600;text-decoration:none">Ver comprobante</a>';
+    } else if (!pend) {
+        accionTd = '<button onclick="prd_descargarRecibo(' + idx + ')" '
+            + 'style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;'
+            + 'padding:4px 10px;font-size:.75rem;cursor:pointer;font-weight:600"> Recibo</button>';
+    } else {
+        accionTd = '<span style="color:#d1d5db;font-size:.75rem">—</span>';
+    }
+
+    var detBtn = '<button onclick="prd_det_abrir(' + idx + ')" '
+        + 'style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;'
+        + 'padding:4px 10px;font-size:.75rem;cursor:pointer;font-weight:600"><span><i class="fi fi-rr-eye"></i></span></button>';
+
+    return '<tr>'
+        + '<td data-label="Fecha">' + fmtFecha(e.fecha) + '</td>'
+        + '<td data-label="Producto">' + e.producto + '</td>'
+        + '<td data-label="Peso">' + fmtKg(e.peso) + '</td>'
+        + '<td data-label="Precio/kg">' + precioTd + '</td>'
+        + '<td data-label="Total">' + totalTd + '</td>'
+        + '<td data-label="Estado">' + liqBadge + '</td>'
+        + '<td data-label="Comprobante">' + accionTd + '</td>'
+        + '<td data-label="Detalle">' + detBtn + '</td>'
+        + '</tr>';
+}
+
+function _renderHistorialRows(tbody, datos, pagina) {
+    pagina = pagina || 1;
+    _histPaginaActual = pagina;
+    var total = datos.length;
+    var totalPags = Math.ceil(total / HIST_POR_PAGINA);
+    var desde = (pagina - 1) * HIST_POR_PAGINA;
+    var hasta = Math.min(desde + HIST_POR_PAGINA, total);
+    var slice = datos.slice(desde, hasta);
+
+    tbody.innerHTML = slice.map(function(e, i) {
+        return _buildHistorialRow(e, desde + i);
+    }).join('');
+
+    _renderPaginacionHistorial(totalPags, pagina);
+}
+
+function _renderPaginacionHistorial(totalPags, paginaActual) {
+    var cont = document.getElementById('hist-pagination');
+    if (!cont) return;
+    if (totalPags <= 1) { cont.innerHTML = ''; return; }
+
+    var html = '<div class="hist-pag-inner">';
+
+    // Botón anterior
+    html += '<button class="hist-pag-btn" onclick="hist_irPagina(' + (paginaActual - 1) + ')"'
+        + (paginaActual === 1 ? ' disabled' : '') + '>'
+        + '<i class="fi fi-rr-angle-left"></i></button>';
+
+    // Números de página con elipsis
+    var rango = [];
+    for (var i = 1; i <= totalPags; i++) {
+        if (i === 1 || i === totalPags || (i >= paginaActual - 1 && i <= paginaActual + 1)) {
+            rango.push(i);
+        } else if (rango[rango.length - 1] !== '...') {
+            rango.push('...');
+        }
+    }
+
+    rango.forEach(function(p) {
+        if (p === '...') {
+            html += '<span class="hist-pag-dots">…</span>';
+        } else {
+            html += '<button class="hist-pag-btn hist-pag-num' + (p === paginaActual ? ' active' : '') + '"'
+                + ' onclick="hist_irPagina(' + p + ')">' + p + '</button>';
+        }
+    });
+
+    // Botón siguiente
+    html += '<button class="hist-pag-btn" onclick="hist_irPagina(' + (paginaActual + 1) + ')"'
+        + (paginaActual === totalPags ? ' disabled' : '') + '>'
+        + '<i class="fi fi-rr-angle-right"></i></button>';
+
+    html += '<span class="hist-pag-info">Pág. ' + paginaActual + ' / ' + totalPags + '</span>';
+    html += '</div>';
+    cont.innerHTML = html;
+}
+
+function hist_irPagina(p) {
+    var totalPags = Math.ceil(_historial.length / HIST_POR_PAGINA);
+    if (p < 1 || p > totalPags) return;
+    var tbody = document.getElementById('hist_tbody');
+    if (!tbody) return;
+    _renderHistorialRows(tbody, _historial, p);
+    // scroll suave al inicio de la tabla
+    var card = document.getElementById('hist-pagination');
+    if (card) card.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ── Filtros por mes / año ──────────────────────────────
@@ -812,7 +864,15 @@ function prd_det_abrir(idx) {
     };
 
     document.getElementById('prd_det_info').innerHTML =
-        infoCard('Productor', (window._perfil && _perfil.nombre ? _perfil.nombre + ' ' + (_perfil.apellido || '') : 'Mi entrega').trim())
+        infoCard('Productor', (function() {
+            if (window._perfil && _perfil.nombre)
+                return (_perfil.nombre + ' ' + (_perfil.apellido || '')).trim();
+            try {
+                var u = JSON.parse(localStorage.getItem('cache_perfil_productor') || localStorage.getItem('usuario') || 'null');
+                if (u && u.nombre) return (u.nombre + ' ' + (u.apellido || '')).trim();
+            } catch(ex) {}
+            return e.nombre_productor || e.productor || 'Productor';
+        })())
         + infoCard('Fecha', fmtFechaL(e.fecha))
         + infoCard('Estado', '<span style="background:' + estadoBg + ';color:' + estadoColor + ';border-radius:99px;padding:2px 10px;font-size:.78rem;font-weight:700">' + estadoLabel + '</span>')
         + infoCard('Total', '<span style="color:#16a34a;font-size:1.05rem">' + fmt(e.total) + '</span>');
