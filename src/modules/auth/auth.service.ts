@@ -10,6 +10,51 @@ import { Repository } from 'typeorm';
 import { Productor } from '../productor/productores.entity';
 import * as QRCode from 'qrcode';
 
+// ── Control de intentos fallidos de login ─────────────────────────────────────
+// Clave: `${email}:${asociacionId}` → { intentos, bloqueadoHasta }
+// Se guarda en memoria; se limpia automáticamente al desbloquear.
+// Si el proceso reinicia, los contadores se resetean (comportamiento aceptable).
+
+const MAX_INTENTOS = 5;
+const BLOQUEO_MS   = 15 * 60 * 1000; // 15 minutos
+
+interface EntradaIntentos {
+  intentos: number;
+  bloqueadoHasta: number | null; // timestamp ms, o null si no está bloqueado
+}
+
+const _intentosFallidos = new Map<string, EntradaIntentos>();
+
+function _claveIntentos(email: string, asociacionId: number): string {
+  return `${email.toLowerCase()}:${asociacionId}`;
+}
+
+function _obtenerEntrada(clave: string): EntradaIntentos {
+  return _intentosFallidos.get(clave) ?? { intentos: 0, bloqueadoHasta: null };
+}
+
+function _registrarFallo(clave: string): EntradaIntentos {
+  const entrada = _obtenerEntrada(clave);
+  const nuevosIntentos = entrada.intentos + 1;
+
+  const actualizada: EntradaIntentos = {
+    intentos: nuevosIntentos,
+    bloqueadoHasta:
+      nuevosIntentos >= MAX_INTENTOS
+        ? Date.now() + BLOQUEO_MS
+        : null,
+  };
+
+  _intentosFallidos.set(clave, actualizada);
+  return actualizada;
+}
+
+function _limpiarIntentos(clave: string): void {
+  _intentosFallidos.delete(clave);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -78,24 +123,54 @@ export class AuthService {
     asociacionId: number,
   ): Promise<{ usuario: Omit<Usuario, 'password'>; token: string }> {
     const { email, password } = loginDto;
+    const clave = _claveIntentos(email, asociacionId);
+    const entrada = _obtenerEntrada(clave);
 
+    // ── Verificar si está bloqueado ────────────────────────────────────────
+    if (entrada.bloqueadoHasta !== null) {
+      const ahora = Date.now();
+      if (ahora < entrada.bloqueadoHasta) {
+        const horaDesbloqueo = new Date(entrada.bloqueadoHasta).toLocaleTimeString(
+          'es-CO',
+          { hour: '2-digit', minute: '2-digit', hour12: true },
+        );
+        throw new BadRequestException(
+          `Cuenta bloqueada hasta las ${horaDesbloqueo} por demasiados intentos fallidos.`,
+        );
+      } else {
+        // El bloqueo expiró — limpiar
+        _limpiarIntentos(clave);
+      }
+    }
+
+    // ── Buscar usuario ─────────────────────────────────────────────────────
     const usuario = await this.usersService.buscarPorEmailYAsociacion(
       email,
       asociacionId,
     );
 
     if (!usuario) {
-      throw new BadRequestException('Email o contraseña incorrectos');
+      const actualizada = _registrarFallo(clave);
+      throw new BadRequestException(
+        _mensajeCredencialesInvalidas(actualizada),
+      );
     }
 
+    // ── Verificar contraseña ───────────────────────────────────────────────
     const passwordValida = await this.usersService.verificarPassword(
       password,
       usuario.password,
     );
 
     if (!passwordValida) {
-      throw new BadRequestException('Email o contraseña incorrectos');
+      const actualizada = _registrarFallo(clave);
+      throw new BadRequestException(
+        _mensajeCredencialesInvalidas(actualizada),
+      );
     }
+
+    // ── Login exitoso — limpiar contador ──────────────────────────────────
+    _limpiarIntentos(clave);
 
     const token = this._firmarToken(usuario);
     const { password: _pwd, ...usuarioSinPassword } = usuario;
@@ -125,4 +200,28 @@ export class AuthService {
 
     return this.jwtService.sign(payload, { expiresIn });
   }
+}
+
+// ── Helpers privados del módulo ───────────────────────────────────────────────
+
+function _mensajeCredencialesInvalidas(entrada: EntradaIntentos): string {
+  const intentosRestantes = MAX_INTENTOS - entrada.intentos;
+
+  if (entrada.bloqueadoHasta !== null) {
+    // Recién se alcanzó el límite — incluir la hora de desbloqueo
+    const horaDesbloqueo = new Date(entrada.bloqueadoHasta).toLocaleTimeString(
+      'es-CO',
+      { hour: '2-digit', minute: '2-digit', hour12: true },
+    );
+    return `Cuenta bloqueada hasta las ${horaDesbloqueo} por demasiados intentos fallidos.`;
+  }
+
+  if (intentosRestantes <= 2) {
+    return (
+      `Correo o contraseña incorrectos. ` +
+      `Te quedan ${intentosRestantes} intento${intentosRestantes !== 1 ? 's' : ''}.`
+    );
+  }
+
+  return 'Correo o contraseña incorrectos.';
 }
