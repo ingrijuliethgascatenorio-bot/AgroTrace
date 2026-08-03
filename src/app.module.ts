@@ -35,7 +35,7 @@ import { AdminModule } from './modules/admin/Admin.module';
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
+      rootPath: join(__dirname, '..', 'public', 'frontend'),
       exclude: ['/api/{*path}'],
     }),
 
@@ -46,19 +46,26 @@ import { AdminModule } from './modules/admin/Admin.module';
 
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
+      host: process.env.DB_HOST,
       port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || '071121',
-      database: process.env.DB_NAME || 'AgroTrace',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false,
-      logging: process.env.NODE_ENV === 'development',
-      // FIX FECHAS: fuerza al driver pg a devolver campos 'date' como string
-      // 'YYYY-MM-DD' en lugar de new Date() en UTC, eliminando el desfase de -1 día
-      extra: { options: '-c TimeZone=America/Bogota' },
-    }),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
 
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+
+      synchronize: false,
+
+      logging: process.env.NODE_ENV === 'development',
+
+      ssl: {
+        rejectUnauthorized: false,
+      },
+
+      extra: {
+        options: '-c TimeZone=America/Bogota',
+      },
+    }),
     // ── Registrar TenantModule PRIMERO ──────────────────────
     TenantModule, // ← NUEVO: registra Asociacion entity y TenantMiddleware
 
