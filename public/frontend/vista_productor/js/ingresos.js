@@ -8,7 +8,7 @@ const ING = (() => {
 
   const _BASE_URL = window.location.hostname === 'localhost'
       ? 'http://localhost:3000'
-      : ' https://irregular-sycamore-qualified.ngrok-free.dev';
+      : 'https://agrotrace.julieth.site';
   const API = `${_BASE_URL}/api/productor-dashboard`;
 
   let _periodo  = 'mes';   // semana | mes | anio | todo

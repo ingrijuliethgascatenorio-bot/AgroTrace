@@ -2,7 +2,7 @@
 
 const _BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3000'
-    : 'https://irregular-sycamore-qualified.ngrok-free.dev';
+    : 'https://agrotrace.julieth.site';
 const API = `${_BASE_URL}/api`;
 
 // ── Si ya hay sesión activa al cargar el login → redirigir a la vista correcta ──
