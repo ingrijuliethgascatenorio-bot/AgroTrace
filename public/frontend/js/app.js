@@ -58,9 +58,7 @@ function fechaHoyColombia() {
 
 // app.js - AgroTrace
 // Detección automática de entorno: localhost → dev, cualquier otro host → producción/ngrok
-const _BASE_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:3000'
-    : 'https://agrotrace.julieth.site';
+const _BASE_URL = window.location.origin;
 const API_URL    = `${_BASE_URL}/api`;
 const STATIC_URL = _BASE_URL;
 

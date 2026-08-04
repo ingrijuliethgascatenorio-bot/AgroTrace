@@ -1,6 +1,4 @@
-const _BASE_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:3000'
-    : ' https://agrotrace.julieth.site';
+const _BASE_URL = window.location.origin;
 const API_BASE = `${_BASE_URL}/api`;
 
 // ── Guard: solo OPERARIO entra a vendedor.html ────────────────────────────────

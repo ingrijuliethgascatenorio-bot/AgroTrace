@@ -123,7 +123,20 @@ export class AuthService {
     asociacionId: number,
   ): Promise<{ usuario: Omit<Usuario, 'password'>; token: string }> {
     const { email, password } = loginDto;
-    const clave = _claveIntentos(email, asociacionId);
+
+    // ── Buscar usuario ─────────────────────────────────────────────────────
+    let usuario: Usuario | null = null;
+    if (asociacionId) {
+      usuario = await this.usersService.buscarPorEmailYAsociacion(
+        email,
+        asociacionId,
+      );
+    } else {
+      usuario = await this.usersService.buscarPorEmail(email);
+    }
+
+    const actualAsociacionId = usuario ? usuario.asociacion_id : (asociacionId || 0);
+    const clave = _claveIntentos(email, actualAsociacionId);
     const entrada = _obtenerEntrada(clave);
 
     // ── Verificar si está bloqueado ────────────────────────────────────────
@@ -142,12 +155,6 @@ export class AuthService {
         _limpiarIntentos(clave);
       }
     }
-
-    // ── Buscar usuario ─────────────────────────────────────────────────────
-    const usuario = await this.usersService.buscarPorEmailYAsociacion(
-      email,
-      asociacionId,
-    );
 
     if (!usuario) {
       const actualizada = _registrarFallo(clave);

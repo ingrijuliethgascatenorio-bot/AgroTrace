@@ -6,9 +6,7 @@
 
 const ING = (() => {
 
-  const _BASE_URL = window.location.hostname === 'localhost'
-      ? 'http://localhost:3000'
-      : 'https://agrotrace.julieth.site';
+  const _BASE_URL = window.location.origin;
   const API = `${_BASE_URL}/api/productor-dashboard`;
 
   let _periodo  = 'mes';   // semana | mes | anio | todo

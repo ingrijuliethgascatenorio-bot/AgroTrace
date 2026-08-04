@@ -13,7 +13,7 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 export const Tenant = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): number => {
     const request = ctx.switchToHttp().getRequest();
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    return (request as any).asociacionId as number;
+    // Retorna el asociacionId inyectado por el middleware, o cae en el asociacion_id del usuario autenticado si existe
+    return ((request as any).asociacionId || (request.user && (request.user as any).asociacion_id)) as number;
   },
 );

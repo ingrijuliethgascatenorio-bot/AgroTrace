@@ -8,7 +8,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="./css/login.css">
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" href="./iconos/icon-192.png">
 </head>
@@ -62,23 +62,25 @@
                     <input type="password" id="password" name="password" placeholder="••••••••" required>
                 </div>
 
-                <div id="login_error" style="display:none;background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:.85em;font-weight:600;margin-bottom:10px;"></div>
+                <div id="login_error"
+                    style="display:none;background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:.85em;font-weight:600;margin-bottom:10px;">
+                </div>
                 <button type="submit" class="btn-login">Ingresar</button>
             </form>
         </div>
     </div>
-<script src="js/auth-guard.js"></script>
-<script src="js/login.js"></script>
-<script src="./js/app-install.js"></script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
-        .then(() => console.log('[Login] Service Worker registrado'))
-        .catch(err => console.error('[Login] SW error:', err));
-    });
-  }
-</script>
+    <script src="js/auth-guard.js"></script>
+    <script src="js/login.js"></script>
+    <script src="./js/app-install.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/frontend/sw.js', { scope: '/frontend/' })
+                    .then(() => console.log('[Login] Service Worker registrado'))
+                    .catch(err => console.error('[Login] SW error:', err));
+            });
+        }
+    </script>
 </body>
 
 </html>

@@ -30,9 +30,15 @@ export class TenantMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const host = req.hostname; // ej: 'asoc1.agrotrace.com' o 'localhost'
+    const path = req.path;
 
-    // ── Modo desarrollo: sin subdominio → saltar ──────────────
+    // ── Excluir recursos estáticos (cualquier ruta que no empiece con /api) y /api/auth/login ──
+    if (!path.startsWith('/api') || path === '/api/auth/login') {
+      return next();
+    }
+
+    const host = req.hostname; // ej: 'asoc1.agrotrace.julieth.site' o 'localhost'
+
     // ── Modo desarrollo / ngrok ───────────────────────────────
     if (
       host === 'localhost' ||
@@ -50,14 +56,17 @@ export class TenantMiddleware implements NestMiddleware {
     }
 
     // ── Extraer subdominio ────────────────────────────────────
-    // 'asoc1.agrotrace.com' → partes = ['asoc1', 'agrotrace', 'com']
     const partes = host.split('.');
     if (partes.length < 3) {
-      throw new NotFoundException(
-        'Accede a través de tu subdominio: tuasociacion.agrotrace.com',
-      );
+      // No hay subdominio de tenant (ej. dominio de nivel superior directo), procedemos sin inyectar tenant
+      return next();
     }
     const subdominio = partes[0].toLowerCase();
+
+    // Si el subdominio es 'www' o 'agrotrace' (el host principal), omitimos la validación en el middleware
+    if (subdominio === 'www' || subdominio === 'agrotrace') {
+      return next();
+    }
 
     // ── Buscar asociación ─────────────────────────────────────
     const asociacion = await this.asociacionRepo.findOne({

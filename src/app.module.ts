@@ -34,10 +34,18 @@ import { AdminModule } from './modules/admin/Admin.module';
 
 @Module({
   imports: [
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public', 'frontend'),
-      exclude: ['/api/{*path}'],
-    }),
+    ServeStaticModule.forRoot(
+      {
+        rootPath: join(__dirname, '..', 'public', 'frontend'),
+        serveRoot: '/frontend',
+        exclude: ['/api/{*path}'],
+      },
+      {
+        rootPath: join(__dirname, '..', 'public', 'frontend'),
+        serveRoot: '/',
+        exclude: ['/api/{*path}', '/frontend/{*path}'],
+      },
+    ),
 
     ConfigModule.forRoot({
       isGlobal: true,
