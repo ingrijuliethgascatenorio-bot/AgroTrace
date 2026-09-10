@@ -48,8 +48,8 @@ export class RegisterDto {
   ubicacion?: string;
 
   @IsNotEmpty({ message: 'El tipo de usuario es requerido' })
-  @IsEnum(['ADMIN', 'VENDEDOR', 'PRODUCTOR'], {
-    message: 'El tipo_usuario debe ser ADMIN, VENDEDOR o PRODUCTOR',
+  @IsEnum(['ADMIN', 'OPERARIO', 'PRODUCTOR'], {
+    message: 'El tipo_usuario debe ser ADMIN, OPERARIO o PRODUCTOR',
   })
-  tipo_usuario: 'ADMIN' | 'VENDEDOR' | 'PRODUCTOR';
+  tipo_usuario: 'ADMIN' | 'OPERARIO' | 'PRODUCTOR';
 }
