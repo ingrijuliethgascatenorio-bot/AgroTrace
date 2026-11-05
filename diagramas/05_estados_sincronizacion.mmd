@@ -1,0 +1,29 @@
+---
+title: "Pakopi - Estados de una operación en el dispositivo (Módulos H e I)"
+---
+stateDiagram-v2
+    direction TB
+    state "Guardado local" as Local
+    state "Pendiente" as Pendiente
+    state "Sincronizando" as Sincronizando
+    state "Confirmado" as Confirmado
+    state "En conflicto" as Conflicto
+    state "Con error" as Error
+
+    [*] --> Local : Transacción local de la operación (RF-42)
+    Local --> Pendiente : Encolada con id estable (RF-44)
+    Pendiente --> Sincronizando : Hay conexión, se envía el lote
+    state respuesta <<choice>>
+    Sincronizando --> respuesta : Respuesta del servidor
+    respuesta --> Confirmado : [aceptada] Acuse persistido (RF-45)
+    respuesta --> Pendiente : [timeout o respuesta perdida] No es rechazo
+    respuesta --> Conflicto : [otro dispositivo modificó el registro]
+    respuesta --> Error : [rechazo de validación o permisos]
+    Conflicto --> Confirmado : Prevalece el cambio del responsable (RF-78)
+    Error --> Pendiente : Reintento manual tras corregir (RF-48)
+    Confirmado --> [*]
+
+    note right of Pendiente
+        Nunca se descarta automáticamente.
+        El respaldo no la marca como sincronizada (RF-49).
+    end note

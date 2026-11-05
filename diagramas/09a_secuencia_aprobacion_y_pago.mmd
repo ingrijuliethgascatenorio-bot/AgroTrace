@@ -1,0 +1,35 @@
+---
+title: "Pakopi - Secuencia de aprobación y registro de pago (Módulo C)"
+---
+sequenceDiagram
+    actor A as Administrador
+    actor PG as Pagador (admin u operario)
+    participant APP as App
+    participant API as API central
+    participant BD as PostgreSQL
+
+    A->>APP: Abrir jornada cerrada
+    APP->>API: Solicitar liquidación
+    API-->>APP: Desglose por productor: kg, flete/kg, comisión, descuento externo, neto
+    A->>APP: Aprobar liquidación
+    APP->>API: Aprobar (RF-63)
+    API->>BD: Versión definitiva, jornada APROBADA, auditoría
+
+    Note over PG,BD: Desde el sábado, con conexión
+    alt Pagar a todos (RF-83)
+        PG->>APP: "Pagar a todos"
+        APP-->>PG: Productores pendientes, cantidad y total
+        PG->>APP: Excluir si hace falta y confirmar
+    else Uno por uno
+        PG->>APP: Marcar "Pagado" en un productor
+    end
+    Note over PG,APP: Efectivo o Nequi de PROPLAB, según lo pedido en la compra
+    APP->>API: Registrar pagos (neto completo)
+    API->>API: Validar rol admin u operario, jornada APROBADA y que no esté ya pagado
+    alt Válido
+        API->>BD: Pagos registrados con quién pagó y fecha, compras PAGADAS
+        API-->>APP: Pagos registrados
+    else Ya pagado o inválido
+        API-->>APP: Rechazo: indica quién pagó y cuándo (RF-81)
+    end
+    Note over PG: Envía la constancia por WhatsApp, fuera de la app (obligatorio)

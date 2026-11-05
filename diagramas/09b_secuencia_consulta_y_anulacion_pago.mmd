@@ -1,0 +1,23 @@
+---
+title: "Pakopi - Secuencia de consulta y anulación de pago (Módulos C y G)"
+---
+sequenceDiagram
+    actor P as Productor
+    actor A as Administrador
+    participant APP as App
+    participant API as API central
+    participant BD as PostgreSQL
+
+    P->>APP: Consultar mis pagos (RF-76)
+    APP->>API: Pagos del productor autenticado
+    API->>BD: Filtrar solo los del productor
+    API-->>APP: Pagos propios con recibo y quién pagó
+    APP-->>P: Ver recibo de cada pago
+
+    Note over A,BD: Pago registrado por error
+    A->>APP: Anular pago con motivo
+    APP->>API: Anular (RF-66)
+    API->>API: Validar rol administrador
+    API->>BD: Pago ANULADO, compras vuelven a LIQUIDADA
+    API->>BD: Registrar auditoría (no se borra nada)
+    API-->>APP: Pago anulado

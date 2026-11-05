@@ -1,0 +1,42 @@
+---
+title: "Pakopi - Estados de la jornada (Módulos B, C y F)"
+---
+stateDiagram-v2
+    direction TB
+    state "Programada" as Programada
+    state "En curso" as EnCurso
+    state "Cerrada" as Cerrada
+    state "Aprobada" as Aprobada
+    state "Pagada" as Pagada
+
+    [*] --> Programada : Admin crea la jornada y asigna operario (RF-33)
+    Programada --> EnCurso : Operario inicia la jornada
+    EnCurso --> Cerrada : Operario registra flete y cierra (RF-19, RF-70)
+    state revisionCierre <<choice>>
+    state despuesAprobacion <<choice>>
+    Cerrada --> revisionCierre : Admin revisa la liquidación
+    revisionCierre --> Aprobada : [liquidación correcta] Admin aprueba (RF-63)
+    revisionCierre --> EnCurso : [hay que corregir] Admin rechaza el cierre o reabre con motivo (RF-63, RF-71)
+    Aprobada --> despuesAprobacion
+    despuesAprobacion --> Pagada : [todos los productores pagados] (RF-21)
+    despuesAprobacion --> EnCurso : [sin pagos y con motivo] Admin reabre (RF-71)
+    Pagada --> [*]
+
+    note left of EnCurso
+        Se registran, corrigen y anulan
+        compras (RF-13, RF-62).
+    end note
+    note right of Cerrada
+        Requiere flete registrado, operaciones
+        sincronizadas y sin conflictos.
+        Solo el admin corrige, con motivo.
+    end note
+    note right of Aprobada
+        Requiere todos los dispositivos
+        sincronizados. Habilita pagos del
+        administrador o del operario.
+    end note
+    note right of Pagada
+        Las compras pagadas no se corrigen
+        ni se anulan (RN-16).
+    end note

@@ -1,0 +1,148 @@
+---
+title: "Pakopi - Modelo entidad-relación: jornadas y compras (Módulos B, E y F)"
+---
+erDiagram
+    RUTA {
+        uuid id PK
+        varchar codigo UK
+        varchar nombre
+        text descripcion
+        boolean activa
+        timestamptz creado_en
+        timestamptz actualizado_en
+    }
+    RUTA_OPERARIO {
+        uuid ruta_id PK, FK
+        uuid usuario_id PK, FK
+        timestamptz asignado_en
+        timestamptz revocado_en
+    }
+    JORNADA {
+        uuid id PK
+        uuid ruta_id FK
+        date fecha
+        uuid responsable_id FK
+        varchar estado
+        numeric flete_total
+        timestamptz cerrada_en
+        uuid cerrada_por FK
+        timestamptz creado_en
+        timestamptz actualizado_en
+    }
+    JORNADA_DISPOSITIVO {
+        uuid jornada_id PK, FK
+        uuid dispositivo_id PK, FK
+        timestamptz unido_en
+        integer pendientes_reportados
+        timestamptz ultima_sincronizacion_en
+    }
+    COMPRA {
+        uuid id PK
+        uuid jornada_id FK
+        uuid productor_id FK
+        uuid beneficiario_productor_id FK
+        uuid producto_id FK
+        uuid precio_id FK
+        numeric precio_base_kg_snapshot
+        numeric peso_total_kg
+        varchar estado
+        varchar origen
+        uuid registrada_por FK
+        uuid dispositivo_id FK
+        timestamptz fecha_local
+        timestamptz recibida_en
+        timestamptz anulada_en
+        uuid anulada_por FK
+        text motivo_anulacion
+        timestamptz actualizado_en
+        varchar medio_pago_solicitado
+        uuid grupo_familiar_id FK
+        timestamptz modificada_en
+        uuid modificada_por FK
+    }
+    PESADA {
+        uuid id PK
+        uuid compra_id FK
+        smallint secuencia
+        numeric peso_kg
+        timestamptz registrada_en
+        boolean anulada
+    }
+    CORRECCION_PESADA {
+        uuid id PK
+        uuid pesada_id FK
+        numeric peso_anterior_kg
+        numeric peso_nuevo_kg
+        text motivo
+        uuid corregida_por FK
+        timestamptz corregida_en
+    }
+    PRODUCTO {
+        uuid id PK
+        varchar codigo UK
+        varchar nombre
+        text descripcion
+        varchar unidad_medida
+        boolean activo
+        timestamptz creado_en
+        timestamptz actualizado_en
+    }
+    PRECIO {
+        uuid id PK
+        uuid producto_id FK
+        numeric precio_base_kg
+        timestamptz vigente_desde
+        timestamptz vigente_hasta
+        varchar motivo
+        uuid creado_por FK
+        timestamptz creado_en
+    }
+    PRODUCTOR {
+        uuid id PK
+        uuid usuario_id FK, UK
+        varchar tipo
+        varchar nombres
+        varchar apellidos
+        text nombre_normalizado
+        varchar tipo_documento
+        varchar documento UK
+        varchar telefono
+        varchar municipio
+        varchar vereda
+        varchar finca
+        varchar numero_nequi
+        varchar estado
+        timestamptz creado_en
+        timestamptz actualizado_en
+        boolean pendiente_validacion
+        timestamptz autorizacion_datos_en
+        uuid autorizacion_datos_por FK
+        uuid unido_a_id FK
+    }
+    DISPOSITIVO {
+        uuid id PK
+    }
+    GRUPO_FAMILIAR {
+        uuid id PK
+    }
+    USUARIO {
+        uuid id PK
+    }
+    PRODUCTOR ||--o{ COMPRA : "beneficiario_productor_id"
+    DISPOSITIVO |o--o{ COMPRA : "dispositivo_id"
+    GRUPO_FAMILIAR |o--o{ COMPRA : "grupo_familiar_id"
+    JORNADA |o--o{ COMPRA : "jornada_id"
+    PRECIO |o--o{ COMPRA : "precio_id"
+    PRODUCTO ||--o{ COMPRA : "producto_id"
+    PRODUCTOR ||--o{ COMPRA : "productor_id"
+    PESADA ||--o{ CORRECCION_PESADA : "pesada_id"
+    USUARIO ||--o{ JORNADA : "responsable_id"
+    RUTA ||--o{ JORNADA : "ruta_id"
+    DISPOSITIVO ||--o{ JORNADA_DISPOSITIVO : "dispositivo_id"
+    JORNADA ||--o{ JORNADA_DISPOSITIVO : "jornada_id"
+    COMPRA ||--o{ PESADA : "compra_id"
+    PRODUCTO ||--o{ PRECIO : "producto_id"
+    PRODUCTOR |o--o{ PRODUCTOR : "unido_a_id"
+    USUARIO |o--o| PRODUCTOR : "usuario_id"
+    RUTA ||--o{ RUTA_OPERARIO : "ruta_id"
+    USUARIO ||--o{ RUTA_OPERARIO : "usuario_id"

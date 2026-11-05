@@ -1,0 +1,86 @@
+---
+title: "Pakopi - Modelo entidad-relación: usuarios, roles y grupos familiares (Módulos A y D)"
+---
+erDiagram
+    USUARIO {
+        uuid id PK
+        varchar nombres
+        varchar apellidos
+        varchar documento UK
+        varchar email UK
+        varchar telefono
+        boolean telefono_verificado
+        varchar password_hash
+        integer version_token
+        boolean debe_cambiar_password
+        timestamptz password_temporal_expira
+        smallint intentos_fallidos
+        timestamptz bloqueado_hasta
+        boolean activo
+        timestamptz creado_en
+        timestamptz actualizado_en
+    }
+    ROL {
+        varchar codigo PK
+        varchar nombre
+        text descripcion
+    }
+    USUARIO_ROL {
+        uuid usuario_id PK, FK
+        varchar rol_codigo PK, FK
+        timestamptz asignado_en
+        uuid asignado_por FK
+        timestamptz revocado_en
+    }
+    GRUPO_FAMILIAR {
+        uuid id PK
+        varchar nombre
+        varchar modalidad_preferida
+        uuid creado_por FK
+        timestamptz creado_en
+        timestamptz actualizado_en
+    }
+    GRUPO_INTEGRANTE {
+        uuid id PK
+        uuid grupo_id FK
+        uuid productor_id FK
+        timestamptz desde
+        timestamptz hasta
+        uuid agregado_por FK
+        uuid retirado_por FK
+    }
+    GRUPO_REPRESENTANTE {
+        uuid id PK
+        uuid grupo_id FK
+        uuid productor_id FK
+        timestamptz desde
+        timestamptz hasta
+        uuid designado_por FK
+    }
+    GRUPO_MODALIDAD_JORNADA {
+        uuid id PK
+        uuid grupo_id FK
+        uuid jornada_id FK
+        varchar modalidad
+        uuid beneficiario_productor_id FK
+        uuid autorizado_por_productor_id FK
+        varchar medio_pago
+        uuid elegido_por FK
+        timestamptz elegido_en
+    }
+    JORNADA {
+        uuid id PK
+    }
+    PRODUCTOR {
+        uuid id PK
+    }
+    GRUPO_FAMILIAR ||--o{ GRUPO_INTEGRANTE : "grupo_id"
+    PRODUCTOR ||--o{ GRUPO_INTEGRANTE : "productor_id"
+    PRODUCTOR ||--o{ GRUPO_MODALIDAD_JORNADA : "autorizado_por_productor_id"
+    PRODUCTOR |o--o{ GRUPO_MODALIDAD_JORNADA : "beneficiario_productor_id"
+    GRUPO_FAMILIAR ||--o{ GRUPO_MODALIDAD_JORNADA : "grupo_id"
+    JORNADA ||--o{ GRUPO_MODALIDAD_JORNADA : "jornada_id"
+    GRUPO_FAMILIAR ||--o{ GRUPO_REPRESENTANTE : "grupo_id"
+    PRODUCTOR ||--o{ GRUPO_REPRESENTANTE : "productor_id"
+    ROL ||--o{ USUARIO_ROL : "rol_codigo"
+    USUARIO ||--o{ USUARIO_ROL : "usuario_id"

@@ -1,0 +1,25 @@
+---
+title: "Pakopi - Secuencia de reintento y descarga de catálogo (Módulo H)"
+---
+sequenceDiagram
+    participant APP as App Android
+    participant BDL as BD local
+    participant API as API central
+
+    APP->>API: Enviar lote de pendientes
+    API--xAPP: La respuesta se pierde (timeout)
+    APP->>BDL: Mantener pendientes: no es rechazo ni confirmación (RF-45)
+    Note over APP,API: Más tarde, con conexión
+    APP->>API: Reenviar con los mismos ids
+    API-->>APP: Mismo resultado para los ya aplicados, sin duplicar
+
+    APP->>API: Descargar catálogo (RF-77)
+    API-->>APP: Productores, precios, grupos y jornadas asignadas
+    alt Descarga completa
+        APP->>BDL: Reemplazar catálogo y guardar fecha de descarga
+    else Descarga interrumpida
+        APP->>BDL: Conservar el catálogo anterior completo
+    end
+    opt Catálogo con más de 3 días
+        APP-->>APP: Advertir antes de registrar compras
+    end

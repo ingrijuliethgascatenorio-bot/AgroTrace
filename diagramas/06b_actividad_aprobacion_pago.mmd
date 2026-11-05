@@ -1,0 +1,35 @@
+---
+title: "Pakopi - Actividades de aprobación y pago (Módulo C)"
+---
+flowchart TD
+    INI(["Jornada CERRADA (jueves)"])
+    VUELVE(["Jornada vuelve a EN CURSO"])
+    FIN((Fin))
+
+    subgraph ADM["Administrador"]
+        A2["Revisar liquidación:<br/>kg, flete/kg, comisión, neto"]
+        D3{"¿Liquidación<br/>correcta?"}
+        A3["Corregir con motivo"]
+        A4["Aprobar liquidación"]
+        A8["Jornada PAGADA"]
+    end
+
+    subgraph PAG["Administrador u operario (desde el sábado, con conexión)"]
+        D7{"¿Cómo<br/>pagar?"}
+        T1["Pagar a todos: revisar<br/>cantidad y total, excluir"]
+        U1["Elegir un productor"]
+        A6["Entregar efectivo o transferir<br/>desde el Nequi de PROPLAB<br/>(medio pedido en la compra)"]
+        A7["Marcar como pagado<br/>(neto completo)"]
+        A12["Enviar constancia por WhatsApp<br/>(obligatorio, fuera de la app)"]
+        D5{"¿Quedan<br/>pendientes?"}
+    end
+
+    INI --> A2 --> D3
+    D3 -->|"No, error puntual"| A3 --> A2
+    D3 -->|"No, rechaza cierre"| VUELVE
+    D3 -->|Sí| A4 --> D7
+    D7 -->|"Todos"| T1 --> A6
+    D7 -->|"Uno por uno"| U1 --> A6
+    A6 --> A7 --> A12 --> D5
+    D5 -->|Sí| D7
+    D5 -->|No| A8 --> FIN

@@ -1,0 +1,192 @@
+---
+title: "Pakopi - Modelo entidad-relación: ventas, sincronización y auditoría (Módulos F, H, I y J)"
+---
+erDiagram
+    COMERCIANTE {
+        uuid id PK
+        varchar nombre
+        varchar documento UK
+        varchar telefono
+        varchar email
+        varchar direccion
+        boolean activo
+        timestamptz creado_en
+        timestamptz actualizado_en
+        boolean precio_especial
+    }
+    VENTA {
+        uuid id PK
+        uuid comerciante_id FK
+        timestamptz fecha_venta
+        varchar numero_factura UK
+        numeric total
+        varchar estado
+        varchar origen
+        uuid registrada_por FK
+        uuid dispositivo_id FK
+        timestamptz recibida_en
+        timestamptz anulada_en
+        text motivo_anulacion
+        varchar condicion
+        varchar tipo
+        integer consecutivo UK
+    }
+    VENTA_LINEA {
+        uuid id PK
+        uuid venta_id FK
+        uuid producto_id FK
+        numeric cantidad_kg
+        numeric precio_kg
+        numeric importe
+    }
+    VENTA_LINEA_JORNADA {
+        uuid id PK
+        uuid venta_linea_id FK
+        uuid jornada_id FK
+        numeric cantidad_kg
+        numeric importe
+    }
+    ABONO {
+        uuid id PK
+        uuid venta_id FK
+        numeric monto
+        timestamptz fecha
+        varchar medio
+        varchar estado
+        uuid recibido_por FK
+        timestamptz registrado_en
+        timestamptz anulado_en
+        uuid anulado_por FK
+        text motivo_anulacion
+    }
+    PRECIO_VENTA {
+        uuid id PK
+        uuid producto_id FK
+        varchar tipo
+        numeric precio_kg
+        timestamptz vigente_desde
+        timestamptz vigente_hasta
+        varchar motivo
+        uuid creado_por FK
+        timestamptz creado_en
+    }
+    DISPOSITIVO {
+        uuid id PK
+        uuid usuario_id FK
+        varchar nombre
+        varchar modelo
+        varchar version_android
+        varchar version_app
+        timestamptz registrado_en
+        timestamptz ultimo_contacto
+        boolean activo
+        timestamptz perdido_en
+    }
+    OPERACION_SINCRONIZACION {
+        uuid id_operacion PK
+        uuid dispositivo_id FK
+        uuid usuario_id FK
+        varchar rol_activo FK
+        varchar tipo
+        varchar entidad
+        uuid entidad_id
+        varchar hash_carga
+        varchar resultado
+        jsonb respuesta
+        timestamptz fecha_local
+        timestamptz recibida_en
+    }
+    CONFLICTO_SINCRONIZACION {
+        uuid id PK
+        uuid jornada_id FK
+        varchar entidad
+        uuid entidad_id
+        varchar tipo_operacion
+        varchar resultado
+        uuid usuario_aplicado_id FK
+        uuid usuario_descartado_id FK
+        jsonb valores_descartados
+        varchar estado
+        timestamptz visto_aplicado_en
+        timestamptz visto_descartado_en
+        timestamptz creado_en
+        uuid resuelto_por FK
+        timestamptz resuelto_en
+        text nota_resolucion
+    }
+    OPERACION_RETENIDA {
+        uuid id PK
+        uuid id_operacion UK
+        uuid dispositivo_id FK
+        uuid usuario_id FK
+        varchar tipo
+        timestamptz fecha_local
+        jsonb datos
+        timestamptz recibida_en
+        varchar estado
+        uuid revisada_por FK
+        timestamptz revisada_en
+        text nota
+    }
+    AUTORIZACION_RESTAURACION {
+        uuid id PK
+        uuid usuario_id FK
+        varchar codigo_hash
+        uuid emitida_por FK
+        timestamptz emitida_en
+        timestamptz expira_en
+        timestamptz usada_en
+        uuid usada_dispositivo_id FK
+    }
+    AUDITORIA {
+        bigint id PK
+        uuid usuario_id FK
+        varchar rol_activo
+        uuid dispositivo_id
+        varchar accion
+        varchar entidad
+        uuid entidad_id
+        uuid id_operacion
+        jsonb valores_anteriores
+        jsonb valores_nuevos
+        text motivo
+        timestamptz fecha_local
+        timestamptz fecha_recepcion
+    }
+    CONFIGURACION {
+        varchar clave PK
+        jsonb valor
+        text descripcion
+        uuid actualizado_por FK
+        timestamptz actualizado_en
+    }
+    JORNADA {
+        uuid id PK
+    }
+    PRODUCTO {
+        uuid id PK
+    }
+    ROL {
+        varchar codigo PK
+    }
+    USUARIO {
+        uuid id PK
+    }
+    VENTA ||--o{ ABONO : "venta_id"
+    USUARIO |o--o{ AUDITORIA : "usuario_id"
+    DISPOSITIVO |o--o{ AUTORIZACION_RESTAURACION : "usada_dispositivo_id"
+    USUARIO ||--o{ AUTORIZACION_RESTAURACION : "usuario_id"
+    JORNADA ||--o{ CONFLICTO_SINCRONIZACION : "jornada_id"
+    USUARIO ||--o{ DISPOSITIVO : "usuario_id"
+    DISPOSITIVO ||--o{ OPERACION_RETENIDA : "dispositivo_id"
+    USUARIO ||--o{ OPERACION_RETENIDA : "usuario_id"
+    DISPOSITIVO ||--o{ OPERACION_SINCRONIZACION : "dispositivo_id"
+    ROL ||--o{ OPERACION_SINCRONIZACION : "rol_activo"
+    USUARIO ||--o{ OPERACION_SINCRONIZACION : "usuario_id"
+    PRODUCTO ||--o{ PRECIO_VENTA : "producto_id"
+    COMERCIANTE |o--o{ VENTA : "comerciante_id"
+    DISPOSITIVO |o--o{ VENTA : "dispositivo_id"
+    PRODUCTO ||--o{ VENTA_LINEA : "producto_id"
+    VENTA ||--o{ VENTA_LINEA : "venta_id"
+    JORNADA ||--o{ VENTA_LINEA_JORNADA : "jornada_id"
+    VENTA_LINEA ||--o{ VENTA_LINEA_JORNADA : "venta_linea_id"

@@ -1,0 +1,53 @@
+---
+title: "Pakopi - Clases de liquidación y pagos (Módulo C)"
+---
+classDiagram
+    direction TB
+
+    class Jornada
+    class Compra
+    class Productor
+    class Liquidacion {
+        +id
+        +version
+        +vigente : bool
+        +fletePorKg
+        +porcentajeComision
+        +fechaAprobacion
+    }
+    class LineaLiquidacion {
+        +bruto
+        +flete
+        +comision
+        +descuentoExterno
+        +neto
+    }
+    class Usuario
+    class Pago {
+        +id : UUID
+        +importe
+        +medio : MedioPago
+        +rolPagador
+        +fecha
+        +estado : EstadoPago
+        +motivoAnulacion
+    }
+    class MedioPago {
+        <<enumeration>>
+        EFECTIVO
+        NEQUI
+    }
+    class EstadoPago {
+        <<enumeration>>
+        REGISTRADO
+        ANULADO
+    }
+
+    Jornada "1" -- "0..*" Liquidacion : versiones
+    Liquidacion "1" *-- "1..*" LineaLiquidacion
+    LineaLiquidacion "0..*" --> "1" Compra
+    Pago "0..*" --> "1..*" LineaLiquidacion : cubre
+    Pago "0..*" --> "1" Productor : beneficiario
+    Pago "0..*" --> "1" Usuario : pagadoPor
+    Pago ..> MedioPago
+    Pago ..> EstadoPago

@@ -1,0 +1,48 @@
+---
+title: "Pakopi - Contexto y despliegue (todos los módulos)"
+---
+flowchart TB
+    ADM(["Administrador"])
+    OPE(["Operario"])
+    PRO(["Productor"])
+    COM(["Comerciante"])
+    NEQ[["Nequi de PROPLAB<br/>(externo, transferencia manual)"]]
+    WA[["WhatsApp<br/>(externo)"]]
+
+    subgraph CEL["Dispositivo Android (campo)"]
+        direction TB
+        APP["App Pakopi<br/>(APK)"]
+        BDL[("BD local cifrada<br/>RNF-16")]
+        COLA[("Cola de sincronización<br/>id estable por operación")]
+        RESP[/"Respaldo cifrado<br/>RF-49, RF-79"/]
+        CAM["Cámara<br/>lectura de QR"]
+        MEM[/"Memoria externa<br/>microSD o USB, RF-99"/]
+        APP --- BDL
+        APP --- COLA
+        APP --- CAM
+        APP --> RESP
+        RESP --> MEM
+    end
+
+    subgraph SRV["Servidor central"]
+        direction TB
+        API["API central<br/>autenticación, permisos,<br/>sincronización, liquidación definitiva"]
+        PG[("PostgreSQL")]
+        ARCH[("Almacén de<br/>comprobantes")]
+        AUD[("Registro de auditoría")]
+        API --> PG
+        API --> ARCH
+        API --> AUD
+    end
+
+    OPE --> APP
+    PRO --> APP
+    ADM --> APP
+    APP <-->|"HTTPS: lotes con acuse por operación<br/>descarga de catálogos"| API
+    RESP -.->|"Compartir Android<br/>(WhatsApp, correo, USB)"| ADM
+    ADM -.->|"Transfiere el pago"| NEQ
+    OPE -.->|"Transfiere el pago"| NEQ
+    ADM -.->|"Constancia de pago obligatoria<br/>(fuera de la app)"| WA
+    OPE -.->|"Vale de compra o de venta<br/>enlace wa.me, RF-90, RF-93"| WA
+    WA -.-> PRO
+    WA -.-> COM

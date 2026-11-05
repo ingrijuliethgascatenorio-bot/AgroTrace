@@ -1,0 +1,215 @@
+---
+title: "Pakopi - Diagrama de clases del modelo de datos (todos los módulos)"
+---
+classDiagram
+    direction LR
+
+    class Usuario {
+        +id
+        +nombre
+        +documento
+        +telefono
+        +activo : bool
+        +debeCambiarContrasena : bool
+    }
+    class UsuarioRol {
+        +rol : Rol
+    }
+    class Productor {
+        +id : UUID
+        +tipo : TipoProductor
+        +tipoDocumento
+        +numeroDocumento
+        +nombres
+        +apellidos
+        +telefono
+        +municipio
+        +vereda
+        +finca
+        +codigoQR
+        +medioPagoPreferido : MedioPago
+        +numeroNequi
+        +validado : bool
+        +autorizacionDatosFecha
+        +estado
+    }
+    class GrupoFamiliar {
+        +id
+        +nombre
+        +modalidadPreferida : Modalidad
+    }
+    class MiembroGrupo {
+        +vigenteDesde
+        +vigenteHasta
+        +esRepresentante : bool
+    }
+    class ModalidadJornada {
+        +modalidad : Modalidad
+        +elegidaPor
+        +fecha
+    }
+    class Producto {
+        +id
+        +nombre
+    }
+    class Precio {
+        +precioBaseKg
+        +vigenteDesde
+    }
+    class Ruta {
+        +id
+        +codigo
+        +nombre
+    }
+    class Jornada {
+        +id
+        +fecha
+        +estado : EstadoJornada
+        +flete
+    }
+    class Dispositivo {
+        +id
+        +descripcion
+    }
+    class Compra {
+        +id : UUID
+        +fecha
+        +precioBaseSnapshot
+        +medioPagoSolicitado : MedioPago
+        +estado : EstadoCompra
+        +totalKg()
+    }
+    class Pesada {
+        +id : UUID
+        +secuencia
+        +pesoKg
+        +fechaHora
+    }
+    class Liquidacion {
+        +id
+        +version
+        +vigente : bool
+        +fletePorKg
+        +porcentajeComision
+        +fechaAprobacion
+    }
+    class LineaLiquidacion {
+        +bruto
+        +flete
+        +comision
+        +descuentoExterno
+        +neto
+    }
+    class Pago {
+        +id : UUID
+        +importe
+        +medio : MedioPago
+        +rolPagador
+        +fecha
+        +estado
+        +motivoAnulacion
+    }
+    class Comerciante {
+        +id
+        +nombre
+        +documento
+    }
+    class Venta {
+        +id : UUID
+        +fecha
+        +tipo : TipoVenta
+        +estado
+        +saldoPendiente()
+    }
+    class LineaVenta {
+        +kg
+        +precio
+        +importe
+    }
+    class AsignacionJornada {
+        +kg
+        +importe
+    }
+    class Abono {
+        +id : UUID
+        +importe
+        +fecha
+        +medio : MedioPago
+    }
+    class OperacionSync {
+        +id : UUID
+        +entidad
+        +estado : EstadoSync
+        +fechaLocal
+        +fechaRecepcion
+    }
+    class RegistroAuditoria {
+        +id
+        +rol
+        +entidad
+        +idOperacion
+        +fechaLocal
+        +fechaRecepcion
+        +valorAnterior
+        +valorNuevo
+        +motivo
+    }
+
+    class Rol {
+        <<enumeration>>
+        ADMINISTRADOR
+        OPERARIO
+        PRODUCTOR
+    }
+    class TipoProductor {
+        <<enumeration>>
+        AFILIADO
+        EXTERNO
+    }
+    class EstadoJornada {
+        <<enumeration>>
+        PROGRAMADA
+        EN_CURSO
+        CERRADA
+        APROBADA
+        PAGADA
+    }
+    class MedioPago {
+        <<enumeration>>
+        EFECTIVO
+        NEQUI
+    }
+    class TipoVenta {
+        <<enumeration>>
+        CONTADO
+        CREDITO
+    }
+
+    Usuario "1" *-- "1..*" UsuarioRol : roles
+    Usuario "0..1" -- "0..1" Productor : cuenta opcional
+    Productor "1" -- "0..*" MiembroGrupo
+    GrupoFamiliar "1" *-- "1..*" MiembroGrupo
+    GrupoFamiliar "1" -- "0..*" ModalidadJornada
+    Jornada "1" -- "0..*" ModalidadJornada
+    Producto "1" *-- "1..*" Precio : historial
+    Ruta "1" -- "0..*" Jornada
+    Jornada "0..*" --> "1" Usuario : responsable
+    Jornada "0..*" -- "1..*" Dispositivo : participantes
+    Jornada "1" -- "0..*" Compra
+    Compra "0..*" --> "1" Productor
+    Compra "0..*" --> "1" Producto
+    Compra "1" *-- "1..*" Pesada
+    Jornada "1" -- "0..*" Liquidacion : versiones
+    Liquidacion "1" *-- "1..*" LineaLiquidacion
+    LineaLiquidacion "0..*" --> "1" Compra
+    Pago "0..*" --> "1..*" LineaLiquidacion : cubre
+    Pago "0..*" --> "1" Productor : beneficiario
+    Pago "0..*" --> "1" Usuario : pagadoPor
+    Comerciante "1" -- "0..*" Venta
+    Venta "1" *-- "1..*" LineaVenta
+    LineaVenta "1" *-- "1..*" AsignacionJornada
+    AsignacionJornada "0..*" --> "1" Jornada : origen
+    Venta "1" -- "0..*" Abono
+    OperacionSync "0..*" --> "1" Dispositivo
+    RegistroAuditoria "0..*" --> "1" Usuario
+    RegistroAuditoria "0..*" --> "0..1" Dispositivo

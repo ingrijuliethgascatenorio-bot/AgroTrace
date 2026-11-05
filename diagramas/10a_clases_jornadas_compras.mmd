@@ -1,0 +1,73 @@
+---
+title: "Pakopi - Clases de jornadas y compras (Módulos B, E y F)"
+---
+classDiagram
+    direction TB
+
+    class Ruta {
+        +id
+        +codigo
+        +nombre
+    }
+    class Jornada {
+        +id
+        +fecha
+        +estado : EstadoJornada
+        +flete
+    }
+    class Usuario {
+        +id
+        +nombre
+    }
+    class Dispositivo {
+        +id
+        +descripcion
+    }
+    class Producto {
+        +id
+        +nombre
+    }
+    class Precio {
+        +precioBaseKg
+        +vigenteDesde
+    }
+    class Productor {
+        +id : UUID
+        +tipo : TipoProductor
+        +tipoDocumento
+        +numeroDocumento
+        +nombres
+        +apellidos
+        +telefono
+        +municipio
+        +vereda
+        +finca
+        +codigoQR
+        +medioPagoPreferido : MedioPago
+        +numeroNequi
+        +validado : bool
+        +estado
+    }
+    class Compra {
+        +id : UUID
+        +fecha
+        +precioBaseSnapshot (del servidor)
+        +medioPagoSolicitado : MedioPago
+        +estado
+        +totalKg()
+    }
+    class Pesada {
+        +id : UUID
+        +secuencia
+        +pesoKg
+        +fechaHora
+    }
+
+    Ruta "1" -- "0..*" Jornada
+    Jornada "0..*" --> "1" Usuario : responsable
+    Jornada "0..*" -- "1..*" Dispositivo : participantes
+    Jornada "1" -- "0..*" Compra
+    Compra "0..*" --> "1" Productor
+    Compra "0..*" --> "1" Producto
+    Producto "1" *-- "1..*" Precio : historial
+    Compra "1" *-- "1..*" Pesada

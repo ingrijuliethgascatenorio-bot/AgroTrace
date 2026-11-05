@@ -1,0 +1,83 @@
+---
+title: "Pakopi - Modelo entidad-relación: liquidación y pagos (Módulo C)"
+---
+erDiagram
+    LIQUIDACION {
+        uuid id PK
+        uuid jornada_id FK
+        integer version
+        varchar estado
+        numeric total_kg
+        numeric flete_total
+        numeric flete_por_kg
+        numeric comision_porcentaje
+        varchar version_calculo
+        numeric total_bruto
+        numeric total_flete
+        numeric total_comision
+        numeric total_neto
+        uuid creada_por FK
+        timestamptz creada_en
+        timestamptz invalidada_en
+        text motivo_invalidacion
+        numeric descuento_externo_kg
+        numeric total_descuento
+    }
+    LIQUIDACION_DETALLE {
+        uuid id PK
+        uuid liquidacion_id FK
+        uuid compra_id FK
+        uuid productor_id FK
+        numeric peso_kg
+        numeric precio_base_kg
+        numeric flete_kg
+        numeric comision_kg
+        numeric neto_kg
+        numeric monto_bruto
+        numeric monto_flete
+        numeric monto_comision
+        numeric monto_neto
+        numeric descuento_kg
+        numeric monto_descuento
+    }
+    PAGO {
+        uuid id PK
+        uuid clave_idempotencia UK
+        uuid liquidacion_id FK
+        uuid beneficiario_productor_id FK
+        varchar modalidad
+        numeric monto
+        date fecha_pago
+        varchar medio
+        varchar referencia
+        varchar estado
+        uuid registrado_por FK
+        timestamptz registrado_en
+        timestamptz anulado_en
+        uuid anulado_por FK
+        text motivo_anulacion
+        varchar registrado_rol
+    }
+    PAGO_DETALLE {
+        uuid pago_id PK, FK
+        uuid liquidacion_detalle_id PK, FK
+        numeric monto
+        boolean activo
+    }
+    COMPRA {
+        uuid id PK
+    }
+    JORNADA {
+        uuid id PK
+    }
+    PRODUCTOR {
+        uuid id PK
+    }
+    JORNADA ||--o{ LIQUIDACION : "jornada_id"
+    COMPRA ||--o{ LIQUIDACION_DETALLE : "compra_id"
+    LIQUIDACION ||--o{ LIQUIDACION_DETALLE : "liquidacion_id"
+    PRODUCTOR ||--o{ LIQUIDACION_DETALLE : "productor_id"
+    PRODUCTOR ||--o{ PAGO : "beneficiario_productor_id"
+    LIQUIDACION ||--o{ PAGO : "liquidacion_id"
+    LIQUIDACION_DETALLE ||--o{ PAGO_DETALLE : "liquidacion_detalle_id"
+    PAGO ||--o{ PAGO_DETALLE : "pago_id"

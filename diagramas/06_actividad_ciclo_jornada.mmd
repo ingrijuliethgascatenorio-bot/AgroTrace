@@ -1,0 +1,50 @@
+---
+title: "Pakopi - Actividades del ciclo de una jornada (Módulos B, C, E, F y H)"
+---
+flowchart TD
+    INI((Inicio))
+    FIN((Fin))
+
+    subgraph ADM1["Administrador"]
+        A1["Crear ruta y jornada<br/>y asignar operario"]
+    end
+
+    subgraph OPE["Operario responsable"]
+        O1["Descargar catálogo<br/>(productores, precios, jornada)"]
+        O2["Iniciar jornada"]
+        O3["Buscar productor<br/>(QR, nombre o documento)"]
+        O4["Registrar compra<br/>y sus pesadas"]
+        D1{"¿Más<br/>productores?"}
+        O5["Registrar flete total"]
+        D2{"¿Todo sincronizado<br/>y sin conflictos?"}
+        O6["Sincronizar o<br/>resolver conflictos"]
+        O7["Cerrar jornada"]
+    end
+
+    subgraph ADM2["Administrador"]
+        A2["Revisar liquidación:<br/>kg, flete/kg, comisión, neto"]
+        D3{"¿Liquidación<br/>correcta?"}
+        A3["Corregir con motivo<br/>o rechazar cierre"]
+        A4["Aprobar liquidación"]
+        D4{"Medio de pago<br/>del productor"}
+        A5["Entregar efectivo<br/>(foto del recibo opcional)"]
+        A6["Transferir por Nequi y<br/>adjuntar comprobante + referencia"]
+        A7["Registrar pago"]
+        D5{"¿Quedan<br/>pagos?"}
+        A8["Jornada pagada"]
+    end
+
+    INI --> A1 --> O1 --> O2 --> O3 --> O4 --> D1
+    D1 -->|Sí| O3
+    D1 -->|No| O5 --> D2
+    D2 -->|No| O6 --> D2
+    D2 -->|Sí| O7 --> A2 --> D3
+    D3 -->|No| A3
+    A3 -->|"Corrige"| A2
+    A3 -->|"Rechaza cierre"| O3
+    D3 -->|Sí| A4 --> D4
+    D4 -->|Efectivo| A5 --> A7
+    D4 -->|Nequi| A6 --> A7
+    A7 --> D5
+    D5 -->|Sí| D4
+    D5 -->|No| A8 --> FIN

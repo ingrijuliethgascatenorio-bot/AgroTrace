@@ -1,0 +1,29 @@
+---
+title: "Pakopi - Ejecución y cierre de la jornada (Módulos B, E, F y H)"
+---
+flowchart TD
+    INI((Inicio))
+
+    subgraph ADM["Administrador"]
+        A1["Crear ruta y jornada<br/>y asignar operario"]
+    end
+
+    subgraph OPE["Operario responsable"]
+        O1["Descargar catálogo"]
+        O2["Iniciar jornada"]
+        O3["Buscar productor<br/>(QR, nombre o documento)"]
+        O4["Registrar compra<br/>y sus pesadas"]
+        D1{"¿Más<br/>productores?"}
+        O5["Registrar flete total"]
+        D2{"¿Sincronizado y<br/>sin conflictos?"}
+        O6["Sincronizar o<br/>resolver conflictos"]
+        O7["Cerrar jornada"]
+    end
+
+    FIN(["Jornada CERRADA:<br/>pasa a revisión del administrador"])
+
+    INI --> A1 --> O1 --> O2 --> O3 --> O4 --> D1
+    D1 -->|Sí| O3
+    D1 -->|No| O5 --> D2
+    D2 -->|No| O6 --> D2
+    D2 -->|Sí| O7 --> FIN

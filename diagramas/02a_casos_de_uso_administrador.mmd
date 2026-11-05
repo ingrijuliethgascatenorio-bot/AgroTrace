@@ -1,0 +1,56 @@
+---
+title: "Pakopi - Casos de uso del Administrador (Módulos A, B, C, D, E, F, G, I y J)"
+---
+flowchart LR
+    ADM(["Administrador"])
+
+    subgraph SIS["Sistema Pakopi"]
+        direction TB
+        subgraph A["Acceso y datos base"]
+            UC01(["UC01 Iniciar sesión"])
+            UC03(["UC03 Restablecer contraseña"])
+            UC04(["UC04 Crear cuentas"])
+            UC28(["UC28 Gestionar productores, productos y precios"])
+            UC40(["UC40 Definir precios de venta<br/>(general y especial)"])
+            UC45(["UC45 Definir precio base semanal"])
+            UC36(["UC36 Validar productores externos"])
+        end
+        subgraph J["Jornadas"]
+            UC05(["UC05 Crear ruta y jornada"])
+            UC10(["UC10 Corregir o anular compra"])
+            UC12(["UC12 Reabrir jornada"])
+        end
+        subgraph C["Liquidación y pagos"]
+            UC13(["UC13 Aprobar liquidación"])
+            UC14(["UC14 Marcar pagado / no pagado<br/>(con conexión)"])
+            UC35(["UC35 Pagar a todos los de la jornada"])
+            UC16(["UC16 Desmarcar pago con motivo"])
+            UC34(["UC34 Consultar estado de pagos"])
+            UC17(["UC17 Crear grupos familiares, retirar<br/>miembros y cambiar representante"])
+        end
+        subgraph V["Ventas"]
+            UC19(["UC19 Registrar venta"])
+            UC20(["UC20 Registrar abono"])
+            UC21(["UC21 Anular venta o venta rápida"])
+            UC41(["UC41 Consultar inventario<br/>y reporte de ventas rápidas"])
+            UC42(["UC42 Consultar y cerrar<br/>cuadre de jornada"])
+            UC43(["UC43 Gestionar sedes<br/>y registrar retenciones"])
+            UC46(["UC46 Enviar vale por WhatsApp"])
+        end
+        subgraph G["Consulta, respaldo y auditoría"]
+            UC22(["UC22 Consultar y exportar reportes"])
+            UC44(["UC44 Consultar resumen por periodo<br/>y crear flyer"])
+            UC26(["UC26 Crear respaldo"])
+            UC47(["UC47 Copiar respaldo<br/>a memoria externa"])
+            UC27(["UC27 Restaurar respaldo"])
+            UC29(["UC29 Consultar auditoría"])
+        end
+    end
+
+    ADM --- UC01 & UC03 & UC04 & UC28 & UC40 & UC45 & UC36
+    ADM --- UC05 & UC10 & UC12
+    ADM --- UC13 & UC14 & UC35 & UC16 & UC34 & UC17
+    ADM --- UC19 & UC20 & UC21 & UC41 & UC42 & UC43 & UC46
+    ADM --- UC22 & UC44 & UC26 & UC47 & UC27 & UC29
+
+    UC35 -.->|"«include» un pago por productor"| UC14

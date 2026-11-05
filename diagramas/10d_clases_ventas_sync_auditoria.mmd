@@ -1,0 +1,127 @@
+---
+title: "Pakopi - Clases de ventas, sincronización y auditoría (Módulos F, H y J)"
+---
+classDiagram
+    direction LR
+
+    class Comerciante {
+        +id
+        +nombre
+        +documento
+        +precioEspecial : bool
+    }
+    class Venta {
+        +id : UUID
+        +fecha
+        +tipo : TipoVenta
+        +esRapida : bool
+        +consecutivo
+        +estado
+        +saldoPendiente()
+    }
+    class LineaVenta {
+        +kg
+        +precio
+        +importe
+    }
+    class AsignacionJornada {
+        +kg
+        +importe
+    }
+    class Abono {
+        +id : UUID
+        +importe
+        +fecha
+        +medio
+        +retencion
+    }
+    class ComercianteSede {
+        +id
+        +nombre
+        +activa : bool
+    }
+    class CuadreJornada {
+        +kgComprados
+        +kgVendidos
+        +diferenciaKg
+        +valorDiferencia
+        +motivo
+        +fechaCierre
+    }
+    class ValeEnvio {
+        +id : UUID
+        +tipo : TipoVale
+        +version
+        +destinatario
+        +fechaEnvio
+    }
+    class Jornada
+    class Producto
+    class PrecioVenta {
+        +tipo : TipoPrecio
+        +precioKg
+        +vigenteDesde
+    }
+    class MovimientoInventario {
+        +kg
+        +tipo : TipoMovimiento
+        +origen
+        +fecha
+    }
+    class OperacionSync {
+        +id : UUID
+        +entidad
+        +estado
+        +fechaLocal
+        +fechaRecepcion
+    }
+    class Dispositivo
+    class Usuario
+    class RegistroAuditoria {
+        +rol
+        +entidad
+        +idOperacion
+        +fechaLocal
+        +fechaRecepcion
+        +valorAnterior
+        +valorNuevo
+        +motivo
+    }
+    class TipoVenta {
+        <<enumeration>>
+        CONTADO
+        CREDITO
+    }
+    class TipoPrecio {
+        <<enumeration>>
+        GENERAL
+        ESPECIAL
+    }
+    class TipoVale {
+        <<enumeration>>
+        COMPRA
+        VENTA
+    }
+    class TipoMovimiento {
+        <<enumeration>>
+        ENTRADA
+        SALIDA
+    }
+
+    Comerciante "0..1" -- "0..*" Venta : ninguno si es rápida
+    LineaVenta "0..*" --> "1" Producto
+    Producto "1" *-- "1..*" PrecioVenta : historial
+    Producto "1" -- "0..*" MovimientoInventario
+    Venta "1" *-- "1..*" LineaVenta
+    LineaVenta "1" *-- "1..*" AsignacionJornada
+    AsignacionJornada "0..*" --> "1" Jornada : origen
+    Venta "1" -- "0..*" Abono
+    Comerciante "1" *-- "0..*" ComercianteSede
+    ComercianteSede "0..1" -- "0..*" Venta
+    Jornada "1" -- "0..*" CuadreJornada
+    CuadreJornada "0..*" --> "1" Producto
+    Venta "1" -- "0..*" ValeEnvio
+    ValeEnvio ..> TipoVale
+    OperacionSync "0..*" --> "1" Dispositivo
+    RegistroAuditoria "0..*" --> "1" Usuario
+    RegistroAuditoria "0..*" --> "0..1" Dispositivo

@@ -1,0 +1,35 @@
+---
+title: "Pakopi - Secuencia de recuperación presencial de acceso (Módulo A)"
+---
+sequenceDiagram
+    actor U as Usuario
+    participant APP as App Android
+    actor A as Administrador
+    participant API as API central
+    participant BD as PostgreSQL
+
+    U->>APP: "¿Olvidó su contraseña?"
+    APP-->>U: Acudir al administrador con documento de identidad (funciona sin conexión)
+    U->>A: Presenta su documento
+    A->>A: Verifica la identidad
+    A->>API: Restablecer contraseña (usuario, tipo de documento verificado)
+    API->>API: Verificar que el solicitante tiene rol administrador
+    API->>BD: Guardar hash de contraseña temporal (un solo uso, vence en 24 h)
+    API->>BD: Registrar auditoría sin contraseñas
+    API-->>A: Contraseña temporal
+    A-->>U: Entrega la contraseña temporal
+
+    U->>APP: Ingresar con la contraseña temporal
+    APP->>API: Autenticar
+    alt Temporal vencida o ya usada
+        API-->>APP: Rechazo
+        APP-->>U: Debe solicitar un nuevo restablecimiento
+    else Temporal válida
+        API-->>APP: Requiere cambio de contraseña
+        APP-->>U: Solo muestra la pantalla de cambio
+        U->>APP: Nueva contraseña
+        APP->>API: Cambiar contraseña
+        API->>BD: Actualizar hash, invalidar la temporal y las sesiones de otros dispositivos
+        API-->>APP: OK
+        APP-->>U: Acceso normal, la cola local se conserva
+    end

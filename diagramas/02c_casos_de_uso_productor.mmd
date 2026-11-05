@@ -1,0 +1,22 @@
+---
+title: "Pakopi - Casos de uso del Productor (Módulos A, C, D, E y G)"
+---
+flowchart LR
+    PRO(["Productor"])
+    REP(["Representante<br/>de grupo familiar"])
+
+    subgraph SIS["Sistema Pakopi"]
+        direction TB
+        UC01(["UC01 Iniciar sesión"])
+        UC02(["UC02 Cambiar contexto de rol<br/>(si también es operario)"])
+        UC23(["UC23 Consultar mis compras y pagos"])
+        UC30(["UC30 Ver estado de mis pagos"])
+        UC31(["UC31 Mostrar mi código QR"])
+        UC18(["UC18 Elegir modalidad de liquidación"])
+        UC32(["UC32 Consultar consolidado familiar"])
+    end
+
+    PRO --- UC01 & UC02 & UC23 & UC31
+    REP --- UC18 & UC32
+    REP -->|"es un productor<br/>(generalización)"| PRO
+    UC23 -.->|"«extend»"| UC30

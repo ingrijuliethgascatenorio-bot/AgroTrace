@@ -1,0 +1,25 @@
+---
+title: "Pakopi - Secuencia de prevención de pago duplicado (Módulo C)"
+---
+sequenceDiagram
+    actor O as Operario
+    participant AO as App del operario
+    participant API as API central
+    participant BD as PostgreSQL
+    participant AA as App del admin
+    actor A as Administrador
+
+    Note over O,A: Sábado, ambos con conexión
+    O->>AO: Marcar "Pagado" a un productor
+    AO->>API: Registrar pago
+    API->>BD: ¿El productor ya tiene pago vigente?
+    BD-->>API: No
+    API->>BD: Pago registrado: operario, efectivo, fecha
+    API-->>AO: Pago registrado
+
+    A->>AA: Marcar "Pagado" al mismo productor
+    AA->>API: Registrar pago
+    API->>BD: ¿El productor ya tiene pago vigente?
+    BD-->>API: Sí, lo registró el operario
+    API-->>AA: Rechazo: ya pagado por el operario, con fecha y hora (RF-81)
+    AA-->>A: Muestra quién pagó y cuándo

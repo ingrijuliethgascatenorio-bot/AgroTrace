@@ -1,0 +1,38 @@
+---
+title: "Pakopi - Estados de la compra y del pago (Módulos B, C y F)"
+---
+stateDiagram-v2
+    direction TB
+    state "Compra" as Compra {
+        state "Registrada" as CReg
+        state "Anulada" as CAnu
+        state "Liquidada" as CLiq
+        state "Pagada" as CPag
+
+        [*] --> CReg : Operario registra compra y pesadas (RF-07, RF-08)
+        CReg --> CReg : Corrección con motivo (RF-13)
+        state decRegistrada <<choice>>
+        state decLiquidada <<choice>>
+        CReg --> decRegistrada
+        decRegistrada --> CAnu : [anulada con motivo] (RF-62)
+        decRegistrada --> CLiq : [jornada aprobada] (RF-63)
+        CLiq --> decLiquidada
+        decLiquidada --> CPag : [pago registrado] (RF-21)
+        decLiquidada --> CReg : [jornada reabierta] (RF-71)
+        CPag --> CLiq : Pago anulado por el admin (RF-66)
+        CAnu --> [*]
+        CPag --> [*]
+    }
+
+    state "Pago" as Pago {
+        state "Registrado" as PReg
+        state "Anulado" as PAnu
+        [*] --> PReg : Admin u operario marca pagado, con conexión y por el neto completo (RF-21)
+        PReg --> PAnu : Admin desmarca con motivo, nunca se borra (RF-66)
+        PAnu --> [*]
+    }
+
+    note right of CAnu
+        Se excluye de los totales pero
+        se conserva en histórico y auditoría (RN-13).
+    end note

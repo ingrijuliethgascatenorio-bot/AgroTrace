@@ -1,0 +1,83 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "fontSize": "16px",
+    "fontFamily": "Arial, Helvetica, sans-serif",
+    "background": "#ffffff",
+    "mainBkg": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "nodeBorder": "#000000",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "titleColor": "#000000",
+    "edgeLabelBackground": "#ffffff",
+    "clusterBkg": "#ffffff",
+    "clusterBorder": "#000000",
+    "noteBkgColor": "#f2f2f2",
+    "noteBorderColor": "#000000",
+    "noteTextColor": "#000000",
+    "actorBkg": "#ffffff",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "actorLineColor": "#000000",
+    "signalColor": "#000000",
+    "signalTextColor": "#000000",
+    "labelBoxBkgColor": "#ffffff",
+    "labelBoxBorderColor": "#000000",
+    "labelTextColor": "#000000",
+    "loopTextColor": "#000000",
+    "activationBkgColor": "#f2f2f2",
+    "activationBorderColor": "#000000",
+    "sequenceNumberColor": "#ffffff",
+    "stateBkg": "#ffffff",
+    "stateLabelColor": "#000000",
+    "nodeTextColor": "#000000",
+    "stateBorder": "#000000",
+    "transitionColor": "#000000",
+    "transitionLabelColor": "#000000",
+    "innerEndBackground": "#000000",
+    "specialStateColor": "#000000",
+    "compositeBackground": "#ffffff",
+    "compositeTitleBackground": "#ffffff",
+    "altBackground": "#ffffff",
+    "classText": "#000000",
+    "attributeBackgroundColorOdd": "#ffffff",
+    "attributeBackgroundColorEven": "#f5f5f5"
+  },
+  "flowchart": {
+    "curve": "linear",
+    "nodeSpacing": 25,
+    "rankSpacing": 35,
+    "padding": 6,
+    "wrappingWidth": 170
+  },
+  "state": {
+    "nodeSpacing": 30,
+    "rankSpacing": 30
+  },
+  "class": {
+    "curve": "linear"
+  },
+  "sequence": {
+    "wrap": true,
+    "width": 160,
+    "actorMargin": 40,
+    "wrapPadding": 12,
+    "boxMargin": 6,
+    "boxTextMargin": 4,
+    "noteMargin": 6,
+    "messageMargin": 40,
+    "diagramMarginX": 10,
+    "diagramMarginY": 10
+  },
+  "er": {
+    "layoutDirection": "TB",
+    "entityPadding": 10,
+    "minEntityWidth": 120,
+    "fontSize": 14
+  }
+}

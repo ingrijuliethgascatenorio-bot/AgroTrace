@@ -1,0 +1,64 @@
+---
+title: "Pakopi - Clases de usuarios, roles y grupos familiares (Módulos A y D)"
+---
+classDiagram
+    direction LR
+
+    class Usuario {
+        +id
+        +nombre
+        +documento
+        +telefono
+        +activo : bool
+        +debeCambiarContrasena : bool
+    }
+    class UsuarioRol {
+        +rol : Rol
+    }
+    class Productor {
+        +id
+        +tipo : TipoProductor
+        +autorizacionDatosFecha
+    }
+    class GrupoFamiliar {
+        +id
+        +nombre
+        +modalidadPreferida
+    }
+    class MiembroGrupo {
+        +vigenteDesde
+        +vigenteHasta
+        +esRepresentante : bool
+        +agregadoPor : Usuario
+        +estado : EstadoMiembro
+    }
+    class ModalidadJornada {
+        +modalidad
+        +elegidaPor
+        +fecha
+    }
+    class Jornada
+    class Rol {
+        <<enumeration>>
+        ADMINISTRADOR
+        OPERARIO
+        PRODUCTOR
+    }
+    class EstadoMiembro {
+        <<enumeration>>
+        PENDIENTE_SYNC
+        VIGENTE
+        RECHAZADO
+    }
+    class TipoProductor {
+        <<enumeration>>
+        AFILIADO
+        EXTERNO
+    }
+
+    Usuario "1" *-- "1..*" UsuarioRol : roles
+    Usuario "0..1" -- "0..1" Productor : cuenta opcional
+    Productor "1" -- "0..*" MiembroGrupo
+    GrupoFamiliar "1" *-- "1..*" MiembroGrupo
+    GrupoFamiliar "1" -- "0..*" ModalidadJornada
+    Jornada "1" -- "0..*" ModalidadJornada

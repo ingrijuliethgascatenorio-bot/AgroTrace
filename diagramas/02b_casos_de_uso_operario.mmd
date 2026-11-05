@@ -1,0 +1,59 @@
+---
+title: "Pakopi - Casos de uso del Operario (Módulos A a I)"
+---
+flowchart LR
+    OPE(["Operario"])
+    API(["API central<br/>(actor sistema)"])
+
+    subgraph SIS["Sistema Pakopi"]
+        direction TB
+        subgraph A["Acceso"]
+            UC01(["UC01 Iniciar sesión"])
+            UC02(["UC02 Cambiar contexto de rol"])
+        end
+        subgraph J["Jornada en campo"]
+            UC45(["UC45 Definir precio base semanal<br/>(con conexión)"])
+            UC06(["UC06 Iniciar jornada"])
+            UC07(["UC07 Buscar productor / leer QR"])
+            UC08(["UC08 Registrar compra"])
+            UC09(["UC09 Registrar pesadas<br/>y medio de pago solicitado"])
+            UC37(["UC37 Registrar externo rápido"])
+            UC10(["UC10 Corregir o anular compra"])
+            UC11(["UC11 Registrar flete y cerrar jornada"])
+            UC38(["UC38 Agregar miembro a grupo familiar<br/>(rutas asignadas, sin conexión)"])
+        end
+        subgraph P["Pagos a productores"]
+            UC14(["UC14 Marcar pagado / no pagado<br/>(con conexión)"])
+            UC35(["UC35 Pagar a todos los<br/>de la jornada"])
+            UC34(["UC34 Consultar estado de pagos<br/>de sus jornadas"])
+        end
+        subgraph V["Ventas"]
+            UC19(["UC19 Registrar venta"])
+            UC20(["UC20 Registrar abono"])
+            UC39(["UC39 Venta rápida desde el camión<br/>(contado, sin comprador)"])
+            UC46(["UC46 Enviar vale por WhatsApp<br/>(compra o venta)"])
+        end
+        subgraph S["Sincronización y respaldo"]
+            UC22(["UC22 Consultar reportes de sus jornadas<br/>(incluye ventas rápidas)"])
+            UC24(["UC24 Sincronizar operaciones"])
+            UC25(["UC25 Descargar catálogo"])
+            UC26(["UC26 Crear respaldo"])
+            UC47(["UC47 Copiar respaldo<br/>a memoria externa"])
+        end
+    end
+
+    OPE --- UC01 & UC02
+    OPE --- UC45 & UC06 & UC07 & UC08 & UC37 & UC10 & UC11 & UC38
+    OPE --- UC14 & UC35 & UC34
+    OPE --- UC19 & UC20 & UC39 & UC46
+    OPE --- UC22 & UC24 & UC25 & UC26 & UC47
+    UC24 --- API
+    UC25 --- API
+
+    UC08 -.->|"«include»"| UC09
+    UC08 -.->|"«include»"| UC07
+    UC10 -.->|"«extend» jornada en curso"| UC08
+    UC11 -.->|"«include»"| UC24
+    UC37 -.->|"«extend» si no está en el catálogo"| UC07
+    UC35 -.->|"«include»"| UC14
+    UC11 -.->|"«include» total de ventas rápidas"| UC39

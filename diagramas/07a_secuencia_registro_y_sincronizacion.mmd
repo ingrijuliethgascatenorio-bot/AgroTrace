@@ -1,0 +1,38 @@
+---
+title: "Pakopi - Secuencia de registro offline y sincronización (Módulo H)"
+---
+sequenceDiagram
+    actor O as Operario
+    participant APP as App Android
+    participant BDL as BD local
+    participant API as API central
+    participant PG as PostgreSQL
+
+    Note over O,BDL: Sin conexión
+    O->>APP: Registrar compra con pesadas
+    APP->>BDL: Transacción: compra + pesadas + operación en cola (id estable)
+    alt Espacio suficiente
+        BDL-->>APP: OK
+        APP-->>O: "Guardado local" (RF-42)
+    else Sin espacio
+        BDL-->>APP: Error
+        APP-->>O: Informa el problema, no confirma el guardado (RF-43)
+    end
+
+    Note over APP,PG: Regresa la conexión
+    APP->>API: Enviar lote de pendientes (en orden y con dependencias)
+    loop Por cada operación del lote
+        API->>API: Validar identidad, rol y alcance (RF-06)
+        alt Id ya aplicado
+            API-->>API: Mismo resultado, sin duplicar (RF-45)
+        else Operación nueva
+            API->>PG: Aplicar en transacción
+        else Conflicto con otro dispositivo
+            API->>PG: Prevalece el responsable, versión descartada a auditoría (RF-78)
+        else Rechazo
+            API-->>API: Marcar error con motivo
+        end
+    end
+    API-->>APP: Acuse individual por operación
+    APP->>BDL: Confirmar solo las aceptadas (RF-46)
+    APP-->>O: Estados: confirmado, en conflicto o con error (RF-47)
